@@ -1,0 +1,1508 @@
+{
+    "Header": {
+        "Time": "2024-04-18T07:18:38-07:00",
+        "ReportName": "ProfitAndLoss",
+        "ReportBasis": "Accrual",
+        "StartPeriod": "2024-03-01",
+        "EndPeriod": "2024-03-30",
+        "SummarizeColumnsBy": "Classes",
+        "Currency": "USD",
+        "Option": [
+            {
+                "Name": "AccountingStandard",
+                "Value": "GAAP"
+            },
+            {
+                "Name": "NoReportData",
+                "Value": "false"
+            }
+        ]
+    },
+    "Columns": {
+        "Column": [
+            {
+                "ColTitle": "",
+                "ColType": "Account",
+                "MetaData": [
+                    {
+                        "Name": "ColKey",
+                        "Value": "account"
+                    }
+                ]
+            },
+            {
+                "ColTitle": "Distribution",
+                "ColType": "Money",
+                "MetaData": [
+                    {
+                        "Name": "ColKey",
+                        "Value": "100000000001634765"
+                    }
+                ]
+            },
+            {
+                "ColTitle": "e-Commerce",
+                "ColType": "Money",
+                "MetaData": [
+                    {
+                        "Name": "ColKey",
+                        "Value": "100000000001634762"
+                    }
+                ]
+            },
+            {
+                "ColTitle": "Not Specified",
+                "ColType": "Money",
+                "MetaData": [
+                    {
+                        "Name": "ColKey",
+                        "Value": "not_specified"
+                    }
+                ]
+            },
+            {
+                "ColTitle": "TOTAL",
+                "ColType": "Money",
+                "MetaData": [
+                    {
+                        "Name": "ColKey",
+                        "Value": "total"
+                    }
+                ]
+            }
+        ]
+    },
+    "Rows": {
+        "Row": [
+            {
+                "Header": {
+                    "ColData": [
+                        {
+                            "value": "Income"
+                        },
+                        {
+                            "value": ""
+                        },
+                        {
+                            "value": ""
+                        },
+                        {
+                            "value": ""
+                        },
+                        {
+                            "value": ""
+                        }
+                    ]
+                },
+                "Rows": {
+                    "Row": [
+                        {
+                            "Header": {
+                                "ColData": [
+                                    {
+                                        "value": "4000 Sales of Product Income",
+                                        "id": "37"
+                                    },
+                                    {
+                                        "value": ""
+                                    },
+                                    {
+                                        "value": ""
+                                    },
+                                    {
+                                        "value": ""
+                                    },
+                                    {
+                                        "value": "0.00"
+                                    }
+                                ]
+                            },
+                            "Rows": {
+                                "Row": [
+                                    {
+                                        "ColData": [
+                                            {
+                                                "value": "4005 Sales",
+                                                "id": "1"
+                                            },
+                                            {
+                                                "value": "121596.58"
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": "121596.58"
+                                            }
+                                        ],
+                                        "type": "Data"
+                                    }
+                                ]
+                            },
+                            "Summary": {
+                                "ColData": [
+                                    {
+                                        "value": "Total 4000 Sales of Product Income"
+                                    },
+                                    {
+                                        "value": "121596.58"
+                                    },
+                                    {
+                                        "value": "0.00"
+                                    },
+                                    {
+                                        "value": "0.00"
+                                    },
+                                    {
+                                        "value": "121596.58"
+                                    }
+                                ]
+                            },
+                            "type": "Section"
+                        },
+                        {
+                            "Header": {
+                                "ColData": [
+                                    {
+                                        "value": "4500 Deductions",
+                                        "id": "121"
+                                    },
+                                    {
+                                        "value": ""
+                                    },
+                                    {
+                                        "value": ""
+                                    },
+                                    {
+                                        "value": ""
+                                    },
+                                    {
+                                        "value": "0.00"
+                                    }
+                                ]
+                            },
+                            "Rows": {
+                                "Row": [
+                                    {
+                                        "ColData": [
+                                            {
+                                                "value": "Chargebacks / MCBs",
+                                                "id": "124"
+                                            },
+                                            {
+                                                "value": "-483.64"
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": "-483.64"
+                                            }
+                                        ],
+                                        "type": "Data"
+                                    },
+                                    {
+                                        "ColData": [
+                                            {
+                                                "value": "Discounts",
+                                                "id": "122"
+                                            },
+                                            {
+                                                "value": "-44934.07"
+                                            },
+                                            {
+                                                "value": "-301.00"
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": "-45235.07"
+                                            }
+                                        ],
+                                        "type": "Data"
+                                    }
+                                ]
+                            },
+                            "Summary": {
+                                "ColData": [
+                                    {
+                                        "value": "Total 4500 Deductions"
+                                    },
+                                    {
+                                        "value": "-45417.71"
+                                    },
+                                    {
+                                        "value": "-301.00"
+                                    },
+                                    {
+                                        "value": "0.00"
+                                    },
+                                    {
+                                        "value": "-45718.71"
+                                    }
+                                ]
+                            },
+                            "type": "Section"
+                        }
+                    ]
+                },
+                "Summary": {
+                    "ColData": [
+                        {
+                            "value": "Total Income"
+                        },
+                        {
+                            "value": "76178.87"
+                        },
+                        {
+                            "value": "-301.00"
+                        },
+                        {
+                            "value": "0.00"
+                        },
+                        {
+                            "value": "75877.87"
+                        }
+                    ]
+                },
+                "type": "Section",
+                "group": "Income"
+            },
+            {
+                "Header": {
+                    "ColData": [
+                        {
+                            "value": "Cost of Goods Sold"
+                        },
+                        {
+                            "value": ""
+                        },
+                        {
+                            "value": ""
+                        },
+                        {
+                            "value": ""
+                        },
+                        {
+                            "value": ""
+                        }
+                    ]
+                },
+                "Rows": {
+                    "Row": [
+                        {
+                            "Header": {
+                                "ColData": [
+                                    {
+                                        "value": "5000 Cost of Goods Sold",
+                                        "id": "28"
+                                    },
+                                    {
+                                        "value": ""
+                                    },
+                                    {
+                                        "value": ""
+                                    },
+                                    {
+                                        "value": ""
+                                    },
+                                    {
+                                        "value": "0.00"
+                                    }
+                                ]
+                            },
+                            "Rows": {
+                                "Row": [
+                                    {
+                                        "ColData": [
+                                            {
+                                                "value": "COGS - Labor",
+                                                "id": "75"
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": "4525.45"
+                                            },
+                                            {
+                                                "value": "4525.45"
+                                            }
+                                        ],
+                                        "type": "Data"
+                                    }
+                                ]
+                            },
+                            "Summary": {
+                                "ColData": [
+                                    {
+                                        "value": "Total 5000 Cost of Goods Sold"
+                                    },
+                                    {
+                                        "value": "0.00"
+                                    },
+                                    {
+                                        "value": "0.00"
+                                    },
+                                    {
+                                        "value": "4525.45"
+                                    },
+                                    {
+                                        "value": "4525.45"
+                                    }
+                                ]
+                            },
+                            "type": "Section"
+                        }
+                    ]
+                },
+                "Summary": {
+                    "ColData": [
+                        {
+                            "value": "Total Cost of Goods Sold"
+                        },
+                        {
+                            "value": "0.00"
+                        },
+                        {
+                            "value": "0.00"
+                        },
+                        {
+                            "value": "4525.45"
+                        },
+                        {
+                            "value": "4525.45"
+                        }
+                    ]
+                },
+                "type": "Section",
+                "group": "COGS"
+            },
+            {
+                "Summary": {
+                    "ColData": [
+                        {
+                            "value": "Gross Profit"
+                        },
+                        {
+                            "value": "76178.87"
+                        },
+                        {
+                            "value": "-301.00"
+                        },
+                        {
+                            "value": "-4525.45"
+                        },
+                        {
+                            "value": "71352.42"
+                        }
+                    ]
+                },
+                "type": "Section",
+                "group": "GrossProfit"
+            },
+            {
+                "Header": {
+                    "ColData": [
+                        {
+                            "value": "Expenses"
+                        },
+                        {
+                            "value": ""
+                        },
+                        {
+                            "value": ""
+                        },
+                        {
+                            "value": ""
+                        },
+                        {
+                            "value": ""
+                        }
+                    ]
+                },
+                "Rows": {
+                    "Row": [
+                        {
+                            "Header": {
+                                "ColData": [
+                                    {
+                                        "value": "6000 Logistics & Fulfillment",
+                                        "id": "132"
+                                    },
+                                    {
+                                        "value": ""
+                                    },
+                                    {
+                                        "value": ""
+                                    },
+                                    {
+                                        "value": ""
+                                    },
+                                    {
+                                        "value": "0.00"
+                                    }
+                                ]
+                            },
+                            "Rows": {
+                                "Row": [
+                                    {
+                                        "ColData": [
+                                            {
+                                                "value": "Freight Out",
+                                                "id": "29"
+                                            },
+                                            {
+                                                "value": "938.27"
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": "24999.35"
+                                            },
+                                            {
+                                                "value": "25937.62"
+                                            }
+                                        ],
+                                        "type": "Data"
+                                    },
+                                    {
+                                        "ColData": [
+                                            {
+                                                "value": "Warehouse/Fulfillment",
+                                                "id": "133"
+                                            },
+                                            {
+                                                "value": "856.00"
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": "8395.04"
+                                            },
+                                            {
+                                                "value": "9251.04"
+                                            }
+                                        ],
+                                        "type": "Data"
+                                    }
+                                ]
+                            },
+                            "Summary": {
+                                "ColData": [
+                                    {
+                                        "value": "Total 6000 Logistics & Fulfillment"
+                                    },
+                                    {
+                                        "value": "1794.27"
+                                    },
+                                    {
+                                        "value": "0.00"
+                                    },
+                                    {
+                                        "value": "33394.39"
+                                    },
+                                    {
+                                        "value": "35188.66"
+                                    }
+                                ]
+                            },
+                            "type": "Section"
+                        },
+                        {
+                            "Header": {
+                                "ColData": [
+                                    {
+                                        "value": "7000 Advertising & Marketing",
+                                        "id": "137"
+                                    },
+                                    {
+                                        "value": ""
+                                    },
+                                    {
+                                        "value": ""
+                                    },
+                                    {
+                                        "value": ""
+                                    },
+                                    {
+                                        "value": "0.00"
+                                    }
+                                ]
+                            },
+                            "Rows": {
+                                "Row": [
+                                    {
+                                        "ColData": [
+                                            {
+                                                "value": "Events/Tradeshows",
+                                                "id": "57"
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": "53293.43"
+                                            },
+                                            {
+                                                "value": "53293.43"
+                                            }
+                                        ],
+                                        "type": "Data"
+                                    },
+                                    {
+                                        "ColData": [
+                                            {
+                                                "value": "General Marketing",
+                                                "id": "56"
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": "273.39"
+                                            },
+                                            {
+                                                "value": "273.39"
+                                            }
+                                        ],
+                                        "type": "Data"
+                                    },
+                                    {
+                                        "ColData": [
+                                            {
+                                                "value": "Marketing Contractors",
+                                                "id": "153"
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": "17632.22"
+                                            },
+                                            {
+                                                "value": "17632.22"
+                                            }
+                                        ],
+                                        "type": "Data"
+                                    },
+                                    {
+                                        "ColData": [
+                                            {
+                                                "value": "Paid Advertising",
+                                                "id": "3"
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": "18001.26"
+                                            },
+                                            {
+                                                "value": "18001.26"
+                                            }
+                                        ],
+                                        "type": "Data"
+                                    },
+                                    {
+                                        "ColData": [
+                                            {
+                                                "value": "Trade Spend/Promotional",
+                                                "id": "139"
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": "2014.57"
+                                            },
+                                            {
+                                                "value": "2014.57"
+                                            }
+                                        ],
+                                        "type": "Data"
+                                    }
+                                ]
+                            },
+                            "Summary": {
+                                "ColData": [
+                                    {
+                                        "value": "Total 7000 Advertising & Marketing"
+                                    },
+                                    {
+                                        "value": "0.00"
+                                    },
+                                    {
+                                        "value": "0.00"
+                                    },
+                                    {
+                                        "value": "91214.87"
+                                    },
+                                    {
+                                        "value": "91214.87"
+                                    }
+                                ]
+                            },
+                            "type": "Section"
+                        },
+                        {
+                            "Header": {
+                                "ColData": [
+                                    {
+                                        "value": "8000 General & Administrative Expenses",
+                                        "id": "140"
+                                    },
+                                    {
+                                        "value": ""
+                                    },
+                                    {
+                                        "value": ""
+                                    },
+                                    {
+                                        "value": ""
+                                    },
+                                    {
+                                        "value": "0.00"
+                                    }
+                                ]
+                            },
+                            "Rows": {
+                                "Row": [
+                                    {
+                                        "ColData": [
+                                            {
+                                                "value": "Bank Charges & Fees",
+                                                "id": "5"
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": "0.00"
+                                            },
+                                            {
+                                                "value": "0.00"
+                                            }
+                                        ],
+                                        "type": "Data"
+                                    },
+                                    {
+                                        "ColData": [
+                                            {
+                                                "value": "Contractors",
+                                                "id": "6"
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": "3456.00"
+                                            },
+                                            {
+                                                "value": "3456.00"
+                                            }
+                                        ],
+                                        "type": "Data"
+                                    },
+                                    {
+                                        "ColData": [
+                                            {
+                                                "value": "Dues & Subscriptions",
+                                                "id": "49"
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": "2798.19"
+                                            },
+                                            {
+                                                "value": "2798.19"
+                                            }
+                                        ],
+                                        "type": "Data"
+                                    },
+                                    {
+                                        "ColData": [
+                                            {
+                                                "value": "Insurance",
+                                                "id": "7"
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": "506.22"
+                                            },
+                                            {
+                                                "value": "506.22"
+                                            }
+                                        ],
+                                        "type": "Data"
+                                    },
+                                    {
+                                        "ColData": [
+                                            {
+                                                "value": "Meals & Entertainment",
+                                                "id": "10"
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": "2320.71"
+                                            },
+                                            {
+                                                "value": "2320.71"
+                                            }
+                                        ],
+                                        "type": "Data"
+                                    },
+                                    {
+                                        "ColData": [
+                                            {
+                                                "value": "Office Supplies",
+                                                "id": "12"
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": "290.77"
+                                            },
+                                            {
+                                                "value": "290.77"
+                                            }
+                                        ],
+                                        "type": "Data"
+                                    },
+                                    {
+                                        "Header": {
+                                            "ColData": [
+                                                {
+                                                    "value": "Payroll Expense",
+                                                    "id": "67"
+                                                },
+                                                {
+                                                    "value": ""
+                                                },
+                                                {
+                                                    "value": ""
+                                                },
+                                                {
+                                                    "value": ""
+                                                },
+                                                {
+                                                    "value": "0.00"
+                                                }
+                                            ]
+                                        },
+                                        "Rows": {
+                                            "Row": [
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Employee Benefits",
+                                                            "id": "26"
+                                                        },
+                                                        {
+                                                            "value": ""
+                                                        },
+                                                        {
+                                                            "value": ""
+                                                        },
+                                                        {
+                                                            "value": "4685.70"
+                                                        },
+                                                        {
+                                                            "value": "4685.70"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Payroll Processing Fees",
+                                                            "id": "141"
+                                                        },
+                                                        {
+                                                            "value": ""
+                                                        },
+                                                        {
+                                                            "value": ""
+                                                        },
+                                                        {
+                                                            "value": "256.95"
+                                                        },
+                                                        {
+                                                            "value": "256.95"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Payroll Tax Expenses",
+                                                            "id": "142"
+                                                        },
+                                                        {
+                                                            "value": ""
+                                                        },
+                                                        {
+                                                            "value": ""
+                                                        },
+                                                        {
+                                                            "value": "6559.99"
+                                                        },
+                                                        {
+                                                            "value": "6559.99"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Salaries & Wages",
+                                                            "id": "27"
+                                                        },
+                                                        {
+                                                            "value": ""
+                                                        },
+                                                        {
+                                                            "value": ""
+                                                        },
+                                                        {
+                                                            "value": "80684.28"
+                                                        },
+                                                        {
+                                                            "value": "80684.28"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Workers Comp",
+                                                            "id": "155"
+                                                        },
+                                                        {
+                                                            "value": ""
+                                                        },
+                                                        {
+                                                            "value": ""
+                                                        },
+                                                        {
+                                                            "value": "708.65"
+                                                        },
+                                                        {
+                                                            "value": "708.65"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                }
+                                            ]
+                                        },
+                                        "Summary": {
+                                            "ColData": [
+                                                {
+                                                    "value": "Total Payroll Expense"
+                                                },
+                                                {
+                                                    "value": "0.00"
+                                                },
+                                                {
+                                                    "value": "0.00"
+                                                },
+                                                {
+                                                    "value": "92895.57"
+                                                },
+                                                {
+                                                    "value": "92895.57"
+                                                }
+                                            ]
+                                        },
+                                        "type": "Section"
+                                    },
+                                    {
+                                        "Header": {
+                                            "ColData": [
+                                                {
+                                                    "value": "Professional Services",
+                                                    "id": "9"
+                                                },
+                                                {
+                                                    "value": ""
+                                                },
+                                                {
+                                                    "value": ""
+                                                },
+                                                {
+                                                    "value": ""
+                                                },
+                                                {
+                                                    "value": "0.00"
+                                                }
+                                            ]
+                                        },
+                                        "Rows": {
+                                            "Row": [
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Accounting Fees",
+                                                            "id": "145"
+                                                        },
+                                                        {
+                                                            "value": ""
+                                                        },
+                                                        {
+                                                            "value": ""
+                                                        },
+                                                        {
+                                                            "value": "4842.20"
+                                                        },
+                                                        {
+                                                            "value": "4842.20"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Legal Fees",
+                                                            "id": "144"
+                                                        },
+                                                        {
+                                                            "value": ""
+                                                        },
+                                                        {
+                                                            "value": ""
+                                                        },
+                                                        {
+                                                            "value": "800.00"
+                                                        },
+                                                        {
+                                                            "value": "800.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                }
+                                            ]
+                                        },
+                                        "Summary": {
+                                            "ColData": [
+                                                {
+                                                    "value": "Total Professional Services"
+                                                },
+                                                {
+                                                    "value": "0.00"
+                                                },
+                                                {
+                                                    "value": "0.00"
+                                                },
+                                                {
+                                                    "value": "5642.20"
+                                                },
+                                                {
+                                                    "value": "5642.20"
+                                                }
+                                            ]
+                                        },
+                                        "type": "Section"
+                                    },
+                                    {
+                                        "ColData": [
+                                            {
+                                                "value": "Rent & Lease",
+                                                "id": "14"
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": "698.00"
+                                            },
+                                            {
+                                                "value": "698.00"
+                                            }
+                                        ],
+                                        "type": "Data"
+                                    },
+                                    {
+                                        "ColData": [
+                                            {
+                                                "value": "Software",
+                                                "id": "216"
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": "688.88"
+                                            },
+                                            {
+                                                "value": "688.88"
+                                            }
+                                        ],
+                                        "type": "Data"
+                                    },
+                                    {
+                                        "ColData": [
+                                            {
+                                                "value": "Travel",
+                                                "id": "18"
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": "3015.94"
+                                            },
+                                            {
+                                                "value": "3015.94"
+                                            }
+                                        ],
+                                        "type": "Data"
+                                    },
+                                    {
+                                        "ColData": [
+                                            {
+                                                "value": "Uncategorized Expense",
+                                                "id": "25"
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": "-82.01"
+                                            },
+                                            {
+                                                "value": "-82.01"
+                                            }
+                                        ],
+                                        "type": "Data"
+                                    },
+                                    {
+                                        "ColData": [
+                                            {
+                                                "value": "Utilities",
+                                                "id": "19"
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": "194.63"
+                                            },
+                                            {
+                                                "value": "194.63"
+                                            }
+                                        ],
+                                        "type": "Data"
+                                    }
+                                ]
+                            },
+                            "Summary": {
+                                "ColData": [
+                                    {
+                                        "value": "Total 8000 General & Administrative Expenses"
+                                    },
+                                    {
+                                        "value": "0.00"
+                                    },
+                                    {
+                                        "value": "0.00"
+                                    },
+                                    {
+                                        "value": "112425.10"
+                                    },
+                                    {
+                                        "value": "112425.10"
+                                    }
+                                ]
+                            },
+                            "type": "Section"
+                        },
+                        {
+                            "ColData": [
+                                {
+                                    "value": "8500 Research & Development",
+                                    "id": "146"
+                                },
+                                {
+                                    "value": ""
+                                },
+                                {
+                                    "value": ""
+                                },
+                                {
+                                    "value": "7563.23"
+                                },
+                                {
+                                    "value": "7563.23"
+                                }
+                            ],
+                            "type": "Data"
+                        }
+                    ]
+                },
+                "Summary": {
+                    "ColData": [
+                        {
+                            "value": "Total Expenses"
+                        },
+                        {
+                            "value": "1794.27"
+                        },
+                        {
+                            "value": "0.00"
+                        },
+                        {
+                            "value": "244597.59"
+                        },
+                        {
+                            "value": "246391.86"
+                        }
+                    ]
+                },
+                "type": "Section",
+                "group": "Expenses"
+            },
+            {
+                "Summary": {
+                    "ColData": [
+                        {
+                            "value": "Net Operating Income"
+                        },
+                        {
+                            "value": "74384.60"
+                        },
+                        {
+                            "value": "-301.00"
+                        },
+                        {
+                            "value": "-249123.04"
+                        },
+                        {
+                            "value": "-175039.44"
+                        }
+                    ]
+                },
+                "type": "Section",
+                "group": "NetOperatingIncome"
+            },
+            {
+                "Header": {
+                    "ColData": [
+                        {
+                            "value": "Other Income"
+                        },
+                        {
+                            "value": ""
+                        },
+                        {
+                            "value": ""
+                        },
+                        {
+                            "value": ""
+                        },
+                        {
+                            "value": ""
+                        }
+                    ]
+                },
+                "Rows": {
+                    "Row": [
+                        {
+                            "Header": {
+                                "ColData": [
+                                    {
+                                        "value": "Other Income",
+                                        "id": "147"
+                                    },
+                                    {
+                                        "value": ""
+                                    },
+                                    {
+                                        "value": ""
+                                    },
+                                    {
+                                        "value": ""
+                                    },
+                                    {
+                                        "value": "0.00"
+                                    }
+                                ]
+                            },
+                            "Rows": {
+                                "Row": [
+                                    {
+                                        "ColData": [
+                                            {
+                                                "value": "Interest Earned",
+                                                "id": "104"
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": ""
+                                            },
+                                            {
+                                                "value": "4.54"
+                                            },
+                                            {
+                                                "value": "4.54"
+                                            }
+                                        ],
+                                        "type": "Data"
+                                    }
+                                ]
+                            },
+                            "Summary": {
+                                "ColData": [
+                                    {
+                                        "value": "Total Other Income"
+                                    },
+                                    {
+                                        "value": "0.00"
+                                    },
+                                    {
+                                        "value": "0.00"
+                                    },
+                                    {
+                                        "value": "4.54"
+                                    },
+                                    {
+                                        "value": "4.54"
+                                    }
+                                ]
+                            },
+                            "type": "Section"
+                        }
+                    ]
+                },
+                "Summary": {
+                    "ColData": [
+                        {
+                            "value": "Total Other Income"
+                        },
+                        {
+                            "value": "0.00"
+                        },
+                        {
+                            "value": "0.00"
+                        },
+                        {
+                            "value": "4.54"
+                        },
+                        {
+                            "value": "4.54"
+                        }
+                    ]
+                },
+                "type": "Section",
+                "group": "OtherIncome"
+            },
+            {
+                "Header": {
+                    "ColData": [
+                        {
+                            "value": "Other Expenses"
+                        },
+                        {
+                            "value": ""
+                        },
+                        {
+                            "value": ""
+                        },
+                        {
+                            "value": ""
+                        },
+                        {
+                            "value": ""
+                        }
+                    ]
+                },
+                "Rows": {
+                    "Row": [
+                        {
+                            "ColData": [
+                                {
+                                    "value": "Interest Paid",
+                                    "id": "8"
+                                },
+                                {
+                                    "value": ""
+                                },
+                                {
+                                    "value": ""
+                                },
+                                {
+                                    "value": "10174.47"
+                                },
+                                {
+                                    "value": "10174.47"
+                                }
+                            ],
+                            "type": "Data"
+                        },
+                        {
+                            "ColData": [
+                                {
+                                    "value": "Taxes & Licenses",
+                                    "id": "17"
+                                },
+                                {
+                                    "value": ""
+                                },
+                                {
+                                    "value": ""
+                                },
+                                {
+                                    "value": "4110.27"
+                                },
+                                {
+                                    "value": "4110.27"
+                                }
+                            ],
+                            "type": "Data"
+                        }
+                    ]
+                },
+                "Summary": {
+                    "ColData": [
+                        {
+                            "value": "Total Other Expenses"
+                        },
+                        {
+                            "value": "0.00"
+                        },
+                        {
+                            "value": "0.00"
+                        },
+                        {
+                            "value": "14284.74"
+                        },
+                        {
+                            "value": "14284.74"
+                        }
+                    ]
+                },
+                "type": "Section",
+                "group": "OtherExpenses"
+            },
+            {
+                "Summary": {
+                    "ColData": [
+                        {
+                            "value": "Net Other Income"
+                        },
+                        {
+                            "value": "0.00"
+                        },
+                        {
+                            "value": "0.00"
+                        },
+                        {
+                            "value": "-14280.20"
+                        },
+                        {
+                            "value": "-14280.20"
+                        }
+                    ]
+                },
+                "type": "Section",
+                "group": "NetOtherIncome"
+            },
+            {
+                "Summary": {
+                    "ColData": [
+                        {
+                            "value": "Net Income"
+                        },
+                        {
+                            "value": "74384.60"
+                        },
+                        {
+                            "value": "-301.00"
+                        },
+                        {
+                            "value": "-263403.24"
+                        },
+                        {
+                            "value": "-189319.64"
+                        }
+                    ]
+                },
+                "type": "Section",
+                "group": "NetIncome"
+            }
+        ]
+    }
+}

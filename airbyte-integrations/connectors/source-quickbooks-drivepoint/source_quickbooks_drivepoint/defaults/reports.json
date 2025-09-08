@@ -1,0 +1,18 @@
+[
+  {
+    "id": "balance_sheet",
+    "name": "Balance Sheet",
+    "dimensions": [
+      "date"
+    ],
+    "metrics": []
+  },
+  {
+    "id": "income_statement",
+    "name": "Income Statement",
+    "dimensions": [
+      "date"
+    ],
+    "metrics": []
+  }
+]

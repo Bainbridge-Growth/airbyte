@@ -1,0 +1,1957 @@
+{
+    "Header": {
+        "Time": "2024-04-18T07:17:43-07:00",
+        "ReportName": "BalanceSheet",
+        "ReportBasis": "Accrual",
+        "StartPeriod": "2024-03-01",
+        "EndPeriod": "2024-03-30",
+        "SummarizeColumnsBy": "Total",
+        "Currency": "USD",
+        "Option": [
+            {
+                "Name": "AccountingStandard",
+                "Value": "GAAP"
+            },
+            {
+                "Name": "NoReportData",
+                "Value": "false"
+            }
+        ]
+    },
+    "Columns": {
+        "Column": [
+            {
+                "ColTitle": "",
+                "ColType": "Account",
+                "MetaData": [
+                    {
+                        "Name": "ColKey",
+                        "Value": "account"
+                    }
+                ]
+            },
+            {
+                "ColTitle": "Total",
+                "ColType": "Money",
+                "MetaData": [
+                    {
+                        "Name": "ColKey",
+                        "Value": "total"
+                    }
+                ]
+            }
+        ]
+    },
+    "Rows": {
+        "Row": [
+            {
+                "Header": {
+                    "ColData": [
+                        {
+                            "value": "ASSETS"
+                        },
+                        {
+                            "value": ""
+                        }
+                    ]
+                },
+                "Rows": {
+                    "Row": [
+                        {
+                            "Header": {
+                                "ColData": [
+                                    {
+                                        "value": "Current Assets"
+                                    },
+                                    {
+                                        "value": ""
+                                    }
+                                ]
+                            },
+                            "Rows": {
+                                "Row": [
+                                    {
+                                        "Header": {
+                                            "ColData": [
+                                                {
+                                                    "value": "Bank Accounts"
+                                                },
+                                                {
+                                                    "value": ""
+                                                }
+                                            ]
+                                        },
+                                        "Rows": {
+                                            "Row": [
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "1072 Bill.com Money Out Clearing",
+                                                            "id": "100"
+                                                        },
+                                                        {
+                                                            "value": "0.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Amazon Clearing",
+                                                            "id": "111"
+                                                        },
+                                                        {
+                                                            "value": "3276.42"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Ampla Clearing",
+                                                            "id": "174"
+                                                        },
+                                                        {
+                                                            "value": "-15820.98"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Candid Clearing",
+                                                            "id": "215"
+                                                        },
+                                                        {
+                                                            "value": "-14377.03"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Chase Checking (2622)",
+                                                            "id": "32"
+                                                        },
+                                                        {
+                                                            "value": "911498.40"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Chase Savings (9317)",
+                                                            "id": "102"
+                                                        },
+                                                        {
+                                                            "value": "289909.03"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "PayPal",
+                                                            "id": "107"
+                                                        },
+                                                        {
+                                                            "value": "11447.73"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Shopify Clearing",
+                                                            "id": "108"
+                                                        },
+                                                        {
+                                                            "value": "-39997.81"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                }
+                                            ]
+                                        },
+                                        "Summary": {
+                                            "ColData": [
+                                                {
+                                                    "value": "Total Bank Accounts"
+                                                },
+                                                {
+                                                    "value": "1145935.76"
+                                                }
+                                            ]
+                                        },
+                                        "type": "Section",
+                                        "group": "BankAccounts"
+                                    },
+                                    {
+                                        "Header": {
+                                            "ColData": [
+                                                {
+                                                    "value": "Accounts Receivable"
+                                                },
+                                                {
+                                                    "value": ""
+                                                }
+                                            ]
+                                        },
+                                        "Rows": {
+                                            "Row": [
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Accounts Receivable (A/R)",
+                                                            "id": "42"
+                                                        },
+                                                        {
+                                                            "value": "235889.87"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                }
+                                            ]
+                                        },
+                                        "Summary": {
+                                            "ColData": [
+                                                {
+                                                    "value": "Total Accounts Receivable"
+                                                },
+                                                {
+                                                    "value": "235889.87"
+                                                }
+                                            ]
+                                        },
+                                        "type": "Section",
+                                        "group": "AR"
+                                    },
+                                    {
+                                        "Header": {
+                                            "ColData": [
+                                                {
+                                                    "value": "Other Current Assets"
+                                                },
+                                                {
+                                                    "value": ""
+                                                }
+                                            ]
+                                        },
+                                        "Rows": {
+                                            "Row": [
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Due From Officers",
+                                                            "id": "172"
+                                                        },
+                                                        {
+                                                            "value": "26314.67"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "Header": {
+                                                        "ColData": [
+                                                            {
+                                                                "value": "Inventory Asset",
+                                                                "id": "38"
+                                                            },
+                                                            {
+                                                                "value": ""
+                                                            }
+                                                        ]
+                                                    },
+                                                    "Rows": {
+                                                        "Row": [
+                                                            {
+                                                                "ColData": [
+                                                                    {
+                                                                        "value": "Inventory",
+                                                                        "id": "30"
+                                                                    },
+                                                                    {
+                                                                        "value": "1623585.37"
+                                                                    }
+                                                                ],
+                                                                "type": "Data"
+                                                            },
+                                                            {
+                                                                "ColData": [
+                                                                    {
+                                                                        "value": "Prepaid Inventory",
+                                                                        "id": "162"
+                                                                    },
+                                                                    {
+                                                                        "value": "15157.33"
+                                                                    }
+                                                                ],
+                                                                "type": "Data"
+                                                            }
+                                                        ]
+                                                    },
+                                                    "Summary": {
+                                                        "ColData": [
+                                                            {
+                                                                "value": "Total Inventory Asset"
+                                                            },
+                                                            {
+                                                                "value": "1638742.70"
+                                                            }
+                                                        ]
+                                                    },
+                                                    "type": "Section"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Other Receivables",
+                                                            "id": "224"
+                                                        },
+                                                        {
+                                                            "value": "0.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Prepaid Expenses",
+                                                            "id": "175"
+                                                        },
+                                                        {
+                                                            "value": "8624.15"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Undeposited Funds",
+                                                            "id": "43"
+                                                        },
+                                                        {
+                                                            "value": "0.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                }
+                                            ]
+                                        },
+                                        "Summary": {
+                                            "ColData": [
+                                                {
+                                                    "value": "Total Other Current Assets"
+                                                },
+                                                {
+                                                    "value": "1673681.52"
+                                                }
+                                            ]
+                                        },
+                                        "type": "Section",
+                                        "group": "OtherCurrentAssets"
+                                    }
+                                ]
+                            },
+                            "Summary": {
+                                "ColData": [
+                                    {
+                                        "value": "Total Current Assets"
+                                    },
+                                    {
+                                        "value": "3055507.15"
+                                    }
+                                ]
+                            },
+                            "type": "Section",
+                            "group": "CurrentAssets"
+                        },
+                        {
+                            "Header": {
+                                "ColData": [
+                                    {
+                                        "value": "Fixed Assets"
+                                    },
+                                    {
+                                        "value": ""
+                                    }
+                                ]
+                            },
+                            "Rows": {
+                                "Row": [
+                                    {
+                                        "Header": {
+                                            "ColData": [
+                                                {
+                                                    "value": "Computer & Equipment",
+                                                    "id": "148"
+                                                },
+                                                {
+                                                    "value": "16062.52"
+                                                }
+                                            ]
+                                        },
+                                        "Rows": {
+                                            "Row": [
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Depreciation",
+                                                            "id": "150"
+                                                        },
+                                                        {
+                                                            "value": "-15133.73"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                }
+                                            ]
+                                        },
+                                        "Summary": {
+                                            "ColData": [
+                                                {
+                                                    "value": "Total Computer & Equipment"
+                                                },
+                                                {
+                                                    "value": "928.79"
+                                                }
+                                            ]
+                                        },
+                                        "type": "Section"
+                                    }
+                                ]
+                            },
+                            "Summary": {
+                                "ColData": [
+                                    {
+                                        "value": "Total Fixed Assets"
+                                    },
+                                    {
+                                        "value": "928.79"
+                                    }
+                                ]
+                            },
+                            "type": "Section",
+                            "group": "FixedAssets"
+                        }
+                    ]
+                },
+                "Summary": {
+                    "ColData": [
+                        {
+                            "value": "TOTAL ASSETS"
+                        },
+                        {
+                            "value": "3056435.94"
+                        }
+                    ]
+                },
+                "type": "Section",
+                "group": "TotalAssets"
+            },
+            {
+                "Header": {
+                    "ColData": [
+                        {
+                            "value": "LIABILITIES AND EQUITY"
+                        },
+                        {
+                            "value": ""
+                        }
+                    ]
+                },
+                "Rows": {
+                    "Row": [
+                        {
+                            "Header": {
+                                "ColData": [
+                                    {
+                                        "value": "Liabilities"
+                                    },
+                                    {
+                                        "value": ""
+                                    }
+                                ]
+                            },
+                            "Rows": {
+                                "Row": [
+                                    {
+                                        "Header": {
+                                            "ColData": [
+                                                {
+                                                    "value": "Current Liabilities"
+                                                },
+                                                {
+                                                    "value": ""
+                                                }
+                                            ]
+                                        },
+                                        "Rows": {
+                                            "Row": [
+                                                {
+                                                    "Header": {
+                                                        "ColData": [
+                                                            {
+                                                                "value": "Accounts Payable"
+                                                            },
+                                                            {
+                                                                "value": ""
+                                                            }
+                                                        ]
+                                                    },
+                                                    "Rows": {
+                                                        "Row": [
+                                                            {
+                                                                "ColData": [
+                                                                    {
+                                                                        "value": "Accounts Payable (A/P)",
+                                                                        "id": "103"
+                                                                    },
+                                                                    {
+                                                                        "value": "240589.66"
+                                                                    }
+                                                                ],
+                                                                "type": "Data"
+                                                            }
+                                                        ]
+                                                    },
+                                                    "Summary": {
+                                                        "ColData": [
+                                                            {
+                                                                "value": "Total Accounts Payable"
+                                                            },
+                                                            {
+                                                                "value": "240589.66"
+                                                            }
+                                                        ]
+                                                    },
+                                                    "type": "Section",
+                                                    "group": "AP"
+                                                },
+                                                {
+                                                    "Header": {
+                                                        "ColData": [
+                                                            {
+                                                                "value": "Credit Cards"
+                                                            },
+                                                            {
+                                                                "value": ""
+                                                            }
+                                                        ]
+                                                    },
+                                                    "Rows": {
+                                                        "Row": [
+                                                            {
+                                                                "ColData": [
+                                                                    {
+                                                                        "value": "Amex Business (1000)",
+                                                                        "id": "220"
+                                                                    },
+                                                                    {
+                                                                        "value": "13489.79"
+                                                                    }
+                                                                ],
+                                                                "type": "Data"
+                                                            },
+                                                            {
+                                                                "ColData": [
+                                                                    {
+                                                                        "value": "Amex Business Gold (61004)",
+                                                                        "id": "221"
+                                                                    },
+                                                                    {
+                                                                        "value": "7363.27"
+                                                                    }
+                                                                ],
+                                                                "type": "Data"
+                                                            },
+                                                            {
+                                                                "ColData": [
+                                                                    {
+                                                                        "value": "Amex Platinum (91007)",
+                                                                        "id": "76"
+                                                                    },
+                                                                    {
+                                                                        "value": "7689.52"
+                                                                    }
+                                                                ],
+                                                                "type": "Data"
+                                                            },
+                                                            {
+                                                                "ColData": [
+                                                                    {
+                                                                        "value": "Capital One Spark CC",
+                                                                        "id": "248"
+                                                                    },
+                                                                    {
+                                                                        "value": "39480.40"
+                                                                    }
+                                                                ],
+                                                                "type": "Data"
+                                                            },
+                                                            {
+                                                                "ColData": [
+                                                                    {
+                                                                        "value": "Chase CC (1831)",
+                                                                        "id": "31"
+                                                                    },
+                                                                    {
+                                                                        "value": "586.45"
+                                                                    }
+                                                                ],
+                                                                "type": "Data"
+                                                            },
+                                                            {
+                                                                "ColData": [
+                                                                    {
+                                                                        "value": "Chase Ink CC (1342)",
+                                                                        "id": "156"
+                                                                    },
+                                                                    {
+                                                                        "value": "3886.30"
+                                                                    }
+                                                                ],
+                                                                "type": "Data"
+                                                            },
+                                                            {
+                                                                "ColData": [
+                                                                    {
+                                                                        "value": "Settle Loan",
+                                                                        "id": "161"
+                                                                    },
+                                                                    {
+                                                                        "value": "333114.37"
+                                                                    }
+                                                                ],
+                                                                "type": "Data"
+                                                            }
+                                                        ]
+                                                    },
+                                                    "Summary": {
+                                                        "ColData": [
+                                                            {
+                                                                "value": "Total Credit Cards"
+                                                            },
+                                                            {
+                                                                "value": "405610.10"
+                                                            }
+                                                        ]
+                                                    },
+                                                    "type": "Section",
+                                                    "group": "CreditCards"
+                                                },
+                                                {
+                                                    "Header": {
+                                                        "ColData": [
+                                                            {
+                                                                "value": "Other Current Liabilities"
+                                                            },
+                                                            {
+                                                                "value": ""
+                                                            }
+                                                        ]
+                                                    },
+                                                    "Rows": {
+                                                        "Row": [
+                                                            {
+                                                                "ColData": [
+                                                                    {
+                                                                        "value": "Accrued Expenses",
+                                                                        "id": "159"
+                                                                    },
+                                                                    {
+                                                                        "value": "0.00"
+                                                                    }
+                                                                ],
+                                                                "type": "Data"
+                                                            },
+                                                            {
+                                                                "ColData": [
+                                                                    {
+                                                                        "value": "Ampla Loan",
+                                                                        "id": "173"
+                                                                    },
+                                                                    {
+                                                                        "value": "0.00"
+                                                                    }
+                                                                ],
+                                                                "type": "Data"
+                                                            },
+                                                            {
+                                                                "ColData": [
+                                                                    {
+                                                                        "value": "Donations Payable",
+                                                                        "id": "188"
+                                                                    },
+                                                                    {
+                                                                        "value": "0.00"
+                                                                    }
+                                                                ],
+                                                                "type": "Data"
+                                                            },
+                                                            {
+                                                                "ColData": [
+                                                                    {
+                                                                        "value": "Federal Tax Payable",
+                                                                        "id": "170"
+                                                                    },
+                                                                    {
+                                                                        "value": "68.00"
+                                                                    }
+                                                                ],
+                                                                "type": "Data"
+                                                            },
+                                                            {
+                                                                "ColData": [
+                                                                    {
+                                                                        "value": "Gift Card Liability",
+                                                                        "id": "152"
+                                                                    },
+                                                                    {
+                                                                        "value": "9696.32"
+                                                                    }
+                                                                ],
+                                                                "type": "Data"
+                                                            },
+                                                            {
+                                                                "ColData": [
+                                                                    {
+                                                                        "value": "Kabbage Loan",
+                                                                        "id": "226"
+                                                                    },
+                                                                    {
+                                                                        "value": "9522.09"
+                                                                    }
+                                                                ],
+                                                                "type": "Data"
+                                                            },
+                                                            {
+                                                                "ColData": [
+                                                                    {
+                                                                        "value": "Kabbage Loan #2",
+                                                                        "id": "253"
+                                                                    },
+                                                                    {
+                                                                        "value": "115807.57"
+                                                                    }
+                                                                ],
+                                                                "type": "Data"
+                                                            },
+                                                            {
+                                                                "ColData": [
+                                                                    {
+                                                                        "value": "New York Department of Taxation and Finance Payable",
+                                                                        "id": "39"
+                                                                    },
+                                                                    {
+                                                                        "value": "0.00"
+                                                                    }
+                                                                ],
+                                                                "type": "Data"
+                                                            },
+                                                            {
+                                                                "ColData": [
+                                                                    {
+                                                                        "value": "NY PFL Payable",
+                                                                        "id": "210"
+                                                                    },
+                                                                    {
+                                                                        "value": "824.84"
+                                                                    }
+                                                                ],
+                                                                "type": "Data"
+                                                            },
+                                                            {
+                                                                "ColData": [
+                                                                    {
+                                                                        "value": "Out Of Scope Agency Payable",
+                                                                        "id": "40"
+                                                                    },
+                                                                    {
+                                                                        "value": "0.00"
+                                                                    }
+                                                                ],
+                                                                "type": "Data"
+                                                            },
+                                                            {
+                                                                "ColData": [
+                                                                    {
+                                                                        "value": "Sales Tax Payable",
+                                                                        "id": "95"
+                                                                    },
+                                                                    {
+                                                                        "value": "534.95"
+                                                                    }
+                                                                ],
+                                                                "type": "Data"
+                                                            },
+                                                            {
+                                                                "ColData": [
+                                                                    {
+                                                                        "value": "SBA Disaster Loan Payable",
+                                                                        "id": "87"
+                                                                    },
+                                                                    {
+                                                                        "value": "13700.00"
+                                                                    }
+                                                                ],
+                                                                "type": "Data"
+                                                            },
+                                                            {
+                                                                "ColData": [
+                                                                    {
+                                                                        "value": "Shopify Capital Loan #2",
+                                                                        "id": "258"
+                                                                    },
+                                                                    {
+                                                                        "value": "150214.80"
+                                                                    }
+                                                                ],
+                                                                "type": "Data"
+                                                            }
+                                                        ]
+                                                    },
+                                                    "Summary": {
+                                                        "ColData": [
+                                                            {
+                                                                "value": "Total Other Current Liabilities"
+                                                            },
+                                                            {
+                                                                "value": "300368.57"
+                                                            }
+                                                        ]
+                                                    },
+                                                    "type": "Section",
+                                                    "group": "OtherCurrentLiabilities"
+                                                }
+                                            ]
+                                        },
+                                        "Summary": {
+                                            "ColData": [
+                                                {
+                                                    "value": "Total Current Liabilities"
+                                                },
+                                                {
+                                                    "value": "946568.33"
+                                                }
+                                            ]
+                                        },
+                                        "type": "Section",
+                                        "group": "CurrentLiabilities"
+                                    },
+                                    {
+                                        "Header": {
+                                            "ColData": [
+                                                {
+                                                    "value": "Long-Term Liabilities"
+                                                },
+                                                {
+                                                    "value": ""
+                                                }
+                                            ]
+                                        },
+                                        "Rows": {
+                                            "Row": [
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note -  K-Dev, Inc.",
+                                                            "id": "228"
+                                                        },
+                                                        {
+                                                            "value": "50000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Adam Brownstein",
+                                                            "id": "187"
+                                                        },
+                                                        {
+                                                            "value": "30000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Aerica Banks",
+                                                            "id": "181"
+                                                        },
+                                                        {
+                                                            "value": "25000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Akuna Capital",
+                                                            "id": "203"
+                                                        },
+                                                        {
+                                                            "value": "300000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - AL Advisors Management",
+                                                            "id": "246"
+                                                        },
+                                                        {
+                                                            "value": "193888.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Albert Tseng",
+                                                            "id": "242"
+                                                        },
+                                                        {
+                                                            "value": "30000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Ali Wong",
+                                                            "id": "193"
+                                                        },
+                                                        {
+                                                            "value": "25000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Altria Enterprises LLC",
+                                                            "id": "247"
+                                                        },
+                                                        {
+                                                            "value": "2200000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Andrew Tan",
+                                                            "id": "227"
+                                                        },
+                                                        {
+                                                            "value": "50000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Austin Community Fund",
+                                                            "id": "249"
+                                                        },
+                                                        {
+                                                            "value": "50000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Bob Broderick",
+                                                            "id": "196"
+                                                        },
+                                                        {
+                                                            "value": "150000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Boba Guys",
+                                                            "id": "197"
+                                                        },
+                                                        {
+                                                            "value": "50000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Calvin Lai",
+                                                            "id": "206"
+                                                        },
+                                                        {
+                                                            "value": "25000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Carol Lim",
+                                                            "id": "190"
+                                                        },
+                                                        {
+                                                            "value": "200000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Cherubic Ventures",
+                                                            "id": "243"
+                                                        },
+                                                        {
+                                                            "value": "50000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Classic VC",
+                                                            "id": "201"
+                                                        },
+                                                        {
+                                                            "value": "125000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Danny Taing",
+                                                            "id": "195"
+                                                        },
+                                                        {
+                                                            "value": "25000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Duy Nguyen",
+                                                            "id": "192"
+                                                        },
+                                                        {
+                                                            "value": "100000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Erich Meschkat",
+                                                            "id": "189"
+                                                        },
+                                                        {
+                                                            "value": "25000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Gaingels Spark II LLC",
+                                                            "id": "208"
+                                                        },
+                                                        {
+                                                            "value": "25000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Humberto Leon",
+                                                            "id": "211"
+                                                        },
+                                                        {
+                                                            "value": "29500.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Hyphen Capital",
+                                                            "id": "205"
+                                                        },
+                                                        {
+                                                            "value": "190500.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Inga Barchan",
+                                                            "id": "204"
+                                                        },
+                                                        {
+                                                            "value": "25000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Johnny Tseng",
+                                                            "id": "236"
+                                                        },
+                                                        {
+                                                            "value": "50000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Joseph Henry Head",
+                                                            "id": "233"
+                                                        },
+                                                        {
+                                                            "value": "75000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Judy Chen",
+                                                            "id": "231"
+                                                        },
+                                                        {
+                                                            "value": "50000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Julia Gouw",
+                                                            "id": "209"
+                                                        },
+                                                        {
+                                                            "value": "100000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Justin Hakuta",
+                                                            "id": "191"
+                                                        },
+                                                        {
+                                                            "value": "50000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Latoya Asbury",
+                                                            "id": "202"
+                                                        },
+                                                        {
+                                                            "value": "25000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Lisa Lee",
+                                                            "id": "178"
+                                                        },
+                                                        {
+                                                            "value": "50000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - LUCAS D LEMANOWICZ",
+                                                            "id": "235"
+                                                        },
+                                                        {
+                                                            "value": "25000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Matthew Romaine",
+                                                            "id": "185"
+                                                        },
+                                                        {
+                                                            "value": "45000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Matthew Vartanian",
+                                                            "id": "239"
+                                                        },
+                                                        {
+                                                            "value": "50000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Matthew Walsh",
+                                                            "id": "183"
+                                                        },
+                                                        {
+                                                            "value": "100000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Mercenary Ventures",
+                                                            "id": "238"
+                                                        },
+                                                        {
+                                                            "value": "25000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Michael K.",
+                                                            "id": "184"
+                                                        },
+                                                        {
+                                                            "value": "25000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Michelle Kim",
+                                                            "id": "199"
+                                                        },
+                                                        {
+                                                            "value": "30000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Peter Wright",
+                                                            "id": "198"
+                                                        },
+                                                        {
+                                                            "value": "100000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Potluck Ventures",
+                                                            "id": "237"
+                                                        },
+                                                        {
+                                                            "value": "25000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Resnick",
+                                                            "id": "179"
+                                                        },
+                                                        {
+                                                            "value": "25000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Scott Belsky",
+                                                            "id": "234"
+                                                        },
+                                                        {
+                                                            "value": "50000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Sheila Marcelo",
+                                                            "id": "182"
+                                                        },
+                                                        {
+                                                            "value": "25000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Sherwin Su",
+                                                            "id": "240"
+                                                        },
+                                                        {
+                                                            "value": "25000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Suzanne Cruse",
+                                                            "id": "207"
+                                                        },
+                                                        {
+                                                            "value": "25000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Taing Ventures (Valor)",
+                                                            "id": "232"
+                                                        },
+                                                        {
+                                                            "value": "50000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Takashi Cheng",
+                                                            "id": "200"
+                                                        },
+                                                        {
+                                                            "value": "25000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Ting Pen",
+                                                            "id": "241"
+                                                        },
+                                                        {
+                                                            "value": "50000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Tuan Do",
+                                                            "id": "177"
+                                                        },
+                                                        {
+                                                            "value": "25000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Vincent Tseng",
+                                                            "id": "194"
+                                                        },
+                                                        {
+                                                            "value": "25000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note - Yao King",
+                                                            "id": "186"
+                                                        },
+                                                        {
+                                                            "value": "75000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note- 2 Fat Dogs, Inc",
+                                                            "id": "114"
+                                                        },
+                                                        {
+                                                            "value": "25000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note- Aaron Samuels",
+                                                            "id": "115"
+                                                        },
+                                                        {
+                                                            "value": "5000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note- Anh Nguyen",
+                                                            "id": "79"
+                                                        },
+                                                        {
+                                                            "value": "25000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note- Bao Nguyen",
+                                                            "id": "80"
+                                                        },
+                                                        {
+                                                            "value": "25000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note- Bao Vo",
+                                                            "id": "116"
+                                                        },
+                                                        {
+                                                            "value": "25000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note- Caleb Wang",
+                                                            "id": "120"
+                                                        },
+                                                        {
+                                                            "value": "38000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note- Calvin Creative",
+                                                            "id": "89"
+                                                        },
+                                                        {
+                                                            "value": "25000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note- Charles Huang",
+                                                            "id": "117"
+                                                        },
+                                                        {
+                                                            "value": "175000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note- Daniel Teran",
+                                                            "id": "90"
+                                                        },
+                                                        {
+                                                            "value": "50000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note- Duy-Loan Le",
+                                                            "id": "92"
+                                                        },
+                                                        {
+                                                            "value": "100000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note- Gaingels Fund (Ashley Flucas)",
+                                                            "id": "118"
+                                                        },
+                                                        {
+                                                            "value": "72000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note- Jacob Bigani",
+                                                            "id": "88"
+                                                        },
+                                                        {
+                                                            "value": "25000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note- JAM Entertainment",
+                                                            "id": "113"
+                                                        },
+                                                        {
+                                                            "value": "25000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note- Jared Newman (Canaan Scout Fund)",
+                                                            "id": "93"
+                                                        },
+                                                        {
+                                                            "value": "20000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note- Nana Teng",
+                                                            "id": "245"
+                                                        },
+                                                        {
+                                                            "value": "25000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note- Nikhil Gopalani (GFR Fund)",
+                                                            "id": "91"
+                                                        },
+                                                        {
+                                                            "value": "25000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note- Ohn Choe",
+                                                            "id": "82"
+                                                        },
+                                                        {
+                                                            "value": "45000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note- Theresa Vu",
+                                                            "id": "83"
+                                                        },
+                                                        {
+                                                            "value": "50000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note- Tuyen Nguyen",
+                                                            "id": "84"
+                                                        },
+                                                        {
+                                                            "value": "50000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note- V. Bartolome",
+                                                            "id": "86"
+                                                        },
+                                                        {
+                                                            "value": "25000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note- Vinh Nguyen",
+                                                            "id": "112"
+                                                        },
+                                                        {
+                                                            "value": "40000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Convertible Note- Wen Zhou",
+                                                            "id": "176"
+                                                        },
+                                                        {
+                                                            "value": "25000.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                }
+                                            ]
+                                        },
+                                        "Summary": {
+                                            "ColData": [
+                                                {
+                                                    "value": "Total Long-Term Liabilities"
+                                                },
+                                                {
+                                                    "value": "6118888.00"
+                                                }
+                                            ]
+                                        },
+                                        "type": "Section",
+                                        "group": "LongTermLiabilities"
+                                    }
+                                ]
+                            },
+                            "Summary": {
+                                "ColData": [
+                                    {
+                                        "value": "Total Liabilities"
+                                    },
+                                    {
+                                        "value": "7065456.33"
+                                    }
+                                ]
+                            },
+                            "type": "Section",
+                            "group": "Liabilities"
+                        },
+                        {
+                            "Header": {
+                                "ColData": [
+                                    {
+                                        "value": "Equity"
+                                    },
+                                    {
+                                        "value": ""
+                                    }
+                                ]
+                            },
+                            "Rows": {
+                                "Row": [
+                                    {
+                                        "ColData": [
+                                            {
+                                                "value": "Common Stock",
+                                                "id": "169"
+                                            },
+                                            {
+                                                "value": "1000000.00"
+                                            }
+                                        ],
+                                        "type": "Data"
+                                    },
+                                    {
+                                        "ColData": [
+                                            {
+                                                "value": "Equity - D Dao",
+                                                "id": "166"
+                                            },
+                                            {
+                                                "value": "0.00"
+                                            }
+                                        ],
+                                        "type": "Data"
+                                    },
+                                    {
+                                        "Header": {
+                                            "ColData": [
+                                                {
+                                                    "value": "Equity - N Vo",
+                                                    "id": "167"
+                                                },
+                                                {
+                                                    "value": "0.00"
+                                                }
+                                            ]
+                                        },
+                                        "Rows": {
+                                            "Row": [
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Partner Contributions- Ni Vo",
+                                                            "id": "78"
+                                                        },
+                                                        {
+                                                            "value": "0.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                }
+                                            ]
+                                        },
+                                        "Summary": {
+                                            "ColData": [
+                                                {
+                                                    "value": "Total Equity - N Vo"
+                                                },
+                                                {
+                                                    "value": "0.00"
+                                                }
+                                            ]
+                                        },
+                                        "type": "Section"
+                                    },
+                                    {
+                                        "Header": {
+                                            "ColData": [
+                                                {
+                                                    "value": "Equity - S Nguyen",
+                                                    "id": "165"
+                                                },
+                                                {
+                                                    "value": "0.00"
+                                                }
+                                            ]
+                                        },
+                                        "Rows": {
+                                            "Row": [
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Owner's Investment",
+                                                            "id": "22"
+                                                        },
+                                                        {
+                                                            "value": "0.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                },
+                                                {
+                                                    "ColData": [
+                                                        {
+                                                            "value": "Shareholder Distribution",
+                                                            "id": "21"
+                                                        },
+                                                        {
+                                                            "value": "0.00"
+                                                        }
+                                                    ],
+                                                    "type": "Data"
+                                                }
+                                            ]
+                                        },
+                                        "Summary": {
+                                            "ColData": [
+                                                {
+                                                    "value": "Total Equity - S Nguyen"
+                                                },
+                                                {
+                                                    "value": "0.00"
+                                                }
+                                            ]
+                                        },
+                                        "type": "Section"
+                                    },
+                                    {
+                                        "ColData": [
+                                            {
+                                                "value": "Opening Balance Equity",
+                                                "id": "33"
+                                            },
+                                            {
+                                                "value": "0.00"
+                                            }
+                                        ],
+                                        "type": "Data"
+                                    },
+                                    {
+                                        "ColData": [
+                                            {
+                                                "value": "Retained Earnings",
+                                                "id": "2"
+                                            },
+                                            {
+                                                "value": "-4486591.33"
+                                            }
+                                        ],
+                                        "type": "Data"
+                                    },
+                                    {
+                                        "ColData": [
+                                            {
+                                                "value": "Net Income"
+                                            },
+                                            {
+                                                "value": "-522429.06"
+                                            }
+                                        ],
+                                        "type": "Data",
+                                        "group": "NetIncome"
+                                    }
+                                ]
+                            },
+                            "Summary": {
+                                "ColData": [
+                                    {
+                                        "value": "Total Equity"
+                                    },
+                                    {
+                                        "value": "-4009020.39"
+                                    }
+                                ]
+                            },
+                            "type": "Section",
+                            "group": "Equity"
+                        }
+                    ]
+                },
+                "Summary": {
+                    "ColData": [
+                        {
+                            "value": "TOTAL LIABILITIES AND EQUITY"
+                        },
+                        {
+                            "value": "3056435.94"
+                        }
+                    ]
+                },
+                "type": "Section",
+                "group": "TotalLiabilitiesAndEquity"
+            }
+        ]
+    }
+}

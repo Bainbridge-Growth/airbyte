@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "_Account": {
+      "type": "string"
+    },
+    "_Account_id": {
+      "type": "string"
+    },
+    "StartPeriod": {
+      "type": "string"
+    },
+    "EndPeriod": {
+      "type": "string"
+    },
+    "Currency": {
+      "type": "string"
+    },
+    "ParentAccountName": {
+      "type": "string"
+    },
+    "ParentAccountId": {
+      "type": "string"
+    },
+    "GrandParentAccountName": {
+      "type": "string"
+    },
+    "GrandParentAccountId": {
+      "type": "string"
+    },
+    "CategoryAccountName": {
+      "type": "string"
+    },
+    "CategoryAccountId": {
+      "type": "string"
+    },
+    "Classification": {
+      "type": "string"
+    },
+    "FullyQualifiedName": {
+      "type": "string"
+    },
+    "AccountType": {
+      "type": "string"
+    },
+    "FullAccountName": {
+      "type": "string"
+    },
+    "Class": {
+      "type": "string"
+    },
+    "Total_Money": {
+      "type": "string"
+    }
+  }
+}
