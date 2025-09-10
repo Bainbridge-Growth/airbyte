@@ -97,28 +97,57 @@ class BalanceSheetReportStream(HttpStream):
 
     def _process_rows(self, rows: list, accounts: list, start_period: str, end_period: str, currency: str, column_classes: list,
                       parent_name: str = "", parent_id: str = "", grandparent_name: str = "", grandparent_id: str = "",
-                      category_name: str = "", category_id: str = ""):
+                      category_name: str = "", category_id: str = "", section_type: str = ""):
         """Recursively process rows to extract account data"""
 
         for row in rows:
             row_type = row.get("type", "")
-
+            account_id = ""
             if row_type == "Data":
                 # This is an account data row
                 col_data = row.get("ColData", [])
+
                 if len(col_data) >= 2:
                     account_name = col_data[0].get("value", "")
+                    # Clean up account_id by removing any trailing " at index X" text
                     account_id = col_data[0].get("id", "")
+                    if account_id and " at index " in account_id:
+                        account_id = account_id.split(" at index ")[0]
 
                     # Build the full account hierarchy
-                    full_name_parts = [part for part in [category_name, grandparent_name, parent_name, account_name] if part]
-                    full_account_name = ":".join(full_name_parts)
+                    full_account_path = []
+                    if category_name:
+                        full_account_path.append(category_name)
+
+                    # Include section_type for sections like "Current Assets"
+                    if section_type and section_type != category_name:
+                        full_account_path.append(section_type)
+
+                    if grandparent_name and grandparent_name != section_type:
+                        full_account_path.append(grandparent_name)
+
+                    if parent_name:
+                        full_account_path.append(parent_name)
+
+                    if account_name:
+                        full_account_path.append(account_name)
+
+                    full_account_name = ":".join(full_account_path)
 
                     # Create one record for each column/class (skip first column which is account name)
                     for i, class_name in enumerate(column_classes, 1):  # Start from index 1 (skip account column)
                         amount = ""
                         if i < len(col_data):
                             amount = col_data[i].get("value", "")
+
+                        # Clean parent_id and grandparent_id
+                        clean_parent_id = parent_id
+                        if clean_parent_id and " at index " in clean_parent_id:
+                            clean_parent_id = clean_parent_id.split(" at index ")[0]
+
+                        clean_grandparent_id = grandparent_id
+                        if clean_grandparent_id and " at index " in clean_grandparent_id:
+                            clean_grandparent_id = clean_grandparent_id.split(" at index ")[0]
 
                         account_record = {
                             "_Account": account_name,
@@ -127,9 +156,9 @@ class BalanceSheetReportStream(HttpStream):
                             "EndPeriod": end_period,
                             "Currency": currency,
                             "ParentAccountName": parent_name,
-                            "ParentAccountId": parent_id,
+                            "ParentAccountId": clean_parent_id,
                             "GrandParentAccountName": grandparent_name,
-                            "GrandParentAccountId": grandparent_id,
+                            "GrandParentAccountId": clean_grandparent_id,
                             "CategoryAccountName": category_name,
                             "CategoryAccountId": category_id,
                             "Classification": row.get("group", ""),
@@ -149,8 +178,15 @@ class BalanceSheetReportStream(HttpStream):
                 if header_col_data:
                     section_display_name = header_col_data[0].get("value", "")
 
+                # Clean the section id
+                section_id = header_col_data[0].get("id", "") if header_col_data else ""
+                if section_id and " at index " in section_id:
+                    section_id = section_id.split(" at index ")[0]
+
                 nested_rows = row.get("Rows", {}).get("Row", [])
 
+                # Handle special sections like "Current Assets", "Fixed Assets", etc.
+                new_section_type = section_type
                 if not category_name:  # Top level (Assets, Liabilities, Equity)
                     new_category = section_display_name
                     new_category_id = ""
@@ -158,25 +194,28 @@ class BalanceSheetReportStream(HttpStream):
                     new_parent_id = ""
                     new_grandparent = ""
                     new_grandparent_id = ""
+                    new_section_type = ""
                 elif not parent_name:  # Second level (Current Assets, Fixed Assets, etc.)
                     new_category = category_name
                     new_category_id = category_id
                     new_parent = section_display_name
-                    new_parent_id = parent_id
+                    new_parent_id = section_id
                     new_grandparent = ""
-                    new_grandparent_id = parent_id
+                    new_grandparent_id = ""
+                    new_section_type = section_display_name  # Save "Current Assets" as section type
                 else:  # Third level and beyond
                     new_category = category_name
                     new_category_id = category_id
                     new_parent = section_display_name
-                    new_parent_id = parent_id
+                    new_parent_id = section_id
                     new_grandparent = parent_name
                     new_grandparent_id = parent_id
+                    new_section_type = section_type  # Keep the section type (e.g., "Current Assets")
 
                 self._process_rows(
                     nested_rows, accounts, start_period, end_period, currency, column_classes,
                     new_parent, new_parent_id, new_grandparent, new_grandparent_id,
-                    new_category, new_category_id
+                    new_category, new_category_id, new_section_type
                 )
 
     def get_json_schema(self) -> Mapping[str, Any]:
