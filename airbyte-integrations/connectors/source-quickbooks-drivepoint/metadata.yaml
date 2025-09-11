@@ -9,7 +9,7 @@ data:
     baseImage: docker.io/airbyte/python-connector-base:4.0.2@sha256:9fdb1888c4264cf6fee473649ecb593f56f58e5d0096a87ee0b231777e2e3e73
   connectorType: source
   definitionId: 59353119-f0f2-4e5a-a8ba-15d887bc34f6
-  dockerRepository: us-central1-docker.pkg.dev/data-infrastructure-324613/airbyte-custom/airbyte/source-quickbooks-drivepoint
+  dockerRepository: airbyte/source-quickbooks-drivepoint
   dockerImageTag: 0.1.0
   githubIssueLabel: source-quickbooks-drivepoint
   icon: quickbooks.svg
@@ -25,9 +25,6 @@ data:
     oss:
       enabled: true
   releaseStage: alpha
-  releases:
-    rolloutConfiguration:
-      enableProgressiveRollout: false
   documentationUrl: https://docs.airbyte.com/integrations/sources/quickbooks
   tags:
     - language:python
@@ -38,5 +35,4 @@ data:
   supportLevel: community
   connectorTestSuitesOptions:
     - suite: unitTests
-    - suite: integrationTests
 metadataSpecVersion: "1.0"

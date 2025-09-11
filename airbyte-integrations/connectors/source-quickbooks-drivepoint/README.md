@@ -45,6 +45,10 @@ poetry run pytest unit_tests
 ```bash
 airbyte-ci connectors --name=source-quickbooks-drivepoint build
 ```
+or if you need to build for a different architecture (e.g., to deploy to VM):
+```bash 
+airbyte-ci connectors --name=source-quickbooks-drivepoint build --architecture=linux/amd64
+```
 
 An image will be available on your host with the tag `airbyte/source-quickbooks-drivepoint:dev`.
 

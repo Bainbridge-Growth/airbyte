@@ -1,7 +1,7 @@
 from typing import Any, Iterable, List, Mapping, MutableMapping, Optional
 import requests
 from airbyte_cdk.sources.streams.http import HttpStream
-
+from airbyte_cdk.models import AirbyteStateMessage, AirbyteStateType
 
 class BalanceSheetReportStream(HttpStream):
     """QuickBooks Balance Sheet Report API connector
@@ -23,6 +23,17 @@ class BalanceSheetReportStream(HttpStream):
         self.start_date = start_date
         self.end_date = end_date
         super().__init__(**kwargs)
+
+    def _send_request(self, request, request_kwargs):
+        response = self._session.send(request, **request_kwargs)
+
+        if hasattr(self.authenticator, 'token_was_refreshed') and self.authenticator.token_was_refreshed():
+            new_token = self.authenticator.get_new_refresh_token()
+            state = {"refresh_token": new_token}
+            yield AirbyteStateMessage(data=state)
+            self.authenticator.clear_token_refresh_flag()
+
+        return response
 
     def path(
             self,
