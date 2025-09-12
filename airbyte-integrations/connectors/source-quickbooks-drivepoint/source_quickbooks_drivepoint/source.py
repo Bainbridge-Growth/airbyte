@@ -1,7 +1,7 @@
 import requests
 from datetime import datetime, timedelta
 from typing import Any, List, Mapping, Tuple, MutableMapping
-from source_quickbooks_drivepoint.streams import BalanceSheetReportStream
+from source_quickbooks_drivepoint.streams import BalanceSheetReportMonthly
 from airbyte_cdk.sources import AbstractSource
 from airbyte_cdk.sources.streams import Stream
 from airbyte_cdk.sources.streams.http.requests_native_auth import Oauth2Authenticator, TokenAuthenticator
@@ -23,7 +23,7 @@ class SourceQuickbooksDrivepoint(AbstractSource):
             yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
 
             authenticator = self.get_authenticator(config)
-            bs = BalanceSheetReportStream(
+            bs = BalanceSheetReportMonthly(
                 realm_id=config.get("realm_id"),
                 start_date=yesterday,  # Use yesterday
                 end_date=today,  # Use today
@@ -48,7 +48,7 @@ class SourceQuickbooksDrivepoint(AbstractSource):
     def streams(self, config: Mapping[str, Any]) -> List[Stream]:
         authenticator = self.get_authenticator(config)
         streams = []
-        streams.append(BalanceSheetReportStream(
+        streams.append(BalanceSheetReportMonthly(
             realm_id=config["realm_id"],
             start_date=config.get("start_date"),
             end_date=config.get("end_date"),

@@ -3,13 +3,13 @@ import requests
 from airbyte_cdk.sources.streams.http import HttpStream
 from airbyte_cdk.models import AirbyteStateMessage, AirbyteStateType
 
-class BalanceSheetReportStream(HttpStream):
+class BalanceSheetReportMonthly(HttpStream):
     """QuickBooks Balance Sheet Report API connector
 
     Reference: https://developer.intuit.com/app/developer/qbo/docs/api/accounting/all-entities/balancesheet
     """
 
-    primary_key = "id"
+    primary_key = ["_Account_id", "Class", "StartPeriod"]
     url_base = "https://quickbooks.api.intuit.com/v3/"
 
     def __init__(

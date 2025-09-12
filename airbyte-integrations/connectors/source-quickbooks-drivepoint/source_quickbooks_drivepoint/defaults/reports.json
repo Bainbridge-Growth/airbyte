@@ -1,6 +1,6 @@
 [
   {
-    "id": "balance_sheet",
+    "id": "balance_sheet_report_monthly",
     "name": "Balance Sheet",
     "dimensions": [
       "date"
@@ -8,8 +8,8 @@
     "metrics": []
   },
   {
-    "id": "income_statement",
-    "name": "Income Statement",
+    "id": "profit_loss_report_monthly",
+    "name": "Profit Loss",
     "dimensions": [
       "date"
     ],

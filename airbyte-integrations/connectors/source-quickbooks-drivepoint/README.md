@@ -93,3 +93,24 @@ You've checked out the repo, implemented a million dollar feature, and you're re
 6. Pat yourself on the back for being an awesome contributor.
 7. Someone from Airbyte will take a look at your PR and iterate with you to merge it into master.
 8. Once your PR is merged, the new version of the connector will be automatically published to Docker Hub and our connector registry.
+
+## Pushing a new version of the connector to Self-Managed Community Airbyte
+If you want to push a new version of the connector to your Self-Managed Community Airbyte instance, follow these steps:
+1. Build the docker image locally as described above in "Building the docker image".
+2. Tag the image with the version you want to push (the version in `metadata.yaml`):
+```bash
+docker tag airbyte/source-quickbooks-drivepoint:dev path/to/artifactory:<version>
+```
+3. Push the image to your Artifactory:
+```bash
+docker push path/to/artifactory:<version>
+```
+4. SSH into your Airbyte instance and download + check the image you pushed:
+```bash
+docker run --rm -i path/to/artifactory:<version> spec
+```
+5. Load image to airbyte:
+```bash
+kind load docker-image path/to/artifactory:<version> -n airbyte-abctl
+```
+6. Load Airbyte UI and add the new sources from your image.

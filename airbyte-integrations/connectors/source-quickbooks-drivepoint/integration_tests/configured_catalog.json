@@ -2,7 +2,7 @@
   "streams": [
     {
       "stream": {
-        "name": "balance_sheet_report_stream",
+        "name": "balance_sheet_report_monthly",
         "json_schema": {},
         "supported_sync_modes": ["full_refresh", "incremental"]
       },
