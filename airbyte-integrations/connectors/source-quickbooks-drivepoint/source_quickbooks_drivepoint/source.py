@@ -1,4 +1,5 @@
 import requests
+import time
 from datetime import datetime, timedelta
 from typing import Any, List, Mapping, Tuple, MutableMapping
 from source_quickbooks_drivepoint.streams import BalanceSheetReportMonthly
@@ -59,6 +60,7 @@ class SourceQuickbooksDrivepoint(AbstractSource):
 
 class QuickbooksOauth2Authenticator(Oauth2Authenticator):
     def __init__(self, client_id, client_secret, refresh_token):
+        self.refresh_token = refresh_token
         super().__init__(
             token_refresh_endpoint="https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer",
             client_id=client_id,
@@ -66,6 +68,17 @@ class QuickbooksOauth2Authenticator(Oauth2Authenticator):
             refresh_token=refresh_token,
             grant_type="refresh_token",
         )
+        # Initialize these to prevent token expiry errors
+        self.access_token = None
+        self.token_expiry_date = None
+
+    def token_has_expired(self) -> bool:
+        """Override token_has_expired to handle QuickBooks specific logic"""
+        if self.token_expiry_date is None:
+            return True  # If we don't have an expiry date, assume the token expired
+
+        current_time = int(time.time())
+        return current_time >= self.token_expiry_date
 
     def refresh_access_token(self) -> Tuple[str, int]:
         try:
@@ -75,6 +88,8 @@ class QuickbooksOauth2Authenticator(Oauth2Authenticator):
                 "client_id": self.get_client_id(),
                 "client_secret": self.get_client_secret()
             }
+
+            print(f"Refreshing token using refresh_token: {self.get_refresh_token()[:5]}...")
 
             response = requests.post(
                 self.get_token_refresh_endpoint(),
@@ -90,23 +105,14 @@ class QuickbooksOauth2Authenticator(Oauth2Authenticator):
 
             # Store new refresh token if provided in response
             if "refresh_token" in response_json:
-                new_refresh_token = response_json["refresh_token"]
-                print(f"Received new refresh token: {new_refresh_token[:5]}...")
+                self.refresh_token = response_json["refresh_token"]
+                print(f"Received new refresh token: {self.refresh_token[:5]}...")
 
-                self.refresh_token = new_refresh_token
-                self._token_refreshed = True
-                self._new_refresh_token = new_refresh_token
+            # Calculate token expiry time
+            self.token_expiry_date = int(time.time()) + response_json["expires_in"]
+            print(f"Token will expire at: {self.token_expiry_date}")
 
             return response_json["access_token"], response_json["expires_in"]
         except Exception as e:
             print(f"Exception during token refresh: {str(e)}")
             raise Exception(f"Error while refreshing access token: {e}") from e
-
-    def token_was_refreshed(self) -> bool:
-        return getattr(self, '_token_refreshed', False)
-
-    def get_new_refresh_token(self) -> str:
-        return getattr(self, '_new_refresh_token', None)
-
-    def clear_token_refresh_flag(self):
-        self._token_refreshed = False

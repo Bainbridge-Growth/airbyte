@@ -8,6 +8,7 @@
     "additionalProperties": true,
     "properties": {
       "credentials": {
+        "order": 0,
         "title": "Authenticate via OAuth 2.0",
         "type": "object",
         "required": ["client_id", "client_secret", "refresh_token"],
@@ -34,12 +35,14 @@
         }
       },
       "realm_id": {
+        "order": 1,
         "title": "Realm ID",
         "type": "string",
         "description": "The Realm ID of the QuickBooks company you want to access",
         "airbyte_secret": false
       },
       "start_date": {
+        "order": 2,
         "type": "string",
         "title": "Start Date",
         "description": "The start date of the report, in the format YYYY-MM-DD. start_date must be less than end_date.",
@@ -48,6 +51,7 @@
         "format": "date"
       },
       "end_date": {
+        "order": 3,
         "type": "string",
         "title": "End Date",
         "description": "The end date of the report, in the format YYYY-MM-DD. start_date must be less than end_date.",

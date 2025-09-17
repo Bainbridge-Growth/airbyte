@@ -1,7 +1,10 @@
-from typing import Any, Iterable, List, Mapping, MutableMapping, Optional
+import pendulum
 import requests
+from datetime import datetime
+from typing import Any, Iterable, List, Mapping, MutableMapping, Optional
 from airbyte_cdk.sources.streams.http import HttpStream
-from airbyte_cdk.models import AirbyteStateMessage, AirbyteStateType
+from airbyte_cdk.models import AirbyteStateMessage, SyncMode
+
 
 class BalanceSheetReportMonthly(HttpStream):
     """QuickBooks Balance Sheet Report API connector
@@ -24,16 +27,122 @@ class BalanceSheetReportMonthly(HttpStream):
         self.end_date = end_date
         super().__init__(**kwargs)
 
+    def stream_slices(
+            self,
+            sync_mode: SyncMode = None,
+            cursor_field: List[str] = None,
+            stream_state: Mapping[str, Any] = None,
+    ) -> Iterable[Mapping[str, Any]]:
+        """
+        Create monthly chunks from start_date to today (or end_date if specified)
+        """
+        # If no start_date is provided, return a single slice with no dates
+        if not self.start_date:
+            return [{}]
+
+        # Convert to datetime objects first for consistent handling
+        if isinstance(self.start_date, str):
+            start_dt = datetime.strptime(self.start_date, "%Y-%m-%d")
+        else:
+            start_dt = self.start_date
+
+        if self.end_date:
+            if isinstance(self.end_date, str):
+                end_dt = datetime.strptime(self.end_date, "%Y-%m-%d")
+            else:
+                end_dt = self.end_date
+        else:
+            end_dt = datetime.now()
+
+        # Create new pendulum dates directly
+        start = pendulum.datetime(start_dt.year, start_dt.month, start_dt.day)
+        end = pendulum.datetime(end_dt.year, end_dt.month, end_dt.day)
+
+        # Log the full period we're processing
+        self.logger.info(f"Breaking period {start.format('YYYY-MM-DD')} to {end.format('YYYY-MM-DD')} into monthly chunks")
+
+        slices = []
+        current_start = start
+
+        while current_start <= end:
+            year = current_start.year
+            month = current_start.month
+
+            # Calculate the end of the current month
+            if month == 12:
+                next_month_year = year + 1
+                next_month = 1
+            else:
+                next_month_year = year
+                next_month = month + 1
+
+            # First day of next month minus one day gives us last day of current month
+            next_month_first = pendulum.datetime(next_month_year, next_month, 1)
+            current_end = next_month_first.add(days=-1)
+
+            # If current_end is beyond our end date, use the end date
+            if current_end > end:
+                current_end = end
+
+            slices.append({
+                "start_date": current_start.format("YYYY-MM-DD"),
+                "end_date": current_end.format("YYYY-MM-DD")
+            })
+
+            # Move to the first day of next month
+            current_start = next_month_first
+
+        return slices
+
+    def request_params(
+            self,
+            stream_state: Mapping[str, Any],
+            stream_slice: Mapping[str, Any] = None,
+            next_page_token: Mapping[str, Any] = None,
+    ) -> MutableMapping[str, Any]:
+        params = {
+            "accounting_method": "Accrual",
+            "minorversion": 70,
+
+            # TODO: these are possible summarize_column_by values - decide which to use
+            "summarize_column_by": "Classes"
+            #"summarize_column_by": "Total"
+            #"summarize_column_by": "Month"
+        }
+        self.logger.info(f"Processing slice with dates: {stream_slice}")
+
+        # Use dates from the stream slice if available
+        if stream_slice:
+            if stream_slice.get("start_date"):
+                # QuickBooks API expects dates in YYYY-MM-DD format
+                params["start_date"] = stream_slice["start_date"]
+            if stream_slice.get("end_date"):
+                params["end_date"] = stream_slice["end_date"]
+        # Fall back to class variables if slice doesn't have dates
+        else:
+            if self.start_date:
+                params["start_date"] = pendulum.parse(self.start_date).date().strftime("%Y-%m-%d")
+            if self.end_date:
+                params["end_date"] = pendulum.parse(self.end_date).date().strftime("%Y-%m-%d")
+
+        return params
+
     def _send_request(self, request, request_kwargs):
         response = self._session.send(request, **request_kwargs)
-
-        if hasattr(self.authenticator, 'token_was_refreshed') and self.authenticator.token_was_refreshed():
-            new_token = self.authenticator.get_new_refresh_token()
-            state = {"refresh_token": new_token}
-            yield AirbyteStateMessage(data=state)
-            self.authenticator.clear_token_refresh_flag()
-
         return response
+
+    def read_records(self, sync_mode, cursor_field=None, stream_slice=None, stream_state=None):
+        # Call the parent implementation which will use _send_request
+        records_generator = super().read_records(
+            sync_mode=sync_mode,
+            cursor_field=cursor_field,
+            stream_slice=stream_slice,
+            stream_state=stream_state
+        )
+
+        # Yield all records from the parent implementation
+        for record in records_generator:
+            yield record
 
     def path(
             self,
@@ -42,22 +151,6 @@ class BalanceSheetReportMonthly(HttpStream):
             next_page_token: Mapping[str, Any] = None,
     ) -> str:
         return f"company/{self.realm_id}/reports/BalanceSheet"
-
-    def request_params(
-            self,
-            stream_state: Mapping[str, Any],
-            stream_slice: Mapping[str, Any] = None,
-            next_page_token: Mapping[str, Any] = None,
-    ) -> MutableMapping[str, Any]:
-        params = {"summarize_column_by": "Total"}
-
-        if self.start_date:
-            params["start_date"] = self.start_date
-
-        if self.end_date:
-            params["end_date"] = self.end_date
-
-        return params
 
     def request_headers(
             self,
@@ -83,10 +176,14 @@ class BalanceSheetReportMonthly(HttpStream):
             self.logger.warning("No rows found in balance sheet response")
             return []
 
-        # Extract common report info
+        request_url = response.request.url
+        self.logger.info(f"Request URL: {request_url}")
+
         start_period = header.get("StartPeriod")
         end_period = header.get("EndPeriod")
         currency = header.get("Currency")
+
+        self.logger.info(f"API returned data for period: {start_period} to {end_period}")
 
         # Build column mapping (skip first column which is account name)
         column_classes = []
