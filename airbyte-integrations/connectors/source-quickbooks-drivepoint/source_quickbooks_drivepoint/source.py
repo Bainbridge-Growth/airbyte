@@ -2,7 +2,7 @@ import requests
 import time
 from datetime import datetime, timedelta
 from typing import Any, List, Mapping, Tuple, MutableMapping
-from source_quickbooks_drivepoint.streams import BalanceSheetReportMonthly
+from source_quickbooks_drivepoint.streams import BalanceSheetReportMonthly, ProfitAndLossReportMonthly
 from airbyte_cdk.sources import AbstractSource
 from airbyte_cdk.sources.streams import Stream
 from airbyte_cdk.sources.streams.http.requests_native_auth import Oauth2Authenticator, TokenAuthenticator
@@ -48,13 +48,20 @@ class SourceQuickbooksDrivepoint(AbstractSource):
 
     def streams(self, config: Mapping[str, Any]) -> List[Stream]:
         authenticator = self.get_authenticator(config)
-        streams = []
-        streams.append(BalanceSheetReportMonthly(
-            realm_id=config["realm_id"],
-            start_date=config.get("start_date"),
-            end_date=config.get("end_date"),
-            authenticator=authenticator
-        ))
+        streams = [
+            BalanceSheetReportMonthly(
+                realm_id=config["realm_id"],
+                start_date=config.get("start_date"),
+                end_date=config.get("end_date"),
+                authenticator=authenticator
+            ),
+            ProfitAndLossReportMonthly(
+                realm_id=config["realm_id"],
+                start_date=config.get("start_date"),
+                end_date=config.get("end_date"),
+                authenticator=authenticator
+            )
+        ]
         return streams
 
 
@@ -89,8 +96,6 @@ class QuickbooksOauth2Authenticator(Oauth2Authenticator):
                 "client_secret": self.get_client_secret()
             }
 
-            print(f"Refreshing token using refresh_token: {self.get_refresh_token()[:5]}...")
-
             response = requests.post(
                 self.get_token_refresh_endpoint(),
                 data=form_data,
@@ -106,13 +111,10 @@ class QuickbooksOauth2Authenticator(Oauth2Authenticator):
             # Store new refresh token if provided in response
             if "refresh_token" in response_json:
                 self.refresh_token = response_json["refresh_token"]
-                print(f"Received new refresh token: {self.refresh_token[:5]}...")
 
             # Calculate token expiry time
             self.token_expiry_date = int(time.time()) + response_json["expires_in"]
-            print(f"Token will expire at: {self.token_expiry_date}")
 
             return response_json["access_token"], response_json["expires_in"]
         except Exception as e:
-            print(f"Exception during token refresh: {str(e)}")
             raise Exception(f"Error while refreshing access token: {e}") from e

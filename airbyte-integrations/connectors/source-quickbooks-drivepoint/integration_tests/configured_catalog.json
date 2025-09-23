@@ -8,6 +8,15 @@
       },
       "sync_mode": "incremental",
       "destination_sync_mode": "append"
+    },
+    {
+      "stream": {
+        "name": "profit_loss_report_monthly",
+        "json_schema": {},
+        "supported_sync_modes": ["full_refresh", "incremental"]
+      },
+      "sync_mode": "incremental",
+      "destination_sync_mode": "append"
     }
   ]
 }

@@ -6,10 +6,10 @@ from airbyte_cdk.sources.streams.http import HttpStream
 from airbyte_cdk.models import AirbyteStateMessage, SyncMode
 
 
-class BalanceSheetReportMonthly(HttpStream):
-    """QuickBooks Balance Sheet Report API connector
+class QuickbooksReportMonthlyBase(HttpStream):
+    """Base class for QuickBooks Reports API connectors
 
-    Reference: https://developer.intuit.com/app/developer/qbo/docs/api/accounting/all-entities/balancesheet
+    Reference: https://developer.intuit.com/app/developer/qbo/docs/api/accounting/all-entities
     """
 
     primary_key = ["_Account_id", "Class", "StartPeriod"]
@@ -144,14 +144,6 @@ class BalanceSheetReportMonthly(HttpStream):
         for record in records_generator:
             yield record
 
-    def path(
-            self,
-            stream_state: Mapping[str, Any] = None,
-            stream_slice: Mapping[str, Any] = None,
-            next_page_token: Mapping[str, Any] = None,
-    ) -> str:
-        return f"company/{self.realm_id}/reports/BalanceSheet"
-
     def request_headers(
             self,
             stream_state: Mapping[str, Any] = None,
@@ -208,33 +200,36 @@ class BalanceSheetReportMonthly(HttpStream):
                       category_name: str = "", category_id: str = "", section_type: str = ""):
         """Recursively process rows to extract account data"""
 
+        # Determine if this is a P&L report or Balance Sheet report based on the path or report structure
+        is_profit_loss = False
+        if hasattr(self, "path"):
+            path = self.path().split("/")[-1]
+            is_profit_loss = path == "ProfitAndLoss"
+
         for row in rows:
             row_type = row.get("type", "")
             account_id = ""
             if row_type == "Data":
-                # This is an account data row
-                col_data = row.get("ColData", [])
+                col_data = row.get("ColData", [])  # This is an account data row
 
                 if len(col_data) >= 2:
                     account_name = col_data[0].get("value", "")
-                    # Clean up account_id by removing any trailing " at index X" text
                     account_id = col_data[0].get("id", "")
                     if account_id and " at index " in account_id:
                         account_id = account_id.split(" at index ")[0]
 
-                    # Build the full account hierarchy
                     full_account_path = []
+
                     if category_name:
                         full_account_path.append(category_name)
 
-                    # Include section_type for sections like "Current Assets"
-                    if section_type and section_type != category_name:
+                    if section_type and section_type != category_name and section_type not in full_account_path:
                         full_account_path.append(section_type)
 
-                    if grandparent_name and grandparent_name != section_type:
+                    if grandparent_name and grandparent_name != section_type and grandparent_name not in full_account_path:
                         full_account_path.append(grandparent_name)
 
-                    if parent_name:
+                    if parent_name and parent_name not in full_account_path:
                         full_account_path.append(parent_name)
 
                     if account_name:
@@ -243,12 +238,11 @@ class BalanceSheetReportMonthly(HttpStream):
                     full_account_name = ":".join(full_account_path)
 
                     # Create one record for each column/class (skip first column which is account name)
-                    for i, class_name in enumerate(column_classes, 1):  # Start from index 1 (skip account column)
+                    for i, class_name in enumerate(column_classes, 1):
                         amount = ""
                         if i < len(col_data):
                             amount = col_data[i].get("value", "")
 
-                        # Clean parent_id and grandparent_id
                         clean_parent_id = parent_id
                         if clean_parent_id and " at index " in clean_parent_id:
                             clean_parent_id = clean_parent_id.split(" at index ")[0]
@@ -256,6 +250,12 @@ class BalanceSheetReportMonthly(HttpStream):
                         clean_grandparent_id = grandparent_id
                         if clean_grandparent_id and " at index " in clean_grandparent_id:
                             clean_grandparent_id = clean_grandparent_id.split(" at index ")[0]
+
+                        # For P&L reports, if we're at a third level entry with a parent but no grandparent,
+                        # use the category as the grandparent (e.g. Income is the grandparent of "4005 Sales")
+                        actual_grandparent_name = grandparent_name
+                        if is_profit_loss and parent_name and not grandparent_name:
+                            actual_grandparent_name = category_name
 
                         account_record = {
                             "_Account": account_name,
@@ -265,7 +265,7 @@ class BalanceSheetReportMonthly(HttpStream):
                             "Currency": currency,
                             "ParentAccountName": parent_name,
                             "ParentAccountId": clean_parent_id,
-                            "GrandParentAccountName": grandparent_name,
+                            "GrandParentAccountName": actual_grandparent_name,
                             "GrandParentAccountId": clean_grandparent_id,
                             "CategoryAccountName": category_name,
                             "CategoryAccountId": category_id,
@@ -286,7 +286,6 @@ class BalanceSheetReportMonthly(HttpStream):
                 if header_col_data:
                     section_display_name = header_col_data[0].get("value", "")
 
-                # Clean the section id
                 section_id = header_col_data[0].get("id", "") if header_col_data else ""
                 if section_id and " at index " in section_id:
                     section_id = section_id.split(" at index ")[0]
@@ -294,11 +293,10 @@ class BalanceSheetReportMonthly(HttpStream):
                 nested_rows = row.get("Rows", {}).get("Row", [])
 
                 # Handle special sections like "Current Assets", "Fixed Assets", etc.
-                new_section_type = section_type
                 if not category_name:  # Top level (Assets, Liabilities, Equity)
                     new_category = section_display_name
                     new_category_id = ""
-                    new_parent = ""
+                    new_parent_name = ""
                     new_parent_id = ""
                     new_grandparent = ""
                     new_grandparent_id = ""
@@ -306,28 +304,68 @@ class BalanceSheetReportMonthly(HttpStream):
                 elif not parent_name:  # Second level (Current Assets, Fixed Assets, etc.)
                     new_category = category_name
                     new_category_id = category_id
-                    new_parent = section_display_name
+                    new_parent_name = section_display_name
                     new_parent_id = section_id
                     new_grandparent = ""
                     new_grandparent_id = ""
-                    new_section_type = section_display_name  # Save "Current Assets" as section type
+                    new_section_type = section_display_name
                 else:  # Third level and beyond
-                    new_category = category_name
-                    new_category_id = category_id
-                    new_parent = section_display_name
-                    new_parent_id = section_id
-                    new_grandparent = parent_name
-                    new_grandparent_id = parent_id
-                    new_section_type = section_type  # Keep the section type (e.g., "Current Assets")
+                    # Process differently based on report type
+                    if is_profit_loss:
+                        new_category, new_category_id, new_parent_name, new_parent_id, new_grandparent, new_grandparent_id, new_section_type = \
+                            self._process_profit_loss_hierarchy(
+                                category_name, category_id, section_display_name, section_id,
+                                parent_name, parent_id, section_type
+                            )
+                    else:  # BalanceSheet or other reports
+                        new_category, new_category_id, new_parent_name, new_parent_id, new_grandparent, new_grandparent_id, new_section_type = \
+                            self._process_balance_sheet_hierarchy(
+                                category_name, category_id, section_display_name, section_id,
+                                parent_name, parent_id, grandparent_name, grandparent_id, section_type
+                            )
 
                 self._process_rows(
                     nested_rows, accounts, start_period, end_period, currency, column_classes,
-                    new_parent, new_parent_id, new_grandparent, new_grandparent_id,
+                    new_parent_name, new_parent_id, new_grandparent, new_grandparent_id,
                     new_category, new_category_id, new_section_type
                 )
 
+    def _process_profit_loss_hierarchy(self, category_name, category_id, section_display_name, section_id,
+                                     parent_name, parent_id, section_type):
+        """
+        Handle P&L specific hierarchy rules
+        """
+        new_category = category_name
+        new_category_id = category_id
+        new_parent_name = section_display_name
+        new_parent_id = section_id
+        # In P&L reports, the category is the grandparent for third-level accounts
+        # e.g. Income is the grandparent of "4005 Sales"
+        new_grandparent = category_name
+        new_grandparent_id = category_id
+        new_section_type = section_type
+
+        return new_category, new_category_id, new_parent_name, new_parent_id, new_grandparent, new_grandparent_id, new_section_type
+
+    def _process_balance_sheet_hierarchy(self, category_name, category_id, section_display_name, section_id,
+                                        parent_name, parent_id, grandparent_name, grandparent_id, section_type):
+        """
+        Handle Balance Sheet specific hierarchy
+        """
+        new_category = category_name
+        new_category_id = category_id
+        new_parent_name = section_display_name
+        new_parent_id = section_id
+        # For Balance Sheet, use the current parent as the grandparent for the next level
+        # e.g. "Current Assets" is the grandparent of "Checking"
+        new_grandparent = parent_name
+        new_grandparent_id = parent_id
+        new_section_type = section_type
+
+        return new_category, new_category_id, new_parent_name, new_parent_id, new_grandparent, new_grandparent_id, new_section_type
+
     def get_json_schema(self) -> Mapping[str, Any]:
-        """Define the schema for balance sheet account data"""
+        """Define the schema for account data"""
         return {
             "type": "object",
             "properties": {
@@ -350,3 +388,30 @@ class BalanceSheetReportMonthly(HttpStream):
                 "Total_Money": {"type": "string"}
             }
         }
+
+class BalanceSheetReportMonthly(QuickbooksReportMonthlyBase):
+    """QuickBooks Balance Sheet Report API connector
+
+    Reference: https://developer.intuit.com/app/developer/qbo/docs/api/accounting/all-entities/balancesheet
+    """
+    def path(
+            self,
+            stream_state: Mapping[str, Any] = None,
+            stream_slice: Mapping[str, Any] = None,
+            next_page_token: Mapping[str, Any] = None,
+    ) -> str:
+        return f"company/{self.realm_id}/reports/BalanceSheet"
+
+class ProfitAndLossReportMonthly(QuickbooksReportMonthlyBase):
+    """QuickBooks Profit and Loss Report API connector
+
+    Reference: https://developer.intuit.com/app/developer/qbo/docs/api/accounting/all-entities/profitandloss
+    """
+
+    def path(
+            self,
+            stream_state: Mapping[str, Any] = None,
+            stream_slice: Mapping[str, Any] = None,
+            next_page_token: Mapping[str, Any] = None,
+    ) -> str:
+        return f"company/{self.realm_id}/reports/ProfitAndLoss"

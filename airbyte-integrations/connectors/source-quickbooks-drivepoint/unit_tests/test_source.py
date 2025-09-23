@@ -26,7 +26,7 @@ def load_test_data(filename):
     with open(os.path.join(os.path.dirname(__file__), "resources/", filename)) as fp:
         return json.load(fp)
 
-def source_full_refresh_and_compare(requests_mock, test_data_file_name, expected_output_data_size, num_of_rows_to_check = 1):
+def source_full_refresh_and_compare(report_type, requests_mock, test_data_file_name, expected_output_data_size, num_of_rows_to_check = 1):
     """Test reading a complete balance sheet report"""
 
     # Mock the OAuth token refresh endpoint
@@ -37,7 +37,7 @@ def source_full_refresh_and_compare(requests_mock, test_data_file_name, expected
 
     # Mock the balance sheet API call
     requests_mock.get(
-        "https://quickbooks.api.intuit.com/v3/company/123456789/reports/BalanceSheet",
+        "https://quickbooks.api.intuit.com/v3/company/123456789/reports/%s" % report_type,
         json=load_test_data("api_responses/%s" % test_data_file_name)
     )
 
@@ -48,17 +48,16 @@ def source_full_refresh_and_compare(requests_mock, test_data_file_name, expected
     assert len(streams) > 0
 
     # Find the balance sheet stream
-    balance_sheet_stream = None
-    # TODO: un-hardcode BalanceSheet from here ?
+    report_stream = None
     for stream in streams:
-        if hasattr(stream, '__class__') and 'BalanceSheet' in stream.__class__.__name__:
-            balance_sheet_stream = stream
+        if hasattr(stream, '__class__') and report_type in stream.__class__.__name__:
+            report_stream = stream
             break
 
-    assert balance_sheet_stream is not None, "BalanceSheetReportStream not found in streams for %s" % test_data_file_name
+    assert report_stream is not None, "Report stream not found in streams for %s report" % report_type
 
     # Test reading records from the stream
-    records = list(balance_sheet_stream.read_records(sync_mode="full_refresh"))
+    records = list(report_stream.read_records(sync_mode="full_refresh"))
 
     # TODO: instead of using hardcoded expected_output_data_size number, use the len of expected json data file
     assert len(records) == expected_output_data_size
@@ -80,16 +79,20 @@ def compare_records(expected_record, actual_record, index = 0):
 
 @freezegun.freeze_time(_NOW.isoformat())
 def test_balance_sheet_simple(requests_mock):
-    source_full_refresh_and_compare(requests_mock, "balance_sheet_simple.json", 15, 2)
+    source_full_refresh_and_compare("BalanceSheet", requests_mock, "balance_sheet_simple.json", 15, 2)
 
 @freezegun.freeze_time(_NOW.isoformat())
 def test_balance_sheet_nguyen_without_classes_20240423(requests_mock):
-    source_full_refresh_and_compare(requests_mock, "balance_sheet_nguyen_without_classes_20240423.json", 117, 1)
+    source_full_refresh_and_compare("BalanceSheet", requests_mock, "balance_sheet_nguyen_without_classes_20240423.json", 117, 1)
 
 @freezegun.freeze_time(_NOW.isoformat())
 def test_balance_sheet_nguyen_with_classes_20240423(requests_mock):
-    source_full_refresh_and_compare(requests_mock, "balance_sheet_nguyen_with_classes_20240423.json", 833, 14)
+    source_full_refresh_and_compare("BalanceSheet", requests_mock, "balance_sheet_nguyen_with_classes_20240423.json", 833, 14)
 
 @freezegun.freeze_time(_NOW.isoformat())
 def test_balance_sheet_dirtylabs_11_levels_deep(requests_mock):
-    source_full_refresh_and_compare(requests_mock, "balance_sheet_dirtylabs_11_levels_deep.json", 68, 5)
+    source_full_refresh_and_compare("BalanceSheet", requests_mock, "balance_sheet_dirtylabs_11_levels_deep.json", 68, 5)
+
+@freezegun.freeze_time(_NOW.isoformat())
+def test_pandl_nguyen_with_classes_20240423(requests_mock):
+    source_full_refresh_and_compare("ProfitAndLoss", requests_mock, "pandl_nguyen_with_classes_20240423.json", 99, 5)
