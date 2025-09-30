@@ -18,11 +18,15 @@ class QuickbooksReportMonthlyBase(HttpStream):
     def __init__(
             self,
             realm_id: str,  # company id
+            accounting_method: str = "Accrual",
+            summarize_column_by: str = "Classes",
             start_date: str = None,
             end_date: str = None,
             **kwargs
     ):
         self.realm_id = realm_id
+        self.accounting_method = accounting_method
+        self.summarize_column_by = summarize_column_by
         self.start_date = start_date
         self.end_date = end_date
         super().__init__(**kwargs)
@@ -101,13 +105,8 @@ class QuickbooksReportMonthlyBase(HttpStream):
             next_page_token: Mapping[str, Any] = None,
     ) -> MutableMapping[str, Any]:
         params = {
-            "accounting_method": "Accrual",
-            "minorversion": 70,
-
-            # TODO: these are possible summarize_column_by values - decide which to use
-            "summarize_column_by": "Classes"
-            #"summarize_column_by": "Total"
-            #"summarize_column_by": "Month"
+            "accounting_method": self.accounting_method,
+            "summarize_column_by": self.summarize_column_by
         }
         self.logger.info(f"Processing slice with dates: {stream_slice}")
 

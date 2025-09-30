@@ -19,15 +19,18 @@ class SourceQuickbooksDrivepoint(AbstractSource):
 
     def check_connection(self, logger, config) -> Tuple[bool, any]:
         try:
-            # Get yesterday's date in YYYY-MM-DD format
             today = datetime.now().strftime("%Y-%m-%d")
             yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
 
             authenticator = self.get_authenticator(config)
             bs = BalanceSheetReportMonthly(
                 realm_id=config.get("realm_id"),
-                start_date=yesterday,  # Use yesterday
-                end_date=today,  # Use today
+                accounting_method=config.get("accounting_method_selector").get("selected_method") if config.get(
+                    "accounting_method_selector") else None,
+                summarize_column_by=config.get("summarize_column_by_selector").get("selected_column") if config.get(
+                    "summarize_column_by_selector") else None,
+                start_date=yesterday,
+                end_date=today,
                 authenticator=authenticator
             )
 
@@ -51,12 +54,16 @@ class SourceQuickbooksDrivepoint(AbstractSource):
         streams = [
             BalanceSheetReportMonthly(
                 realm_id=config["realm_id"],
+                accounting_method=config.get("accounting_method_selector").get("selected_method") if config.get("accounting_method_selector") else None,
+                summarize_column_by=config.get("summarize_column_by_selector").get("selected_column") if config.get("summarize_column_by_selector") else None,
                 start_date=config.get("start_date"),
                 end_date=config.get("end_date"),
                 authenticator=authenticator
             ),
             ProfitAndLossReportMonthly(
                 realm_id=config["realm_id"],
+                accounting_method=config.get("accounting_method_selector").get("selected_method") if config.get("accounting_method_selector") else None,
+                summarize_column_by=config.get("summarize_column_by_selector").get("selected_column") if config.get("summarize_column_by_selector") else None,
                 start_date=config.get("start_date"),
                 end_date=config.get("end_date"),
                 authenticator=authenticator

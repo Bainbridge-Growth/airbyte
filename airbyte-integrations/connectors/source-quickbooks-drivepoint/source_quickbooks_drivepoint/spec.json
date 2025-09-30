@@ -58,6 +58,98 @@
         "examples": ["2025-05-21"],
         "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
         "format": "date"
+      },
+      "accounting_method_selector": {
+        "order": 4,
+        "title": "Accounting Method",
+        "description": "The accounting method used to generate the report. This can be either Accrual or Cash. If not specified, the default is Accrual.",
+        "type": "object",
+        "display_type": "radio",
+        "oneOf": [
+          {
+            "title": "Accrual",
+            "required": ["selected_method"],
+            "properties": {
+              "selected_method": {
+                "type": "string",
+                "const": "Accrual",
+                "order": 0
+              }
+            }
+          },
+          {
+            "title": "Cash",
+            "required": ["selected_method"],
+            "properties": {
+              "selected_method": {
+                "type": "string",
+                "const": "Cash",
+                "order": 1
+              }
+            }
+          }
+        ]
+      },
+      "summarize_column_by_selector": {
+        "order": 5,
+        "title": "Summarize Column By",
+        "description": "The criteria by which to group the report results.",
+        "type": "object",
+        "display_type": "radio",
+        "oneOf": [
+          {
+            "title": "Departments",
+            "required": [
+              "selected_column"
+            ],
+            "properties": {
+              "selected_column": {
+                "type": "string",
+                "const": "Departments",
+                "order": 0
+              }
+            }
+          },
+          {
+            "title": "Classes",
+            "required": [
+              "selected_column"
+            ],
+            "properties": {
+              "selected_column": {
+                "type": "string",
+                "const": "Classes",
+                "order": 1
+              }
+            }
+          },
+          {
+            "title": "Customers",
+            "required": [
+              "selected_column"
+            ],
+            "properties": {
+              "selected_column": {
+                "type": "string",
+                "const": "Customers",
+                "order": 2
+              }
+            }
+          },
+          {
+            "title": "Vendors",
+            "required": [
+              "selected_column"
+            ],
+            "properties": {
+              "selected_column": {
+                "type": "string",
+                "const": "Vendors",
+                "order": 3
+              }
+            }
+          }
+        ]
       }
     }
   }
