@@ -4,7 +4,7 @@
     "$schema": "http://json-schema.org/draft-07/schema#",
     "title": "Quickbooks Drivepoint Spec",
     "type": "object",
-    "required": ["credentials", "realm_id"],
+    "required": ["credentials", "realm_id", "accounting_method", "summarize_column"],
     "additionalProperties": true,
     "properties": {
       "credentials": {
@@ -38,8 +38,7 @@
         "order": 1,
         "title": "Realm ID",
         "type": "string",
-        "description": "The Realm ID of the QuickBooks company you want to access",
-        "airbyte_secret": false
+        "description": "The Realm ID of the QuickBooks company you want to access"
       },
       "start_date": {
         "order": 2,
@@ -59,7 +58,7 @@
         "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
         "format": "date"
       },
-      "accounting_method_selector": {
+      "accounting_method": {
         "order": 4,
         "title": "Accounting Method",
         "description": "The accounting method used to generate the report. This can be either Accrual or Cash. If not specified, the default is Accrual.",
@@ -90,7 +89,7 @@
           }
         ]
       },
-      "summarize_column_by_selector": {
+      "summarize_column": {
         "order": 5,
         "title": "Summarize Column By",
         "description": "The criteria by which to group the report results.",

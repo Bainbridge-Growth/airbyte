@@ -25,10 +25,10 @@ class SourceQuickbooksDrivepoint(AbstractSource):
             authenticator = self.get_authenticator(config)
             bs = BalanceSheetReportMonthly(
                 realm_id=config.get("realm_id"),
-                accounting_method=config.get("accounting_method_selector").get("selected_method") if config.get(
-                    "accounting_method_selector") else None,
-                summarize_column_by=config.get("summarize_column_by_selector").get("selected_column") if config.get(
-                    "summarize_column_by_selector") else None,
+                accounting_method=config.get("accounting_method").get("selected_method") if config.get(
+                    "accounting_method") else None,
+                summarize_column_by=config.get("summarize_column").get("selected_column") if config.get(
+                    "summarize_column") else None,
                 start_date=yesterday,
                 end_date=today,
                 authenticator=authenticator
@@ -54,16 +54,16 @@ class SourceQuickbooksDrivepoint(AbstractSource):
         streams = [
             BalanceSheetReportMonthly(
                 realm_id=config["realm_id"],
-                accounting_method=config.get("accounting_method_selector").get("selected_method") if config.get("accounting_method_selector") else None,
-                summarize_column_by=config.get("summarize_column_by_selector").get("selected_column") if config.get("summarize_column_by_selector") else None,
+                accounting_method=config.get("accounting_method").get("selected_method") if config.get("accounting_method") else None,
+                summarize_column_by=config.get("summarize_column").get("selected_column") if config.get("summarize_column") else None,
                 start_date=config.get("start_date"),
                 end_date=config.get("end_date"),
                 authenticator=authenticator
             ),
             ProfitAndLossReportMonthly(
                 realm_id=config["realm_id"],
-                accounting_method=config.get("accounting_method_selector").get("selected_method") if config.get("accounting_method_selector") else None,
-                summarize_column_by=config.get("summarize_column_by_selector").get("selected_column") if config.get("summarize_column_by_selector") else None,
+                accounting_method=config.get("accounting_method").get("selected_method") if config.get("accounting_method") else None,
+                summarize_column_by=config.get("summarize_column").get("selected_column") if config.get("summarize_column") else None,
                 start_date=config.get("start_date"),
                 end_date=config.get("end_date"),
                 authenticator=authenticator
