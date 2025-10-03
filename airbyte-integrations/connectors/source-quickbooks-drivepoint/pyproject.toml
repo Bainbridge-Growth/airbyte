@@ -19,6 +19,8 @@ source-quickbooks-drivepoint = "source_quickbooks_drivepoint.run:run"
 python = "^3.10,<3.12"
 airbyte-cdk = "^6"
 pendulum = "^3.0.0"
+firebase-admin = "^7.1.0"
+google-cloud-secret-manager = "^2.24.0"
 
 [tool.poetry.group.dev.dependencies]
 requests-mock = "^1"

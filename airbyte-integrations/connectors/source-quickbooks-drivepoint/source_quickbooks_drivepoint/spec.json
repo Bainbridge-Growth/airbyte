@@ -4,14 +4,26 @@
     "$schema": "http://json-schema.org/draft-07/schema#",
     "title": "Quickbooks Drivepoint Spec",
     "type": "object",
-    "required": ["credentials", "realm_id", "accounting_method", "summarize_column"],
+    "required": ["company_id", "credentials", "realm_id", "accounting_method", "summarize_column"],
     "additionalProperties": true,
     "properties": {
-      "credentials": {
+      "company_id": {
         "order": 0,
+        "title": "Drivepoint Company ID",
+        "type": "string",
+        "description": "The ID of the company in Drivepoint App"
+      },
+      "realm_id": {
+        "order": 1,
+        "title": "Realm ID",
+        "type": "string",
+        "description": "The Realm ID of the QuickBooks company you want to access"
+      },
+      "credentials": {
+        "order": 2,
         "title": "Authenticate via OAuth 2.0",
         "type": "object",
-        "required": ["client_id", "client_secret", "refresh_token"],
+        "required": ["client_id", "client_secret"],
         "additionalProperties": true,
         "properties": {
           "client_id": {
@@ -29,37 +41,13 @@
           "refresh_token": {
             "title": "Refresh Token",
             "type": "string",
-            "description": "A refresh token generated using the above client ID and secret",
+            "description": "A refresh token generated using the above client ID and secret. If not set we will use one from firebase",
             "airbyte_secret": true
           }
         }
       },
-      "realm_id": {
-        "order": 1,
-        "title": "Realm ID",
-        "type": "string",
-        "description": "The Realm ID of the QuickBooks company you want to access"
-      },
-      "start_date": {
-        "order": 2,
-        "type": "string",
-        "title": "Start Date",
-        "description": "The start date of the report, in the format YYYY-MM-DD. start_date must be less than end_date.",
-        "examples": ["2025-01-14"],
-        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
-        "format": "date"
-      },
-      "end_date": {
-        "order": 3,
-        "type": "string",
-        "title": "End Date",
-        "description": "The end date of the report, in the format YYYY-MM-DD. start_date must be less than end_date.",
-        "examples": ["2025-05-21"],
-        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
-        "format": "date"
-      },
       "accounting_method": {
-        "order": 4,
+        "order": 3,
         "title": "Accounting Method",
         "description": "The accounting method used to generate the report. This can be either Accrual or Cash. If not specified, the default is Accrual.",
         "type": "object",
@@ -90,7 +78,7 @@
         ]
       },
       "summarize_column": {
-        "order": 5,
+        "order": 4,
         "title": "Summarize Column By",
         "description": "The criteria by which to group the report results.",
         "type": "object",
@@ -149,6 +137,24 @@
             }
           }
         ]
+      },
+      "start_date": {
+        "order": 5,
+        "type": "string",
+        "title": "Start Date",
+        "description": "The start date of the report, in the format YYYY-MM-DD. start_date must be less than end_date.",
+        "examples": ["2025-01-14"],
+        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+        "format": "date"
+      },
+      "end_date": {
+        "order": 6,
+        "type": "string",
+        "title": "End Date",
+        "description": "The end date of the report, in the format YYYY-MM-DD. start_date must be less than end_date.",
+        "examples": ["2025-05-21"],
+        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+        "format": "date"
       }
     }
   }

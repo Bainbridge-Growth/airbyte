@@ -1,11 +1,15 @@
+import os
 import requests
 import time
+import json
 from datetime import datetime, timedelta
 from typing import Any, List, Mapping, Tuple, MutableMapping
 from source_quickbooks_drivepoint.streams import BalanceSheetReportMonthly, ProfitAndLossReportMonthly
 from airbyte_cdk.sources import AbstractSource
 from airbyte_cdk.sources.streams import Stream
 from airbyte_cdk.sources.streams.http.requests_native_auth import Oauth2Authenticator, TokenAuthenticator
+from source_quickbooks_drivepoint.firebase_client import FirebaseClient
+from source_quickbooks_drivepoint.secret_manager_client import SecretManagerClient
 
 
 class SourceQuickbooksDrivepoint(AbstractSource):
@@ -14,7 +18,8 @@ class SourceQuickbooksDrivepoint(AbstractSource):
         return QuickbooksOauth2Authenticator(
             client_id=config.get("credentials")["client_id"],
             client_secret=config.get("credentials")["client_secret"],
-            refresh_token=config.get("credentials")["refresh_token"]
+            company_id=config.get("company_id"),
+            refresh_token=config.get("credentials").get("refresh_token")
         )
 
     def check_connection(self, logger, config) -> Tuple[bool, any]:
@@ -73,15 +78,29 @@ class SourceQuickbooksDrivepoint(AbstractSource):
 
 
 class QuickbooksOauth2Authenticator(Oauth2Authenticator):
-    def __init__(self, client_id, client_secret, refresh_token):
-        self.refresh_token = refresh_token
+    def __init__(self, client_id, client_secret, company_id, refresh_token=None):
+        firebase_project_id = "exceladdinprod"
+        if os.path.exists('secrets/firebase_service_account.json'):
+            self.firebase_client = FirebaseClient('secrets/firebase_service_account.json', firebase_project_id)
+        else:
+            secrets_manager = SecretManagerClient("data-infrastructure-324613")
+            firebase_sa = secrets_manager.get_firebase_service_account()
+            self.firebase_client = FirebaseClient(firebase_sa, firebase_project_id)
+
+        if refresh_token is not None:
+            self.refresh_token = refresh_token
+        else:
+            self.refresh_token = self.firebase_client.get_refresh_token(company_id)
+
+        self.company_id = company_id
         super().__init__(
             token_refresh_endpoint="https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer",
             client_id=client_id,
             client_secret=client_secret,
-            refresh_token=refresh_token,
+            refresh_token=self.refresh_token,
             grant_type="refresh_token",
         )
+
         # Initialize these to prevent token expiry errors
         self.access_token = None
         self.token_expiry_date = None
@@ -118,6 +137,8 @@ class QuickbooksOauth2Authenticator(Oauth2Authenticator):
             # Store new refresh token if provided in response
             if "refresh_token" in response_json:
                 self.refresh_token = response_json["refresh_token"]
+                self.firebase_client.update_refresh_token(self.company_id, response_json["refresh_token"])
+                # TODO: close firebase connection here ???
 
             # Calculate token expiry time
             self.token_expiry_date = int(time.time()) + response_json["expires_in"]
@@ -125,3 +146,4 @@ class QuickbooksOauth2Authenticator(Oauth2Authenticator):
             return response_json["access_token"], response_json["expires_in"]
         except Exception as e:
             raise Exception(f"Error while refreshing access token: {e}") from e
+
