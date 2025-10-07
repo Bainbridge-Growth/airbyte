@@ -1,7 +1,7 @@
 import os
 import requests
 import time
-import json
+import logging
 from datetime import datetime, timedelta
 from typing import Any, List, Mapping, Tuple, MutableMapping
 from source_quickbooks_drivepoint.streams import BalanceSheetReportMonthly, ProfitAndLossReportMonthly
@@ -11,6 +11,7 @@ from airbyte_cdk.sources.streams.http.requests_native_auth import Oauth2Authenti
 from source_quickbooks_drivepoint.firebase_client import FirebaseClient
 from source_quickbooks_drivepoint.secret_manager_client import SecretManagerClient
 
+logger = logging.getLogger("airbyte")
 
 class SourceQuickbooksDrivepoint(AbstractSource):
     @staticmethod
@@ -129,16 +130,16 @@ class QuickbooksOauth2Authenticator(Oauth2Authenticator):
             )
 
             if response.status_code != 200:
-                print(f"Token refresh failed: Status {response.status_code}, Response: {response.text}")
+                logger.error(f"Token refresh failed: Status {response.status_code}, Response: {response.text}")
                 response.raise_for_status()
 
             response_json = response.json()
 
-            # Store new refresh token if provided in response
+            # Store new refresh token, if provided in the response
             if "refresh_token" in response_json:
-                self.refresh_token = response_json["refresh_token"]
-                self.firebase_client.update_refresh_token(self.company_id, response_json["refresh_token"])
-                # TODO: close firebase connection here ???
+                if self.refresh_token != response_json["refresh_token"]:
+                    self.firebase_client.update_refresh_token(self.company_id, response_json["refresh_token"])
+                    self.refresh_token = response_json["refresh_token"]
 
             # Calculate token expiry time
             self.token_expiry_date = int(time.time()) + response_json["expires_in"]
