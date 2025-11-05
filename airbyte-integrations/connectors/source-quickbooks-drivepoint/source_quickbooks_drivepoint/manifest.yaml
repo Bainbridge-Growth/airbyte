@@ -1,0 +1,1700 @@
+version: 0.2.26
+type: DeclarativeSource
+check:
+  type: CheckStream
+  stream_names:
+  - accounts
+definitions:
+  base_requester:
+    type: HttpRequester
+    url_base: >-
+      {{ 'https://sandbox-quickbooks.api.intuit.com' if config.sandbox else
+      'https://quickbooks.api.intuit.com' }}
+    authenticator: "#/definitions/authenticator"
+    path: /v3/company/{{ config.realm_id }}/query
+    http_method: GET
+  base_paginator:
+    type: DefaultPaginator
+    pagination_strategy:
+      type: OffsetIncrement
+      page_size: 5
+  base_incremental_sync:
+    type: DatetimeBasedCursor
+    step: P30D
+    cursor_field: airbyte_cursor
+    end_datetime: "{{ now_utc().isoformat('T', 'seconds') }}"
+    start_datetime: "{{ config.start_date }}"
+    datetime_format: "%Y-%m-%dT%H:%M:%S%z"
+    cursor_granularity: PT0S    
+  authenticator:
+    type: CustomAuthenticator
+    class_name: source_quickbooks_drivepoint.auth_client.QuickbooksOauth2Authenticator
+    company_id: ${config.company_id}
+    client_id: ${config.client_id}
+    client_secret: ${config.client_secret}
+    refresh_token: ${config.refresh_token}
+    
+  streams:
+    accounts:
+      type: DeclarativeStream
+      name: accounts
+      primary_key:
+      - Id
+      retriever:
+        type: SimpleRetriever
+        requester:
+          $ref: "#/definitions/base_requester"
+          request_parameters:
+            query: >-
+              SELECT * FROM Account WHERE Metadata.LastUpdatedTime > '{{
+              stream_slice.start_time[:-2] + ":" + stream_slice.start_time[-2:]
+              }}' AND Metadata.LastUpdatedTime <= '{{ stream_slice.end_time[:-2]
+              + ":" + stream_slice.start_time[-2:] }}' AND Active IN (true,
+              false) ORDER BY Metadata.LastUpdatedTime ASC STARTPOSITION {{
+              (next_page_token.next_page_token or 0) + 1 }} MAXRESULTS {{
+              (config.max_results or '200') | int }}
+          request_headers:
+            Accept: application/json
+            User-Agent: airbyte-connector
+        record_selector:
+          type: RecordSelector
+          extractor:
+            type: DpathExtractor
+            field_path:
+            - QueryResponse
+            - Account
+        paginator:
+          $ref: "#/definitions/base_paginator"
+      incremental_sync: "#/definitions/base_incremental_sync"
+      transformations:
+      - type: AddFields
+        fields:
+        - path:
+          - airbyte_cursor
+          value: "{{ record.MetaData.LastUpdatedTime }}"
+      schema_loader:
+        type: InlineSchemaLoader
+        schema:
+          type:
+          - "null"
+          - object
+          $schema: http://json-schema.org/draft-07/schema#
+          additionalProperties: true
+          properties:
+            AccountSubType:
+              type:
+              - "null"
+              - string
+            AccountType:
+              type:
+              - "null"
+              - string
+            AcctNum:
+              type:
+              - "null"
+              - string
+            Active:
+              type:
+              - "null"
+              - boolean
+            Classification:
+              type:
+              - "null"
+              - string
+            CurrencyRef:
+              type:
+              - "null"
+              - object
+              properties:
+                name:
+                  type:
+                  - "null"
+                  - string
+                value:
+                  type:
+                  - "null"
+                  - string
+            CurrentBalance:
+              type:
+              - "null"
+              - number
+            CurrentBalanceWithSubAccounts:
+              type:
+              - "null"
+              - number
+            FullyQualifiedName:
+              type:
+              - "null"
+              - string
+            Id:
+              type:
+              - "null"
+              - string
+            MetaData:
+              type:
+              - "null"
+              - object
+              properties:
+                CreateTime:
+                  type:
+                  - "null"
+                  - string
+                  format: date-time
+                LastUpdatedTime:
+                  type:
+                  - "null"
+                  - string
+                  format: date-time
+            Name:
+              type:
+              - "null"
+              - string
+            ParentRef:
+              type:
+              - "null"
+              - object
+              properties:
+                value:
+                  type:
+                  - "null"
+                  - string
+            SubAccount:
+              type:
+              - "null"
+              - boolean
+            SyncToken:
+              type:
+              - "null"
+              - string
+            airbyte_cursor:
+              type:
+              - "null"
+              - string
+            domain:
+              type:
+              - "null"
+              - string
+            sparse:
+              type:
+              - "null"
+              - boolean
+    classes:
+      type: DeclarativeStream
+      name: classes
+      primary_key:
+      - Id
+      retriever:
+        type: SimpleRetriever
+        requester:
+          $ref: "#/definitions/base_requester"
+          request_parameters:
+            query: >-
+              SELECT * FROM Class WHERE Metadata.LastUpdatedTime > '{{
+              stream_slice.start_time[:-2] + ":" + stream_slice.start_time[-2:]
+              }}' AND Metadata.LastUpdatedTime <= '{{ stream_slice.end_time[:-2]
+              + ":" + stream_slice.start_time[-2:] }}' AND Active IN (true,
+              false) ORDER BY Metadata.LastUpdatedTime ASC STARTPOSITION {{
+              (next_page_token.next_page_token or 0) + 1 }} MAXRESULTS {{
+              (config.max_results or '200') | int }}
+          request_headers:
+            Accept: application/json
+            User-Agent: airbyte-connector
+        record_selector:
+          type: RecordSelector
+          extractor:
+            type: DpathExtractor
+            field_path:
+            - QueryResponse
+            - Class
+        paginator:
+          $ref: "#/definitions/base_paginator"
+      incremental_sync: "#/definitions/base_incremental_sync"
+      transformations:
+      - type: AddFields
+        fields:
+        - path:
+          - airbyte_cursor
+          value: "{{ record.MetaData.LastUpdatedTime }}"
+      schema_loader:
+        type: InlineSchemaLoader
+        schema:
+          type:
+          - "null"
+          - object
+          $schema: http://json-schema.org/draft-07/schema#
+          additionalProperties: true
+          properties:
+            Active:
+              type:
+              - "null"
+              - boolean
+            FullyQualifiedName:
+              type:
+              - "null"
+              - string
+            Id:
+              type:
+              - "null"
+              - string
+            MetaData:
+              type:
+              - "null"
+              - object
+              properties:
+                CreateTime:
+                  type:
+                  - "null"
+                  - string
+                  format: date-time
+                LastUpdatedTime:
+                  type:
+                  - "null"
+                  - string
+                  format: date-time
+            Name:
+              type:
+              - "null"
+              - string
+            ParentRef:
+              type:
+              - "null"
+              - object
+              properties:
+                name:
+                  type:
+                  - "null"
+                  - string
+                value:
+                  type:
+                  - "null"
+                  - string
+            SubClass:
+              type:
+              - "null"
+              - boolean
+            SyncToken:
+              type:
+              - "null"
+              - string
+            airbyte_cursor:
+              type:
+              - "null"
+              - string
+            domain:
+              type:
+              - "null"
+              - string
+    customers:
+      type: DeclarativeStream
+      name: customers
+      primary_key:
+      - Id
+      retriever:
+        type: SimpleRetriever
+        requester:
+          $ref: "#/definitions/base_requester"
+          request_parameters:
+            query: >-
+              SELECT * FROM Customer WHERE Metadata.LastUpdatedTime > '{{
+              stream_slice.start_time[:-2] + ":" + stream_slice.start_time[-2:]
+              }}' AND Metadata.LastUpdatedTime <= '{{ stream_slice.end_time[:-2]
+              + ":" + stream_slice.start_time[-2:] }}' AND Active IN (true,
+              false) ORDER BY Metadata.LastUpdatedTime ASC STARTPOSITION {{
+              (next_page_token.next_page_token or 0) + 1 }} MAXRESULTS {{
+              (config.max_results or '200') | int }}
+          request_headers:
+            Accept: application/json
+            User-Agent: airbyte-connector
+        record_selector:
+          type: RecordSelector
+          extractor:
+            type: DpathExtractor
+            field_path:
+            - QueryResponse
+            - Customer
+        paginator:
+          $ref: "#/definitions/base_paginator"
+      incremental_sync: "#/definitions/base_incremental_sync"
+      transformations:
+      - type: AddFields
+        fields:
+        - path:
+          - airbyte_cursor
+          value: "{{ record.MetaData.LastUpdatedTime }}"
+      schema_loader:
+        type: InlineSchemaLoader
+        schema:
+          type:
+          - "null"
+          - object
+          $schema: http://json-schema.org/draft-07/schema#
+          additionalProperties: true
+          properties:
+            Active:
+              type:
+              - "null"
+              - boolean
+            Balance:
+              type:
+              - "null"
+              - number
+            BalanceWithJobs:
+              type:
+              - "null"
+              - number
+            BillAddr:
+              type:
+              - "null"
+              - object
+              properties:
+                City:
+                  type:
+                  - "null"
+                  - string
+                Country:
+                  type:
+                  - "null"
+                  - string
+                CountrySubDivisionCode:
+                  type:
+                  - "null"
+                  - string
+                Id:
+                  type:
+                  - "null"
+                  - string
+                Lat:
+                  type:
+                  - "null"
+                  - string
+                Line1:
+                  type:
+                  - "null"
+                  - string
+                Long:
+                  type:
+                  - "null"
+                  - string
+                PostalCode:
+                  type:
+                  - "null"
+                  - string
+            BillWithParent:
+              type:
+              - "null"
+              - boolean
+            CompanyName:
+              type:
+              - "null"
+              - string
+            CurrencyRef:
+              type:
+              - "null"
+              - object
+              properties:
+                name:
+                  type:
+                  - "null"
+                  - string
+                value:
+                  type:
+                  - "null"
+                  - string
+            DefaultTaxCodeRef:
+              type:
+              - "null"
+              - object
+              properties:
+                name:
+                  type:
+                  - "null"
+                  - string
+                value:
+                  type:
+                  - "null"
+                  - string
+            DisplayName:
+              type:
+              - "null"
+              - string
+            FamilyName:
+              type:
+              - "null"
+              - string
+            Fax:
+              type:
+              - "null"
+              - object
+              properties:
+                FreeFormNumber:
+                  type:
+                  - "null"
+                  - string
+            FullyQualifiedName:
+              type:
+              - "null"
+              - string
+            GivenName:
+              type:
+              - "null"
+              - string
+            Id:
+              type:
+              - "null"
+              - string
+            Job:
+              type:
+              - "null"
+              - boolean
+            Level:
+              type:
+              - "null"
+              - integer
+            MetaData:
+              type:
+              - "null"
+              - object
+              properties:
+                CreateTime:
+                  type:
+                  - "null"
+                  - string
+                  format: date-time
+                LastUpdatedTime:
+                  type:
+                  - "null"
+                  - string
+                  format: date-time
+            MiddleName:
+              type:
+              - "null"
+              - string
+            Mobile:
+              type:
+              - "null"
+              - object
+              properties:
+                FreeFormNumber:
+                  type:
+                  - "null"
+                  - string
+            ParentRef:
+              type:
+              - "null"
+              - object
+              properties:
+                value:
+                  type:
+                  - "null"
+                  - string
+            PaymentMethodRef:
+              type:
+              - "null"
+              - object
+              properties:
+                name:
+                  type:
+                  - "null"
+                  - string
+                value:
+                  type:
+                  - "null"
+                  - string
+            PreferredDeliveryMethod:
+              type:
+              - "null"
+              - string
+            PrimaryEmailAddr:
+              type:
+              - "null"
+              - object
+              properties:
+                Address:
+                  type:
+                  - "null"
+                  - string
+            PrimaryPhone:
+              type:
+              - "null"
+              - object
+              properties:
+                FreeFormNumber:
+                  type:
+                  - "null"
+                  - string
+            PrintOnCheckName:
+              type:
+              - "null"
+              - string
+            ResaleNum:
+              type:
+              - "null"
+              - string
+            SalesTermRef:
+              type:
+              - "null"
+              - object
+              properties:
+                name:
+                  type:
+                  - "null"
+                  - string
+                value:
+                  type:
+                  - "null"
+                  - string
+            ShipAddr:
+              type:
+              - "null"
+              - object
+              properties:
+                City:
+                  type:
+                  - "null"
+                  - string
+                Country:
+                  type:
+                  - "null"
+                  - string
+                CountrySubDivisionCode:
+                  type:
+                  - "null"
+                  - string
+                Id:
+                  type:
+                  - "null"
+                  - string
+                Lat:
+                  type:
+                  - "null"
+                  - string
+                Line1:
+                  type:
+                  - "null"
+                  - string
+                Long:
+                  type:
+                  - "null"
+                  - string
+                PostalCode:
+                  type:
+                  - "null"
+                  - string
+            SyncToken:
+              type:
+              - "null"
+              - string
+            Taxable:
+              type:
+              - "null"
+              - boolean
+            WebAddr:
+              type:
+              - "null"
+              - object
+              properties:
+                URI:
+                  type:
+                  - "null"
+                  - string
+            airbyte_cursor:
+              type:
+              - "null"
+              - string
+            domain:
+              type:
+              - "null"
+              - string
+            sparse:
+              type:
+              - "null"
+              - boolean
+    departments:
+      type: DeclarativeStream
+      name: departments
+      primary_key:
+      - Id
+      retriever:
+        type: SimpleRetriever
+        requester:
+          $ref: "#/definitions/base_requester"
+          request_parameters:
+            query: >-
+              SELECT * FROM Department WHERE Metadata.LastUpdatedTime > '{{
+              stream_slice.start_time[:-2] + ":" + stream_slice.start_time[-2:]
+              }}' AND Metadata.LastUpdatedTime <= '{{ stream_slice.end_time[:-2]
+              + ":" + stream_slice.start_time[-2:] }}' AND Active IN (true,
+              false) ORDER BY Metadata.LastUpdatedTime ASC STARTPOSITION {{
+              (next_page_token.next_page_token or 0) + 1 }} MAXRESULTS {{
+              (config.max_results or '200') | int }}
+          request_headers:
+            Accept: application/json
+            User-Agent: airbyte-connector
+        record_selector:
+          type: RecordSelector
+          extractor:
+            type: DpathExtractor
+            field_path:
+            - QueryResponse
+            - Department
+        paginator:
+          $ref: "#/definitions/base_paginator"
+      incremental_sync: "#/definitions/base_incremental_sync"
+      transformations:
+      - type: AddFields
+        fields:
+        - path:
+          - airbyte_cursor
+          value: "{{ record.MetaData.LastUpdatedTime }}"
+      schema_loader:
+        type: InlineSchemaLoader
+        schema:
+          type:
+          - "null"
+          - object
+          $schema: http://json-schema.org/draft-07/schema#
+          additionalProperties: true
+          properties:
+            Active:
+              type:
+              - "null"
+              - boolean
+            FullyQualifiedName:
+              type:
+              - "null"
+              - string
+            Id:
+              type:
+              - "null"
+              - string
+            MetaData:
+              type:
+              - "null"
+              - object
+              properties:
+                CreateTime:
+                  type:
+                  - "null"
+                  - string
+                  format: date-time
+                LastUpdatedTime:
+                  type:
+                  - "null"
+                  - string
+                  format: date-time
+            Name:
+              type:
+              - "null"
+              - string
+            ParentRef:
+              type:
+              - "null"
+              - object
+              properties:
+                name:
+                  type:
+                  - "null"
+                  - string
+                value:
+                  type:
+                  - "null"
+                  - string
+            SubDepartment:
+              type:
+              - "null"
+              - boolean
+            SyncToken:
+              type:
+              - "null"
+              - string
+            airbyte_cursor:
+              type:
+              - "null"
+              - string
+            domain:
+              type:
+              - "null"
+              - string
+    vendors:
+      type: DeclarativeStream
+      name: vendors
+      primary_key:
+      - Id
+      retriever:
+        type: SimpleRetriever
+        requester:
+          $ref: "#/definitions/base_requester"
+          request_parameters:
+            query: >-
+              SELECT * FROM Vendor WHERE Metadata.LastUpdatedTime > '{{
+              stream_slice.start_time[:-2] + ":" + stream_slice.start_time[-2:]
+              }}' AND Metadata.LastUpdatedTime <= '{{ stream_slice.end_time[:-2]
+              + ":" + stream_slice.start_time[-2:] }}' ORDER BY
+              Metadata.LastUpdatedTime ASC STARTPOSITION {{
+              (next_page_token.next_page_token or 0) + 1 }} MAXRESULTS {{
+              (config.max_results or '200') | int }}
+          request_headers:
+            Accept: application/json
+            User-Agent: airbyte-connector
+        record_selector:
+          type: RecordSelector
+          extractor:
+            type: DpathExtractor
+            field_path:
+            - QueryResponse
+            - Vendor
+        paginator:
+          $ref: "#/definitions/base_paginator"
+      incremental_sync: "#/definitions/base_incremental_sync"
+      transformations:
+      - type: AddFields
+        fields:
+        - path:
+          - airbyte_cursor
+          value: "{{ record.MetaData.LastUpdatedTime }}"
+      schema_loader:
+        type: InlineSchemaLoader
+        schema:
+          type:
+          - "null"
+          - object
+          $schema: http://json-schema.org/draft-07/schema#
+          additionalProperties: true
+          properties:
+            AcctNum:
+              type:
+              - "null"
+              - string
+            Active:
+              type:
+              - "null"
+              - boolean
+            Balance:
+              type:
+              - "null"
+              - number
+            BillAddr:
+              type:
+              - "null"
+              - object
+              properties:
+                City:
+                  type:
+                  - "null"
+                  - string
+                Country:
+                  type:
+                  - "null"
+                  - string
+                CountrySubDivisionCode:
+                  type:
+                  - "null"
+                  - string
+                Id:
+                  type:
+                  - "null"
+                  - string
+                Lat:
+                  type:
+                  - "null"
+                  - string
+                Line1:
+                  type:
+                  - "null"
+                  - string
+                Long:
+                  type:
+                  - "null"
+                  - string
+                PostalCode:
+                  type:
+                  - "null"
+                  - string
+            CompanyName:
+              type:
+              - "null"
+              - string
+            CurrencyRef:
+              type:
+              - "null"
+              - object
+              properties:
+                name:
+                  type:
+                  - "null"
+                  - string
+                value:
+                  type:
+                  - "null"
+                  - string
+            DisplayName:
+              type:
+              - "null"
+              - string
+            FamilyName:
+              type:
+              - "null"
+              - string
+            Fax:
+              type:
+              - "null"
+              - object
+              properties:
+                FreeFormNumber:
+                  type:
+                  - "null"
+                  - string
+            GivenName:
+              type:
+              - "null"
+              - string
+            Id:
+              type:
+              - "null"
+              - string
+            MetaData:
+              type:
+              - "null"
+              - object
+              properties:
+                CreateTime:
+                  type:
+                  - "null"
+                  - string
+                  format: date-time
+                LastUpdatedTime:
+                  type:
+                  - "null"
+                  - string
+                  format: date-time
+            MiddleName:
+              type:
+              - "null"
+              - string
+            Mobile:
+              type:
+              - "null"
+              - object
+              properties:
+                FreeFormNumber:
+                  type:
+                  - "null"
+                  - string
+            PrimaryEmailAddr:
+              type:
+              - "null"
+              - object
+              properties:
+                Address:
+                  type:
+                  - "null"
+                  - string
+            PrimaryPhone:
+              type:
+              - "null"
+              - object
+              properties:
+                FreeFormNumber:
+                  type:
+                  - "null"
+                  - string
+            PrintOnCheckName:
+              type:
+              - "null"
+              - string
+            Suffix:
+              type:
+              - "null"
+              - string
+            SyncToken:
+              type:
+              - "null"
+              - string
+            TaxIdentifier:
+              type:
+              - "null"
+              - string
+            TermRef:
+              type:
+              - "null"
+              - object
+              properties:
+                value:
+                  type:
+                  - "null"
+                  - string
+            Title:
+              type:
+              - "null"
+              - string
+            Vendor1099:
+              type:
+              - "null"
+              - boolean
+            WebAddr:
+              type:
+              - "null"
+              - object
+              properties:
+                URI:
+                  type:
+                  - "null"
+                  - string
+            airbyte_cursor:
+              type:
+              - "null"
+              - string
+            domain:
+              type:
+              - "null"
+              - string
+
+
+streams:
+- $ref: "#/definitions/streams/accounts"
+- $ref: "#/definitions/streams/classes"
+- $ref: "#/definitions/streams/customers"
+- $ref: "#/definitions/streams/departments"
+- $ref: "#/definitions/streams/vendors"
+
+metadata:
+  autoImportSchema:
+    accounts: false
+    classes: false
+    customers: false
+    departments: false
+    vendors: false
+  yamlComponents:
+    streams:
+      accounts:
+      - incrementalSync
+      classes:
+      - incrementalSync
+      customers:
+      - incrementalSync
+      departments:
+      - incrementalSync
+      vendors:
+      - incrementalSync
+    global:
+    - authenticator
+
+schemas:
+  accounts:
+    type:
+    - "null"
+    - object
+    $schema: http://json-schema.org/draft-07/schema#
+    additionalProperties: true
+    properties:
+      AccountSubType:
+        type:
+        - "null"
+        - string
+      AccountType:
+        type:
+        - "null"
+        - string
+      AcctNum:
+        type:
+        - "null"
+        - string
+      Active:
+        type:
+        - "null"
+        - boolean
+      Classification:
+        type:
+        - "null"
+        - string
+      CurrencyRef:
+        type:
+        - "null"
+        - object
+        properties:
+          name:
+            type:
+            - "null"
+            - string
+          value:
+            type:
+            - "null"
+            - string
+      CurrentBalance:
+        type:
+        - "null"
+        - number
+      CurrentBalanceWithSubAccounts:
+        type:
+        - "null"
+        - number
+      FullyQualifiedName:
+        type:
+        - "null"
+        - string
+      Id:
+        type:
+        - "null"
+        - string
+      MetaData:
+        type:
+        - "null"
+        - object
+        properties:
+          CreateTime:
+            type:
+            - "null"
+            - string
+            format: date-time
+          LastUpdatedTime:
+            type:
+            - "null"
+            - string
+            format: date-time
+      Name:
+        type:
+        - "null"
+        - string
+      ParentRef:
+        type:
+        - "null"
+        - object
+        properties:
+          value:
+            type:
+            - "null"
+            - string
+      SubAccount:
+        type:
+        - "null"
+        - boolean
+      SyncToken:
+        type:
+        - "null"
+        - string
+      airbyte_cursor:
+        type:
+        - "null"
+        - string
+      domain:
+        type:
+        - "null"
+        - string
+      sparse:
+        type:
+        - "null"
+        - boolean
+  classes:
+    type:
+    - "null"
+    - object
+    $schema: http://json-schema.org/draft-07/schema#
+    additionalProperties: true
+    properties:
+      Active:
+        type:
+        - "null"
+        - boolean
+      FullyQualifiedName:
+        type:
+        - "null"
+        - string
+      Id:
+        type:
+        - "null"
+        - string
+      MetaData:
+        type:
+        - "null"
+        - object
+        properties:
+          CreateTime:
+            type:
+            - "null"
+            - string
+            format: date-time
+          LastUpdatedTime:
+            type:
+            - "null"
+            - string
+            format: date-time
+      Name:
+        type:
+        - "null"
+        - string
+      ParentRef:
+        type:
+        - "null"
+        - object
+        properties:
+          name:
+            type:
+            - "null"
+            - string
+          value:
+            type:
+            - "null"
+            - string
+      SubClass:
+        type:
+        - "null"
+        - boolean
+      SyncToken:
+        type:
+        - "null"
+        - string
+      airbyte_cursor:
+        type:
+        - "null"
+        - string
+      domain:
+        type:
+        - "null"
+        - string
+  customers:
+    type:
+    - "null"
+    - object
+    $schema: http://json-schema.org/draft-07/schema#
+    additionalProperties: true
+    properties:
+      Active:
+        type:
+        - "null"
+        - boolean
+      Balance:
+        type:
+        - "null"
+        - number
+      BalanceWithJobs:
+        type:
+        - "null"
+        - number
+      BillAddr:
+        type:
+        - "null"
+        - object
+        properties:
+          City:
+            type:
+            - "null"
+            - string
+          Country:
+            type:
+            - "null"
+            - string
+          CountrySubDivisionCode:
+            type:
+            - "null"
+            - string
+          Id:
+            type:
+            - "null"
+            - string
+          Lat:
+            type:
+            - "null"
+            - string
+          Line1:
+            type:
+            - "null"
+            - string
+          Long:
+            type:
+            - "null"
+            - string
+          PostalCode:
+            type:
+            - "null"
+            - string
+      BillWithParent:
+        type:
+        - "null"
+        - boolean
+      CompanyName:
+        type:
+        - "null"
+        - string
+      CurrencyRef:
+        type:
+        - "null"
+        - object
+        properties:
+          name:
+            type:
+            - "null"
+            - string
+          value:
+            type:
+            - "null"
+            - string
+      DefaultTaxCodeRef:
+        type:
+        - "null"
+        - object
+        properties:
+          name:
+            type:
+            - "null"
+            - string
+          value:
+            type:
+            - "null"
+            - string
+      DisplayName:
+        type:
+        - "null"
+        - string
+      FamilyName:
+        type:
+        - "null"
+        - string
+      Fax:
+        type:
+        - "null"
+        - object
+        properties:
+          FreeFormNumber:
+            type:
+            - "null"
+            - string
+      FullyQualifiedName:
+        type:
+        - "null"
+        - string
+      GivenName:
+        type:
+        - "null"
+        - string
+      Id:
+        type:
+        - "null"
+        - string
+      Job:
+        type:
+        - "null"
+        - boolean
+      Level:
+        type:
+        - "null"
+        - integer
+      MetaData:
+        type:
+        - "null"
+        - object
+        properties:
+          CreateTime:
+            type:
+            - "null"
+            - string
+            format: date-time
+          LastUpdatedTime:
+            type:
+            - "null"
+            - string
+            format: date-time
+      MiddleName:
+        type:
+        - "null"
+        - string
+      Mobile:
+        type:
+        - "null"
+        - object
+        properties:
+          FreeFormNumber:
+            type:
+            - "null"
+            - string
+      ParentRef:
+        type:
+        - "null"
+        - object
+        properties:
+          value:
+            type:
+            - "null"
+            - string
+      PaymentMethodRef:
+        type:
+        - "null"
+        - object
+        properties:
+          name:
+            type:
+            - "null"
+            - string
+          value:
+            type:
+            - "null"
+            - string
+      PreferredDeliveryMethod:
+        type:
+        - "null"
+        - string
+      PrimaryEmailAddr:
+        type:
+        - "null"
+        - object
+        properties:
+          Address:
+            type:
+            - "null"
+            - string
+      PrimaryPhone:
+        type:
+        - "null"
+        - object
+        properties:
+          FreeFormNumber:
+            type:
+            - "null"
+            - string
+      PrintOnCheckName:
+        type:
+        - "null"
+        - string
+      ResaleNum:
+        type:
+        - "null"
+        - string
+      SalesTermRef:
+        type:
+        - "null"
+        - object
+        properties:
+          name:
+            type:
+            - "null"
+            - string
+          value:
+            type:
+            - "null"
+            - string
+      ShipAddr:
+        type:
+        - "null"
+        - object
+        properties:
+          City:
+            type:
+            - "null"
+            - string
+          Country:
+            type:
+            - "null"
+            - string
+          CountrySubDivisionCode:
+            type:
+            - "null"
+            - string
+          Id:
+            type:
+            - "null"
+            - string
+          Lat:
+            type:
+            - "null"
+            - string
+          Line1:
+            type:
+            - "null"
+            - string
+          Long:
+            type:
+            - "null"
+            - string
+          PostalCode:
+            type:
+            - "null"
+            - string
+      SyncToken:
+        type:
+        - "null"
+        - string
+      Taxable:
+        type:
+        - "null"
+        - boolean
+      WebAddr:
+        type:
+        - "null"
+        - object
+        properties:
+          URI:
+            type:
+            - "null"
+            - string
+      airbyte_cursor:
+        type:
+        - "null"
+        - string
+      domain:
+        type:
+        - "null"
+        - string
+      sparse:
+        type:
+        - "null"
+        - boolean
+  departments:
+    type:
+    - "null"
+    - object
+    $schema: http://json-schema.org/draft-07/schema#
+    additionalProperties: true
+    properties:
+      Active:
+        type:
+        - "null"
+        - boolean
+      FullyQualifiedName:
+        type:
+        - "null"
+        - string
+      Id:
+        type:
+        - "null"
+        - string
+      MetaData:
+        type:
+        - "null"
+        - object
+        properties:
+          CreateTime:
+            type:
+            - "null"
+            - string
+            format: date-time
+          LastUpdatedTime:
+            type:
+            - "null"
+            - string
+            format: date-time
+      Name:
+        type:
+        - "null"
+        - string
+      ParentRef:
+        type:
+        - "null"
+        - object
+        properties:
+          name:
+            type:
+            - "null"
+            - string
+          value:
+            type:
+            - "null"
+            - string
+      SubDepartment:
+        type:
+        - "null"
+        - boolean
+      SyncToken:
+        type:
+        - "null"
+        - string
+      airbyte_cursor:
+        type:
+        - "null"
+        - string
+      domain:
+        type:
+        - "null"
+        - string
+  vendors:
+    type:
+    - "null"
+    - object
+    $schema: http://json-schema.org/draft-07/schema#
+    additionalProperties: true
+    properties:
+      AcctNum:
+        type:
+        - "null"
+        - string
+      Active:
+        type:
+        - "null"
+        - boolean
+      Balance:
+        type:
+        - "null"
+        - number
+      BillAddr:
+        type:
+        - "null"
+        - object
+        properties:
+          City:
+            type:
+            - "null"
+            - string
+          Country:
+            type:
+            - "null"
+            - string
+          CountrySubDivisionCode:
+            type:
+            - "null"
+            - string
+          Id:
+            type:
+            - "null"
+            - string
+          Lat:
+            type:
+            - "null"
+            - string
+          Line1:
+            type:
+            - "null"
+            - string
+          Long:
+            type:
+            - "null"
+            - string
+          PostalCode:
+            type:
+            - "null"
+            - string
+      CompanyName:
+        type:
+        - "null"
+        - string
+      CurrencyRef:
+        type:
+        - "null"
+        - object
+        properties:
+          name:
+            type:
+            - "null"
+            - string
+          value:
+            type:
+            - "null"
+            - string
+      DisplayName:
+        type:
+        - "null"
+        - string
+      FamilyName:
+        type:
+        - "null"
+        - string
+      Fax:
+        type:
+        - "null"
+        - object
+        properties:
+          FreeFormNumber:
+            type:
+            - "null"
+            - string
+      GivenName:
+        type:
+        - "null"
+        - string
+      Id:
+        type:
+        - "null"
+        - string
+      MetaData:
+        type:
+        - "null"
+        - object
+        properties:
+          CreateTime:
+            type:
+            - "null"
+            - string
+            format: date-time
+          LastUpdatedTime:
+            type:
+            - "null"
+            - string
+            format: date-time
+      MiddleName:
+        type:
+        - "null"
+        - string
+      Mobile:
+        type:
+        - "null"
+        - object
+        properties:
+          FreeFormNumber:
+            type:
+            - "null"
+            - string
+      PrimaryEmailAddr:
+        type:
+        - "null"
+        - object
+        properties:
+          Address:
+            type:
+            - "null"
+            - string
+      PrimaryPhone:
+        type:
+        - "null"
+        - object
+        properties:
+          FreeFormNumber:
+            type:
+            - "null"
+            - string
+      PrintOnCheckName:
+        type:
+        - "null"
+        - string
+      Suffix:
+        type:
+        - "null"
+        - string
+      SyncToken:
+        type:
+        - "null"
+        - string
+      TaxIdentifier:
+        type:
+        - "null"
+        - string
+      TermRef:
+        type:
+        - "null"
+        - object
+        properties:
+          value:
+            type:
+            - "null"
+            - string
+      Title:
+        type:
+        - "null"
+        - string
+      Vendor1099:
+        type:
+        - "null"
+        - boolean
+      WebAddr:
+        type:
+        - "null"
+        - object
+        properties:
+          URI:
+            type:
+            - "null"
+            - string
+      airbyte_cursor:
+        type:
+        - "null"
+        - string
+      domain:
+        type:
+        - "null"
+        - string

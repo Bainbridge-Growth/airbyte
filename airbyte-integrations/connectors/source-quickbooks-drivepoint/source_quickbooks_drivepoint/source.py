@@ -1,15 +1,12 @@
-import os
 import requests
-import time
 import logging
 from datetime import datetime, timedelta
-from typing import Any, List, Mapping, Tuple, MutableMapping
-from source_quickbooks_drivepoint.streams import BalanceSheetReportMonthly, ProfitAndLossReportMonthly
+from typing import Any, List, Mapping, Tuple
 from airbyte_cdk.sources import AbstractSource
 from airbyte_cdk.sources.streams import Stream
-from airbyte_cdk.sources.streams.http.requests_native_auth import Oauth2Authenticator, TokenAuthenticator
-from source_quickbooks_drivepoint.firebase_client import FirebaseClient
-from source_quickbooks_drivepoint.secret_manager_client import SecretManagerClient
+from source_quickbooks_drivepoint.auth_client import QuickbooksOauth2Authenticator
+from source_quickbooks_drivepoint.report_streams import BalanceSheetReportMonthly, ProfitAndLossReportMonthly
+from source_quickbooks_drivepoint.query_streams import Accounts, Classes, Customers, Departments, Vendors
 
 logger = logging.getLogger("airbyte")
 
@@ -17,31 +14,32 @@ class SourceQuickbooksDrivepoint(AbstractSource):
     @staticmethod
     def get_authenticator(config):
         return QuickbooksOauth2Authenticator(
-            client_id=config.get("credentials")["client_id"],
-            client_secret=config.get("credentials")["client_secret"],
             company_id=config.get("company_id"),
-            refresh_token=config.get("credentials").get("refresh_token")
+            client_id=config.get("client_id"),
+            client_secret=config.get("client_secret"),
+            refresh_token=config.get("refresh_token")
         )
 
     def check_connection(self, logger, config) -> Tuple[bool, any]:
         try:
-            today = datetime.now().strftime("%Y-%m-%d")
+            # Use a fixed small date range for connection test
             yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+            today = datetime.now().strftime("%Y-%m-%d")
 
             authenticator = self.get_authenticator(config)
+            realm_id = authenticator.firebase_client.get_realm_id(config.get("company_id"))
+
             bs = BalanceSheetReportMonthly(
-                realm_id=config.get("realm_id"),
-                accounting_method=config.get("accounting_method").get("selected_method") if config.get(
-                    "accounting_method") else None,
-                summarize_column_by=config.get("summarize_column").get("selected_column") if config.get(
-                    "summarize_column") else None,
+                realm_id=realm_id,
+                accounting_method=config.get("accounting_method", {}).get("selected_method", "Accrual"),
+                first_dimension=config.get("summarize_column", {}).get("selected_first_dimension"),
                 start_date=yesterday,
                 end_date=today,
                 authenticator=authenticator
             )
 
             # Make actual API request for a small date range to verify connectivity
-            logger.info("Testing connection by requesting balance sheet for last day")
+            logger.info("Testing connection by requesting balance sheet for the last day")
             records = list(bs.read_records(sync_mode=None))
 
             # If we get here without exceptions, the connection is working
@@ -57,94 +55,46 @@ class SourceQuickbooksDrivepoint(AbstractSource):
 
     def streams(self, config: Mapping[str, Any]) -> List[Stream]:
         authenticator = self.get_authenticator(config)
+        realm_id = authenticator.firebase_client.get_realm_id(config.get("company_id"))
+
         streams = [
+            Accounts(realm_id=realm_id, start_date=config.get("start_date"), end_date=config.get("end_date"), authenticator=authenticator),
+            Classes(realm_id=realm_id, start_date=config.get("start_date"), end_date=config.get("end_date"), authenticator=authenticator),
+            Customers(realm_id=realm_id, start_date=config.get("start_date"), end_date=config.get("end_date"), authenticator=authenticator),
+            Departments(realm_id=realm_id, start_date=config.get("start_date"), end_date=config.get("end_date"), authenticator=authenticator),
+            Vendors(realm_id=realm_id, start_date=config.get("start_date"), end_date=config.get("end_date"), authenticator=authenticator)
+        ]
+
+        accounting_method = config.get("accounting_method").get("selected_method") if config.get("accounting_method") else None
+        first_dimension = config.get("summarize_column").get("selected_first_dimension") if config.get("summarize_column") else None
+        second_dimension = config.get("second_dimension").get("selected_second_dimension") if config.get("second_dimension") else None
+
+        streams.extend([
             BalanceSheetReportMonthly(
-                realm_id=config["realm_id"],
-                accounting_method=config.get("accounting_method").get("selected_method") if config.get("accounting_method") else None,
-                summarize_column_by=config.get("summarize_column").get("selected_column") if config.get("summarize_column") else None,
+                realm_id=realm_id,
+                accounting_method=accounting_method,
+                first_dimension=first_dimension,
+                second_dimension=second_dimension,
                 start_date=config.get("start_date"),
                 end_date=config.get("end_date"),
                 authenticator=authenticator
             ),
             ProfitAndLossReportMonthly(
-                realm_id=config["realm_id"],
-                accounting_method=config.get("accounting_method").get("selected_method") if config.get("accounting_method") else None,
-                summarize_column_by=config.get("summarize_column").get("selected_column") if config.get("summarize_column") else None,
+                realm_id=realm_id,
+                accounting_method=accounting_method,
+                first_dimension=first_dimension,
+                second_dimension=second_dimension,
                 start_date=config.get("start_date"),
                 end_date=config.get("end_date"),
                 authenticator=authenticator
             )
-        ]
+        ])
+
+        # base_streams = super().streams(config) or []
+        # for stream in base_streams:
+        #     if hasattr(stream, "authenticator"):
+        #         stream.authenticator = authenticator
+        # streams.extend(base_streams)
+
         return streams
-
-
-class QuickbooksOauth2Authenticator(Oauth2Authenticator):
-    def __init__(self, client_id, client_secret, company_id, refresh_token=None):
-        firebase_project_id = "exceladdinprod"
-        if os.path.exists('secrets/firebase_service_account.json'):
-            self.firebase_client = FirebaseClient('secrets/firebase_service_account.json', firebase_project_id)
-        else:
-            secrets_manager = SecretManagerClient("data-infrastructure-324613")
-            firebase_sa = secrets_manager.get_firebase_service_account()
-            self.firebase_client = FirebaseClient(firebase_sa, firebase_project_id)
-
-        if refresh_token is not None:
-            self.refresh_token = refresh_token
-        else:
-            self.refresh_token = self.firebase_client.get_refresh_token(company_id)
-
-        self.company_id = company_id
-        super().__init__(
-            token_refresh_endpoint="https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer",
-            client_id=client_id,
-            client_secret=client_secret,
-            refresh_token=self.refresh_token,
-            grant_type="refresh_token",
-        )
-
-        # Initialize these to prevent token expiry errors
-        self.access_token = None
-        self.token_expiry_date = None
-
-    def token_has_expired(self) -> bool:
-        """Override token_has_expired to handle QuickBooks specific logic"""
-        if self.token_expiry_date is None:
-            return True  # If we don't have an expiry date, assume the token expired
-
-        current_time = int(time.time())
-        return current_time >= self.token_expiry_date
-
-    def refresh_access_token(self) -> Tuple[str, int]:
-        try:
-            form_data = {
-                "grant_type": "refresh_token",
-                "refresh_token": self.get_refresh_token(),
-                "client_id": self.get_client_id(),
-                "client_secret": self.get_client_secret()
-            }
-
-            response = requests.post(
-                self.get_token_refresh_endpoint(),
-                data=form_data,
-                headers={"Content-Type": "application/x-www-form-urlencoded"}
-            )
-
-            if response.status_code != 200:
-                logger.error(f"Token refresh failed: Status {response.status_code}, Response: {response.text}")
-                response.raise_for_status()
-
-            response_json = response.json()
-
-            # Store new refresh token, if provided in the response
-            if "refresh_token" in response_json:
-                if self.refresh_token != response_json["refresh_token"]:
-                    self.firebase_client.update_refresh_token(self.company_id, response_json["refresh_token"])
-                    self.refresh_token = response_json["refresh_token"]
-
-            # Calculate token expiry time
-            self.token_expiry_date = int(time.time()) + response_json["expires_in"]
-
-            return response_json["access_token"], response_json["expires_in"]
-        except Exception as e:
-            raise Exception(f"Error while refreshing access token: {e}") from e
 

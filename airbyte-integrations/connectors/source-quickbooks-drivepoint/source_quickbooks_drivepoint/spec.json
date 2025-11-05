@@ -4,7 +4,7 @@
     "$schema": "http://json-schema.org/draft-07/schema#",
     "title": "Quickbooks Drivepoint Spec",
     "type": "object",
-    "required": ["company_id", "credentials", "realm_id", "accounting_method", "summarize_column"],
+    "required": ["company_id", "client_id", "client_secret", "accounting_method"],
     "additionalProperties": true,
     "properties": {
       "company_id": {
@@ -13,38 +13,19 @@
         "type": "string",
         "description": "The ID of the company in Drivepoint App"
       },
-      "realm_id": {
+      "client_id": {
         "order": 1,
-        "title": "Realm ID",
+        "title": "Client ID",
         "type": "string",
-        "description": "The Realm ID of the QuickBooks company you want to access"
+        "description": "The Client ID of your developer application",
+        "airbyte_secret": true
       },
-      "credentials": {
+      "client_secret": {
         "order": 2,
-        "title": "Authenticate via OAuth 2.0",
-        "type": "object",
-        "required": ["client_id", "client_secret"],
-        "additionalProperties": true,
-        "properties": {
-          "client_id": {
-            "title": "Client ID",
-            "type": "string",
-            "description": "The Client ID of your developer application",
-            "airbyte_secret": true
-          },
-          "client_secret": {
-            "title": "Client Secret",
-            "type": "string",
-            "description": "The client secret of your developer application",
-            "airbyte_secret": true
-          },
-          "refresh_token": {
-            "title": "Refresh Token",
-            "type": "string",
-            "description": "A refresh token generated using the above client ID and secret. If not set we will use one from firebase",
-            "airbyte_secret": true
-          }
-        }
+        "title": "Client Secret",
+        "type": "string",
+        "description": "The client secret of your developer application",
+        "airbyte_secret": true
       },
       "accounting_method": {
         "order": 3,
@@ -80,81 +61,138 @@
       "summarize_column": {
         "order": 4,
         "title": "Summarize Column By",
-        "description": "The criteria by which to group the report results.",
+        "description": "The first dimension criteria which defines how to group the report results.",
         "type": "object",
-        "display_type": "radio",
+        "display_type": "dropdown",
         "oneOf": [
           {
-            "title": "Departments",
-            "required": [
-              "selected_column"
-            ],
+            "title": "None",
             "properties": {
-              "selected_column": {
+              "selected_first_dimension": {
                 "type": "string",
-                "const": "Departments",
+                "const": "None",
                 "order": 0
               }
             }
           },
           {
-            "title": "Classes",
-            "required": [
-              "selected_column"
-            ],
+            "title": "Departments",
             "properties": {
-              "selected_column": {
+              "selected_first_dimension": {
                 "type": "string",
-                "const": "Classes",
+                "const": "Departments",
                 "order": 1
               }
             }
           },
           {
-            "title": "Customers",
-            "required": [
-              "selected_column"
-            ],
+            "title": "Classes",
             "properties": {
-              "selected_column": {
+              "selected_first_dimension": {
                 "type": "string",
-                "const": "Customers",
+                "const": "Classes",
                 "order": 2
               }
             }
           },
           {
-            "title": "Vendors",
-            "required": [
-              "selected_column"
-            ],
+            "title": "Customers",
             "properties": {
-              "selected_column": {
+              "selected_first_dimension": {
+                "type": "string",
+                "const": "Customers",
+                "order": 3
+              }
+            }
+          },
+          {
+            "title": "Vendors",
+            "properties": {
+              "selected_first_dimension": {
                 "type": "string",
                 "const": "Vendors",
+                "order": 4
+              }
+            }
+          }
+        ]
+      },
+      "second_dimension": {
+        "order": 5,
+        "title": "Second Dimension",
+        "description": "Secondary dimension to further break down the report results. Requires Summarize Column By to be set to a value other than None.",
+        "type": "object",
+        "display_type": "dropdown",
+        "oneOf": [
+          {
+            "title": "None",
+            "properties": {
+              "selected_second_dimension": {
+                "type": "string",
+                "const": "None",
+                "order": 0
+              }
+            }
+          },
+          {
+            "title": "Departments",
+            "properties": {
+              "selected_second_dimension": {
+                "type": "string",
+                "const": "Departments",
+                "order": 1
+              }
+            }
+          },
+          {
+            "title": "Classes",
+            "properties": {
+              "selected_second_dimension": {
+                "type": "string",
+                "const": "Classes",
+                "order": 2
+              }
+            }
+          },
+          {
+            "title": "Customers",
+            "properties": {
+              "selected_second_dimension": {
+                "type": "string",
+                "const": "Customers",
                 "order": 3
+              }
+            }
+          },
+          {
+            "title": "Vendors",
+            "properties": {
+              "selected_second_dimension": {
+                "type": "string",
+                "const": "Vendors",
+                "order": 4
               }
             }
           }
         ]
       },
       "start_date": {
-        "order": 5,
-        "type": "string",
-        "title": "Start Date",
-        "description": "The start date of the report, in the format YYYY-MM-DD. start_date must be less than end_date.",
-        "examples": ["2025-01-14"],
-        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
-        "format": "date"
-      },
-      "end_date": {
         "order": 6,
         "type": "string",
+        "title": "Start Date",
+        "description": "The start date of the report, in the format 2021-01-25T00:00:00Z. start_date must be less than end_date.",
+        "examples": ["2021-01-25T00:00:00Z"],
+        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+        "format": "date-time"
+      },
+      "end_date": {
+        "order": 7,
+        "type": "string",
         "title": "End Date",
-        "description": "The end date of the report, in the format YYYY-MM-DD. start_date must be less than end_date.",
-        "examples": ["2025-05-21"],
-        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
-        "format": "date"
+        "description": "The end date of the report, in the format 2025-01-25T00:00:00Z. end_date must be greater than start_date.",
+        "examples": ["2025-01-25T00:00:00Z"],
+        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+        "format": "date-time"
       }
     }
   }

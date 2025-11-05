@@ -1,0 +1,234 @@
+{
+  "type": ["null", "object"],
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "properties": {
+    "Active": {
+      "type": ["null", "boolean"]
+    },
+    "Balance": {
+      "type": ["null", "number"]
+    },
+    "BalanceWithJobs": {
+      "type": ["null", "number"]
+    },
+    "BillAddr": {
+      "type": ["null", "object"],
+      "properties": {
+        "City": {
+          "type": ["null", "string"]
+        },
+        "Country": {
+          "type": ["null", "string"]
+        },
+        "CountrySubDivisionCode": {
+          "type": ["null", "string"]
+        },
+        "Id": {
+          "type": ["null", "string"]
+        },
+        "Lat": {
+          "type": ["null", "string"]
+        },
+        "Line1": {
+          "type": ["null", "string"]
+        },
+        "Long": {
+          "type": ["null", "string"]
+        },
+        "PostalCode": {
+          "type": ["null", "string"]
+        }
+      }
+    },
+    "BillWithParent": {
+      "type": ["null", "boolean"]
+    },
+    "CompanyName": {
+      "type": ["null", "string"]
+    },
+    "CurrencyRef": {
+      "type": ["null", "object"],
+      "properties": {
+        "name": {
+          "type": ["null", "string"]
+        },
+        "value": {
+          "type": ["null", "string"]
+        }
+      }
+    },
+    "DefaultTaxCodeRef": {
+      "type": ["null", "object"],
+      "properties": {
+        "name": {
+          "type": ["null", "string"]
+        },
+        "value": {
+          "type": ["null", "string"]
+        }
+      }
+    },
+    "DisplayName": {
+      "type": ["null", "string"]
+    },
+    "FamilyName": {
+      "type": ["null", "string"]
+    },
+    "Fax": {
+      "type": ["null", "object"],
+      "properties": {
+        "FreeFormNumber": {
+          "type": ["null", "string"]
+        }
+      }
+    },
+    "FullyQualifiedName": {
+      "type": ["null", "string"]
+    },
+    "GivenName": {
+      "type": ["null", "string"]
+    },
+    "Id": {
+      "type": ["null", "string"]
+    },
+    "Job": {
+      "type": ["null", "boolean"]
+    },
+    "Level": {
+      "type": ["null", "integer"]
+    },
+    "MetaData": {
+      "type": ["null", "object"],
+      "properties": {
+        "CreateTime": {
+          "type": ["null", "string"],
+          "format": "date-time"
+        },
+        "LastUpdatedTime": {
+          "type": ["null", "string"],
+          "format": "date-time"
+        }
+      }
+    },
+    "MiddleName": {
+      "type": ["null", "string"]
+    },
+    "Mobile": {
+      "type": ["null", "object"],
+      "properties": {
+        "FreeFormNumber": {
+          "type": ["null", "string"]
+        }
+      }
+    },
+    "ParentRef": {
+      "type": ["null", "object"],
+      "properties": {
+        "value": {
+          "type": ["null", "string"]
+        }
+      }
+    },
+    "PaymentMethodRef": {
+      "type": ["null", "object"],
+      "properties": {
+        "name": {
+          "type": ["null", "string"]
+        },
+        "value": {
+          "type": ["null", "string"]
+        }
+      }
+    },
+    "PreferredDeliveryMethod": {
+      "type": ["null", "string"]
+    },
+    "PrimaryEmailAddr": {
+      "type": ["null", "object"],
+      "properties": {
+        "Address": {
+          "type": ["null", "string"]
+        }
+      }
+    },
+    "PrimaryPhone": {
+      "type": ["null", "object"],
+      "properties": {
+        "FreeFormNumber": {
+          "type": ["null", "string"]
+        }
+      }
+    },
+    "PrintOnCheckName": {
+      "type": ["null", "string"]
+    },
+    "ResaleNum": {
+      "type": ["null", "string"]
+    },
+    "SalesTermRef": {
+      "type": ["null", "object"],
+      "properties": {
+        "name": {
+          "type": ["null", "string"]
+        },
+        "value": {
+          "type": ["null", "string"]
+        }
+      }
+    },
+    "ShipAddr": {
+      "type": ["null", "object"],
+      "properties": {
+        "City": {
+          "type": ["null", "string"]
+        },
+        "Country": {
+          "type": ["null", "string"]
+        },
+        "CountrySubDivisionCode": {
+          "type": ["null", "string"]
+        },
+        "Id": {
+          "type": ["null", "string"]
+        },
+        "Lat": {
+          "type": ["null", "string"]
+        },
+        "Line1": {
+          "type": ["null", "string"]
+        },
+        "Long": {
+          "type": ["null", "string"]
+        },
+        "PostalCode": {
+          "type": ["null", "string"]
+        }
+      }
+    },
+    "SyncToken": {
+      "type": ["null", "string"]
+    },
+    "Taxable": {
+      "type": ["null", "boolean"]
+    },
+    "WebAddr": {
+      "type": ["null", "object"],
+      "properties": {
+        "URI": {
+          "type": ["null", "string"]
+        }
+      }
+    },
+    "airbyte_cursor": {
+      "type": ["null", "string"]
+    },
+    "domain": {
+      "type": ["null", "string"]
+    },
+    "sparse": {
+      "type": ["null", "boolean"]
+    }
+  }
+}
+

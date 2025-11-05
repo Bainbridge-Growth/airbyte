@@ -1,10 +1,12 @@
 import json
 import os
-from typing import Optional, Dict, Any, List, Union
-
+import logging
 import firebase_admin
+import time
+from typing import Optional, Dict, Any, List, Union
 from firebase_admin import credentials, firestore
 
+logger = logging.getLogger("airbyte")
 
 class FirebaseClient:
     """
@@ -38,7 +40,6 @@ class FirebaseClient:
                 if os.path.isfile(service_account_json):
                     cred = credentials.Certificate(service_account_json)
                 else:
-                    # Try parsing the string as JSON
                     try:
                         cred_dict = json.loads(service_account_json)
                         cred = credentials.Certificate(cred_dict)
@@ -48,12 +49,16 @@ class FirebaseClient:
                 # Handle service account credentials provided as a dictionary
                 cred = credentials.Certificate(service_account_json)
 
-            # Initialize the app with the provided credentials
+            # Initialize the app with the provided credentials, but only if not already initialized
             app_options = {}
             if project_id:
                 app_options['projectId'] = project_id
 
-            self.app = firebase_admin.initialize_app(cred, app_options)
+            try:
+                self.app = firebase_admin.get_app()
+            except ValueError:
+                self.app = firebase_admin.initialize_app(cred, app_options)
+
             self.db = firestore.client()
         except Exception as e:
             raise ConnectionError(f"Failed to initialize Firebase connection: {str(e)}")
@@ -70,10 +75,17 @@ class FirebaseClient:
             return document['intuit'].get('token', {}).get('refresh_token')
         return None
 
-    def update_refresh_token(self, company_id, refresh_token) -> bool:
+    def update_token(self, company_id, token_json) -> bool:
         return self._update_document('excelCompanies', company_id, {
-            'intuit.token.refresh_token': refresh_token
+            'intuit.token': token_json
         })
+
+    def update_refresh_info(self, company_id) -> bool:
+        return self._update_document('excelCompanies', company_id, {
+            'intuit.refresh_when': time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
+            'intuit.refresh_who': 'source-quickbooks-drivepoint'
+        })
+
 
     def _get_document(self, collection_name: str, document_id: str) -> Optional[Dict[str, Any]]:
         """

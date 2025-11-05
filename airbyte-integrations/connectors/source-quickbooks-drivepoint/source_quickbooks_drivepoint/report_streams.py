@@ -1,10 +1,12 @@
 import pendulum
 import requests
+import logging
 from datetime import datetime
 from typing import Any, Iterable, List, Mapping, MutableMapping, Optional
 from airbyte_cdk.sources.streams.http import HttpStream
 from airbyte_cdk.models import AirbyteStateMessage, SyncMode
 
+logger = logging.getLogger("airbyte")
 
 class QuickbooksReportMonthlyBase(HttpStream):
     """Base class for QuickBooks Reports API connectors
@@ -19,14 +21,16 @@ class QuickbooksReportMonthlyBase(HttpStream):
             self,
             realm_id: str,  # company id
             accounting_method: str = "Accrual",
-            summarize_column_by: str = "Classes",
+            first_dimension: str = None,
+            second_dimension: str = None,
             start_date: str = None,
             end_date: str = None,
             **kwargs
     ):
         self.realm_id = realm_id
         self.accounting_method = accounting_method
-        self.summarize_column_by = summarize_column_by
+        self.first_dimension = first_dimension
+        self.second_dimension = second_dimension
         self.start_date = start_date
         self.end_date = end_date
         super().__init__(**kwargs)
@@ -46,13 +50,20 @@ class QuickbooksReportMonthlyBase(HttpStream):
 
         # Convert to datetime objects first for consistent handling
         if isinstance(self.start_date, str):
-            start_dt = datetime.strptime(self.start_date, "%Y-%m-%d")
+            # Handle both simple YYYY-MM-DD and ISO 8601 formats
+            try:
+                start_dt = datetime.strptime(self.start_date, "%Y-%m-%d")
+            except ValueError:
+                start_dt = datetime.strptime(self.start_date.split('T')[0], "%Y-%m-%d")
         else:
             start_dt = self.start_date
 
         if self.end_date:
             if isinstance(self.end_date, str):
-                end_dt = datetime.strptime(self.end_date, "%Y-%m-%d")
+                try:
+                    end_dt = datetime.strptime(self.end_date, "%Y-%m-%d")
+                except ValueError:
+                    end_dt = datetime.strptime(self.end_date.split('T')[0], "%Y-%m-%d")
             else:
                 end_dt = self.end_date
         else:
@@ -105,9 +116,12 @@ class QuickbooksReportMonthlyBase(HttpStream):
             next_page_token: Mapping[str, Any] = None,
     ) -> MutableMapping[str, Any]:
         params = {
-            "accounting_method": self.accounting_method,
-            "summarize_column_by": self.summarize_column_by
+            "accounting_method": self.accounting_method
         }
+
+        if self.first_dimension:
+            params["summarize_column_by"] = self.first_dimension
+
         self.logger.info(f"Processing slice with dates: {stream_slice}")
 
         # Use dates from the stream slice if available
@@ -364,7 +378,6 @@ class QuickbooksReportMonthlyBase(HttpStream):
         return new_category, new_category_id, new_parent_name, new_parent_id, new_grandparent, new_grandparent_id, new_section_type
 
     def get_json_schema(self) -> Mapping[str, Any]:
-        """Define the schema for account data"""
         return {
             "type": "object",
             "properties": {
@@ -388,6 +401,7 @@ class QuickbooksReportMonthlyBase(HttpStream):
             }
         }
 
+
 class BalanceSheetReportMonthly(QuickbooksReportMonthlyBase):
     """QuickBooks Balance Sheet Report API connector
 
@@ -400,6 +414,7 @@ class BalanceSheetReportMonthly(QuickbooksReportMonthlyBase):
             next_page_token: Mapping[str, Any] = None,
     ) -> str:
         return f"company/{self.realm_id}/reports/BalanceSheet"
+
 
 class ProfitAndLossReportMonthly(QuickbooksReportMonthlyBase):
     """QuickBooks Profit and Loss Report API connector
