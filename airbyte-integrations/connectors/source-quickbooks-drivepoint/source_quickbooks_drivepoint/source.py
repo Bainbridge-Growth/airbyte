@@ -5,7 +5,7 @@ from typing import Any, List, Mapping, Tuple
 from airbyte_cdk.sources import AbstractSource
 from airbyte_cdk.sources.streams import Stream
 from source_quickbooks_drivepoint.auth_client import QuickbooksOauth2Authenticator
-from source_quickbooks_drivepoint.report_streams import BalanceSheetReportMonthly, ProfitAndLossReportMonthly
+from source_quickbooks_drivepoint.report_streams import BalanceSheetReportMonthly, ProfitLossReportMonthly
 from source_quickbooks_drivepoint.query_streams import Accounts, Classes, Customers, Departments, Vendors
 
 logger = logging.getLogger("airbyte")
@@ -79,7 +79,7 @@ class SourceQuickbooksDrivepoint(AbstractSource):
                 end_date=config.get("end_date"),
                 authenticator=authenticator
             ),
-            ProfitAndLossReportMonthly(
+            ProfitLossReportMonthly(
                 realm_id=realm_id,
                 accounting_method=accounting_method,
                 first_dimension=first_dimension,

@@ -154,6 +154,10 @@
     },
     "domain": {
       "type": ["null", "string"]
+    },
+     "_airbyte_emitted_at": {
+      "type": ["null", "string"],
+      "format": "date-time"
     }
   }
 }

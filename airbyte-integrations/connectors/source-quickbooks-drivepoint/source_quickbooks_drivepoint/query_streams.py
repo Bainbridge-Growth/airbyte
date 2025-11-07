@@ -110,7 +110,9 @@ class QueryStreamBase(HttpStream):
             logger.info(f"Found {len(records)} records")
             logger.debug(f"First record (if any): {records[0] if records else 'No records'}")
 
+            current_time = datetime.utcnow().isoformat()
             for record in records:
+                record["_airbyte_emitted_at"] = current_time
                 yield record
 
         except Exception as e:

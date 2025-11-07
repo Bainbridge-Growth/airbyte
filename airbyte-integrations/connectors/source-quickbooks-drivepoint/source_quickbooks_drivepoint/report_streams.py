@@ -204,13 +204,14 @@ class QuickbooksReportMonthlyBase(HttpStream):
 
         # Process all accounts and return flat list
         accounts = []
-        self._process_rows(rows, accounts, start_period, end_period, currency, column_classes)
+        current_time = datetime.utcnow().isoformat()
+        self._process_rows(rows, accounts, start_period, end_period, currency, column_classes, emitted_at=current_time)
 
         return accounts
 
     def _process_rows(self, rows: list, accounts: list, start_period: str, end_period: str, currency: str, column_classes: list,
                       parent_name: str = "", parent_id: str = "", grandparent_name: str = "", grandparent_id: str = "",
-                      category_name: str = "", category_id: str = "", section_type: str = ""):
+                      category_name: str = "", category_id: str = "", section_type: str = "", emitted_at: str = None):
         """Recursively process rows to extract account data"""
 
         # Determine if this is a P&L report or Balance Sheet report based on the path or report structure
@@ -287,7 +288,8 @@ class QuickbooksReportMonthlyBase(HttpStream):
                             "AccountType": "",
                             "FullAccountName": full_account_name,
                             "Class": class_name,
-                            "Total_Money": amount
+                            "Total_Money": amount,
+                            "_airbyte_emitted_at": emitted_at
                         }
                         accounts.append(account_record)
 
@@ -340,7 +342,7 @@ class QuickbooksReportMonthlyBase(HttpStream):
                 self._process_rows(
                     nested_rows, accounts, start_period, end_period, currency, column_classes,
                     new_parent_name, new_parent_id, new_grandparent, new_grandparent_id,
-                    new_category, new_category_id, new_section_type
+                    new_category, new_category_id, new_section_type, emitted_at=emitted_at
                 )
 
     def _process_profit_loss_hierarchy(self, category_name, category_id, section_display_name, section_id,
@@ -397,7 +399,8 @@ class QuickbooksReportMonthlyBase(HttpStream):
                 "AccountType": {"type": "string"},
                 "FullAccountName": {"type": "string"},
                 "Class": {"type": "string"},
-                "Total_Money": {"type": "string"}
+                "Total_Money": {"type": "string"},
+                "_airbyte_emitted_at": {"type": "string", "format": "date-time"}
             }
         }
 
@@ -416,7 +419,7 @@ class BalanceSheetReportMonthly(QuickbooksReportMonthlyBase):
         return f"company/{self.realm_id}/reports/BalanceSheet"
 
 
-class ProfitAndLossReportMonthly(QuickbooksReportMonthlyBase):
+class ProfitLossReportMonthly(QuickbooksReportMonthlyBase):
     """QuickBooks Profit and Loss Report API connector
 
     Reference: https://developer.intuit.com/app/developer/qbo/docs/api/accounting/all-entities/profitandloss

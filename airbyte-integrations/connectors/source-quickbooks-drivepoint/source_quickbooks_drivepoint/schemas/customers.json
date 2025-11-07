@@ -228,6 +228,10 @@
     },
     "sparse": {
       "type": ["null", "boolean"]
+    },
+     "_airbyte_emitted_at": {
+      "type": ["null", "string"],
+      "format": "date-time"
     }
   }
 }
