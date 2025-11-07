@@ -3,55 +3,57 @@
   "type": "object",
   "properties": {
     "_Account": {
-      "type": "string"
+      "type": ["null", "string"]
     },
     "_Account_id": {
-      "type": "string"
+      "type": ["null", "integer"]
     },
     "StartPeriod": {
-      "type": "string"
+      "type": ["null", "string"],
+      "format": "date-time"
     },
     "EndPeriod": {
-      "type": "string"
+      "type": ["null", "string"],
+      "format": "date-time"
     },
     "Currency": {
-      "type": "string"
+      "type": ["null", "string"]
     },
     "ParentAccountName": {
-      "type": "string"
+      "type": ["null", "string"]
     },
     "ParentAccountId": {
-      "type": "string"
+      "type": ["null", "integer"]
     },
     "GrandParentAccountName": {
-      "type": "string"
+      "type": ["null", "string"]
     },
     "GrandParentAccountId": {
-      "type": "string"
+      "type": ["null", "integer"]
     },
     "CategoryAccountName": {
-      "type": "string"
+      "type": ["null", "string"]
     },
     "CategoryAccountId": {
-      "type": "string"
+      "type": ["null", "integer"]
     },
     "Classification": {
-      "type": "string"
+      "type": ["null", "string"]
     },
     "FullyQualifiedName": {
-      "type": "string"
+      "type": ["null", "string"]
     },
     "AccountType": {
-      "type": "string"
+      "type": ["null", "string"]
     },
     "FullAccountName": {
-      "type": "string"
+      "type": ["null", "string"]
     },
     "Class": {
-      "type": "string"
+      "type": ["null", "string"]
     },
     "Total_Money": {
-      "type": "string"
+      "type": ["null", "number"]
     },
     "_airbyte_emitted_at": {
       "type": ["null", "string"],
