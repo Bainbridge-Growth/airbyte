@@ -19,6 +19,9 @@ if [ ! -f "$MANIFEST" ]; then
   exit 1
 fi
 
+# 0. Build new docker image locally
+airbyte-ci connectors --name=source-quickbooks-drivepoint build --architecture=linux/amd64
+
 # 1. Get current version from manifest.yaml (robust: match 'version:' at start of any line, any indent)
 CUR_VERSION=$(grep -E '^\s*version:' "$MANIFEST" | head -n1 | awk -F ': ' '{print $2}')
 if [ -z "$CUR_VERSION" ]; then

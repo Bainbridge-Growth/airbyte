@@ -119,7 +119,7 @@ class QuickbooksReportMonthlyBase(HttpStream):
             "accounting_method": self.accounting_method
         }
 
-        if self.first_dimension:
+        if self.first_dimension and self.first_dimension != "None":
             params["summarize_column_by"] = self.first_dimension
 
         self.logger.info(f"Processing slice with dates: {stream_slice}")
