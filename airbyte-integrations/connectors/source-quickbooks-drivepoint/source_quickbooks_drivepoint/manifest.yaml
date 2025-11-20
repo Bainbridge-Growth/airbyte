@@ -1,4 +1,4 @@
-version: 0.2.32
+version: 0.2.39
 type: DeclarativeSource
 check:
   type: CheckStream

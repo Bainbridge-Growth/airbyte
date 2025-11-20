@@ -32,7 +32,8 @@ class SourceQuickbooksDrivepoint(AbstractSource):
             bs = BalanceSheetReportMonthly(
                 realm_id=realm_id,
                 accounting_method=config.get("accounting_method", {}).get("selected_method", "Accrual"),
-                first_dimension=config.get("summarize_column", {}).get("selected_first_dimension"),
+                first_dimension=config.get("balance_sheet_settings", {}).get("summarize_column", {}).get("selected_first_dimension"),
+                second_dimension=config.get("balance_sheet_settings", {}).get("second_dimension", {}).get("selected_second_dimension"),
                 start_date=yesterday,
                 end_date=today,
                 authenticator=authenticator
@@ -66,15 +67,13 @@ class SourceQuickbooksDrivepoint(AbstractSource):
         ]
 
         accounting_method = config.get("accounting_method").get("selected_method") if config.get("accounting_method") else None
-        first_dimension = config.get("summarize_column").get("selected_first_dimension") if config.get("summarize_column") else None
-        second_dimension = config.get("second_dimension").get("selected_second_dimension") if config.get("second_dimension") else None
 
         streams.extend([
             BalanceSheetReportMonthly(
                 realm_id=realm_id,
                 accounting_method=accounting_method,
-                first_dimension=first_dimension,
-                second_dimension=second_dimension,
+                first_dimension=config.get("balance_sheet_settings").get("summarize_column").get("selected_first_dimension") if config.get("balance_sheet_settings").get("summarize_column") else None,
+                second_dimension=config.get("balance_sheet_settings").get("second_dimension").get("selected_second_dimension") if config.get("balance_sheet_settings").get("second_dimension") else None,
                 start_date=config.get("start_date"),
                 end_date=config.get("end_date"),
                 authenticator=authenticator
@@ -82,8 +81,8 @@ class SourceQuickbooksDrivepoint(AbstractSource):
             ProfitLossReportMonthly(
                 realm_id=realm_id,
                 accounting_method=accounting_method,
-                first_dimension=first_dimension,
-                second_dimension=second_dimension,
+                first_dimension=config.get("profit_loss_settings").get("summarize_column").get("selected_first_dimension") if config.get("profit_loss_settings").get("summarize_column") else None,
+                second_dimension=config.get("profit_loss_settings").get("second_dimension").get("selected_second_dimension") if config.get("profit_loss_settings").get("second_dimension") else None,
                 start_date=config.get("start_date"),
                 end_date=config.get("end_date"),
                 authenticator=authenticator
