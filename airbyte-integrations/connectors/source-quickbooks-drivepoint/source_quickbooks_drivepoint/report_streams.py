@@ -8,6 +8,19 @@ from airbyte_cdk.models import AirbyteStateMessage, SyncMode
 
 logger = logging.getLogger("airbyte")
 
+
+# Convert date string to date-time format
+def format_date(date_str):
+    if not date_str:
+        return None
+    try:
+        dt = datetime.strptime(date_str, "%Y-%m-%d")
+        return dt.strftime("%Y-%m-%dT00:00:00Z")
+    except Exception:
+        logger.error(f"Failed to parse date: {date_str}")
+        return date_str  # fallback to original if parsing fails
+
+
 class QuickbooksReportMonthlyBase(HttpStream):
     """Base class for QuickBooks Reports API connectors
 
@@ -184,11 +197,9 @@ class QuickbooksReportMonthlyBase(HttpStream):
         request_url = response.request.url
         self.logger.info(f"Request URL: {request_url}")
 
-        start_period = header.get("StartPeriod")
-        end_period = header.get("EndPeriod")
+        start_period = format_date(header.get("StartPeriod"))
+        end_period = format_date(header.get("EndPeriod"))
         currency = header.get("Currency")
-
-        self.logger.info(f"API returned data for period: {start_period} to {end_period}")
 
         # Build column mapping (skip first column which is account name)
         column_classes = []
@@ -204,7 +215,7 @@ class QuickbooksReportMonthlyBase(HttpStream):
 
         # Process all accounts and return flat list
         accounts = []
-        current_time = datetime.utcnow().isoformat()
+        current_time = datetime.utcnow().isoformat() + "Z"
         self._process_rows(rows, accounts, start_period, end_period, currency, column_classes, emitted_at=current_time)
 
         return accounts
