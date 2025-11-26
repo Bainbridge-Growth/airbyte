@@ -10,7 +10,7 @@ data:
   connectorType: source
   definitionId: 28762246-2616-4a2f-9e7f-6df35b00eb0f
   dockerRepository: airbyte/source-quickbooks-drivepoint
-  dockerImageTag: 0.2.41
+  dockerImageTag: 0.3.0
   githubIssueLabel: source-quickbooks-drivepoint
   icon: quickbooks.svg
   license: ELv2

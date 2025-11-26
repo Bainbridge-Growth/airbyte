@@ -1,12 +1,19 @@
 #!/bin/bash
 # Deploy script for source-quickbooks-drivepoint from local dev docker to gcloud VM
 # 1. Get current version from manifest.yaml
-# 2. Bump patch version
+# 2. Bump version (major, minor, or patch, default patch)
 # 3. Update manifest.yaml, pyproject.toml, metadata.yaml
 # 4. Tag and push docker image
 # 5. SSH to gcloud and update image
 
 set -e
+
+# Parse arguments
+BUMP_TYPE=${1:-patch}
+if [[ "$BUMP_TYPE" != "major" && "$BUMP_TYPE" != "minor" && "$BUMP_TYPE" != "patch" ]]; then
+  echo "Invalid bump type: $BUMP_TYPE. Must be 'major', 'minor', or 'patch'."
+  exit 1
+fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONNECTOR_DIR="$(dirname "$SCRIPT_DIR")"
@@ -29,9 +36,19 @@ if [ -z "$CUR_VERSION" ]; then
   exit 1
 fi
 
-# 2. Bump patch version
+# 2. Bump version based on BUMP_TYPE
 IFS='.' read -r MAJOR MINOR PATCH <<< "$CUR_VERSION"
-NEW_VERSION="$MAJOR.$MINOR.$((PATCH+1))"
+case $BUMP_TYPE in
+  major)
+    NEW_VERSION="$((MAJOR+1)).0.0"
+    ;;
+  minor)
+    NEW_VERSION="$MAJOR.$((MINOR+1)).0"
+    ;;
+  patch)
+    NEW_VERSION="$MAJOR.$MINOR.$((PATCH+1))"
+    ;;
+esac
 
 # 3. Update manifest.yaml (robust: match 'version:' at start of any line, any indent)
 sed -i '' -E "s/^([[:space:]]*version:).*/\1 $NEW_VERSION/" "$MANIFEST"

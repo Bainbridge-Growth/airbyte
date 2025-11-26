@@ -8,6 +8,8 @@ from datetime import datetime
 
 logger = logging.getLogger("airbyte")
 
+MAX_RESULTS_PER_PAGE = 1000  # QuickBooks API maximum results per page
+
 class QueryStreamBase(HttpStream):
     """
     Stream for QuickBooks /query endpoint
@@ -27,6 +29,7 @@ class QueryStreamBase(HttpStream):
         self.realm_id = realm_id
         self.start_date = start_date
         self.end_date = end_date
+        self.current_token = None
         super().__init__(authenticator=authenticator)
 
     @property
@@ -75,16 +78,18 @@ class QueryStreamBase(HttpStream):
             start_time = stream_slice.get("start_time") if stream_slice else "1970-01-01T00:00:00Z"
             end_time = stream_slice.get("end_time") if stream_slice else datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
             start_position = (next_page_token.get("next_page_token", 0) if next_page_token else 0)
+            self.current_token = next_page_token
 
             # Build query exactly matching the manifest format
-            query = f"""SELECT * FROM {self.entity_name} 
-                WHERE Metadata.LastUpdatedTime > '{start_time}' 
-                AND Metadata.LastUpdatedTime <= '{end_time}' 
-                AND Active IN (true, false) 
-                ORDER BY Metadata.LastUpdatedTime ASC 
-                STARTPOSITION {start_position + 1} 
-                MAXRESULTS 200"""
+            query = f"""SELECT * FROM {self.entity_name}
+                WHERE Metadata.LastUpdatedTime > '{start_time}'
+                AND Metadata.LastUpdatedTime <= '{end_time}'
+                AND Active IN (true, false)
+                ORDER BY Metadata.LastUpdatedTime ASC
+                STARTPOSITION {start_position}
+                MAXRESULTS {MAX_RESULTS_PER_PAGE}"""
 
+            logger.info(f"Built query for {self.entity_name}: start_time={start_time}, end_time={end_time}, start_position={start_position}")
             return {"query": query}
         except Exception as e:
             logger.error(f"Error building query parameters: {str(e)}")
@@ -107,7 +112,7 @@ class QueryStreamBase(HttpStream):
                 return []
 
             records = json_response.get("QueryResponse", {}).get(self.entity_name, [])
-            logger.info(f"Found {len(records)} records")
+            logger.info(f"Received {len(records)} records for {self.entity_name}")
             logger.debug(f"First record (if any): {records[0] if records else 'No records'}")
 
             current_time = datetime.utcnow().isoformat()
@@ -122,19 +127,23 @@ class QueryStreamBase(HttpStream):
 
     def next_page_token(self, response: requests.Response) -> Optional[Mapping[str, Any]]:
         """
-        Handle pagination with detailed logging
+        Handle pagination using the number of records returned.
         """
         try:
             json_response = response.json()
-            query_response = json_response.get("QueryResponse", {})
-            max_results = int(query_response.get("maxResults", 0))
-            start_position = int(query_response.get("startPosition", 0))
-            total_count = int(query_response.get("totalCount", 0))
+            records = json_response.get("QueryResponse", {}).get(self.entity_name, [])
+            num_records = len(records)
+            logger.info(f"Pagination check for {self.entity_name}: num_records={num_records}")
 
-            if start_position + max_results < total_count:
-                next_token = {"next_page_token": start_position}
-                logger.info(f"Next page token: {next_token}")
+            # If we got MAX_RESULTS_PER_PAGE records, there may be more pages
+            if num_records == MAX_RESULTS_PER_PAGE:
+                # Use the stored current token
+                current_start = (self.current_token.get("next_page_token", 0) if self.current_token else 0)
+                next_start = current_start + MAX_RESULTS_PER_PAGE
+                next_token = {"next_page_token": next_start}
+                logger.info(f"Next page token for {self.entity_name}: {next_token}")
                 return next_token
+            logger.info(f"No more pages for {self.entity_name}")
             return None
         except Exception as e:
             logger.error(f"Error calculating next page token: {str(e)}")
