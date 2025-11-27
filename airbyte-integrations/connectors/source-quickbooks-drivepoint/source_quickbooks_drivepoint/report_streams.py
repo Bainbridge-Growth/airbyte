@@ -262,47 +262,9 @@ class QuickbooksReportMonthlyBase(HttpStream):
 
                     full_account_name = ":".join(full_account_path)
 
-                    # Create one record for each column/class (skip first column which is account name)
-                    for i, class_name in enumerate(column_classes, 1):
-                        amount = ""
-                        if i < len(col_data):
-                            amount = col_data[i].get("value", "")
-
-                        clean_parent_id = parent_id
-                        if clean_parent_id and " at index " in clean_parent_id:
-                            clean_parent_id = clean_parent_id.split(" at index ")[0]
-
-                        clean_grandparent_id = grandparent_id
-                        if clean_grandparent_id and " at index " in clean_grandparent_id:
-                            clean_grandparent_id = clean_grandparent_id.split(" at index ")[0]
-
-                        # For P&L reports, if we're at a third level entry with a parent but no grandparent,
-                        # use the category as the grandparent (e.g. Income is the grandparent of "4005 Sales")
-                        actual_grandparent_name = grandparent_name
-                        if is_profit_loss and parent_name and not grandparent_name:
-                            actual_grandparent_name = category_name
-
-                        account_record = {
-                            "_Account": account_name,
-                            "_Account_id": account_id,
-                            "StartPeriod": start_period,
-                            "EndPeriod": end_period,
-                            "Currency": currency,
-                            "ParentAccountName": parent_name,
-                            "ParentAccountId": clean_parent_id,
-                            "GrandParentAccountName": actual_grandparent_name,
-                            "GrandParentAccountId": clean_grandparent_id,
-                            "CategoryAccountName": category_name,
-                            "CategoryAccountId": category_id,
-                            "Classification": row.get("group", ""),
-                            "FullyQualifiedName": "",
-                            "AccountType": "",
-                            "FullAccountName": full_account_name,
-                            "Class": class_name,
-                            "Total_Money": amount,
-                            "_airbyte_emitted_at": emitted_at
-                        }
-                        accounts.append(account_record)
+                    self._create_account_records(accounts, col_data, account_name, account_id, start_period, end_period, currency,
+                                                 parent_name, parent_id, grandparent_name, grandparent_id, category_name, category_id,
+                                                 row, full_account_name, column_classes, emitted_at, is_profit_loss)
 
             elif row_type == "Section":
                 # This is a section header - recurse into its rows
@@ -349,6 +311,35 @@ class QuickbooksReportMonthlyBase(HttpStream):
                                 category_name, category_id, section_display_name, section_id,
                                 parent_name, parent_id, grandparent_name, grandparent_id, section_type
                             )
+
+                # Process the section header as data if it has amounts
+                if len(header_col_data) > 1:
+                    col_data = header_col_data
+                    account_name = section_display_name
+                    account_id = section_id
+
+                    full_account_path = []
+
+                    if category_name:
+                        full_account_path.append(category_name)
+
+                    if section_type and section_type != category_name and section_type not in full_account_path:
+                        full_account_path.append(section_type)
+
+                    if grandparent_name and grandparent_name != section_type and grandparent_name not in full_account_path:
+                        full_account_path.append(grandparent_name)
+
+                    if parent_name and parent_name not in full_account_path:
+                        full_account_path.append(parent_name)
+
+                    if account_name:
+                        full_account_path.append(account_name)
+
+                    full_account_name = ":".join(full_account_path)
+
+                    self._create_account_records(accounts, col_data, account_name, account_id, start_period, end_period, currency,
+                                                 parent_name, parent_id, grandparent_name, grandparent_id, category_name, category_id,
+                                                 row, full_account_name, column_classes, emitted_at, is_profit_loss)
 
                 self._process_rows(
                     nested_rows, accounts, start_period, end_period, currency, column_classes,
@@ -414,6 +405,50 @@ class QuickbooksReportMonthlyBase(HttpStream):
                 "_airbyte_emitted_at": {"type": "string", "format": "date-time"}
             }
         }
+
+    def _create_account_records(self, accounts, col_data, account_name, account_id, start_period, end_period, currency,
+                                parent_name, parent_id, grandparent_name, grandparent_id, category_name, category_id,
+                                row, full_account_name, column_classes, emitted_at, is_profit_loss):
+        """Create account records for each column/class"""
+        for i, class_name in enumerate(column_classes, 1):
+            amount = ""
+            if i < len(col_data):
+                amount = col_data[i].get("value", "")
+
+            clean_parent_id = parent_id
+            if clean_parent_id and " at index " in clean_parent_id:
+                clean_parent_id = clean_parent_id.split(" at index ")[0]
+
+            clean_grandparent_id = grandparent_id
+            if clean_grandparent_id and " at index " in clean_grandparent_id:
+                clean_grandparent_id = clean_grandparent_id.split(" at index ")[0]
+
+            # For balance sheet, grandparent is as set
+            actual_grandparent_name = grandparent_name
+            if is_profit_loss and parent_name and not grandparent_name:
+                actual_grandparent_name = category_name
+
+            account_record = {
+                "_Account": account_name,
+                "_Account_id": account_id,
+                "StartPeriod": start_period,
+                "EndPeriod": end_period,
+                "Currency": currency,
+                "ParentAccountName": parent_name,
+                "ParentAccountId": clean_parent_id,
+                "GrandParentAccountName": actual_grandparent_name,
+                "GrandParentAccountId": clean_grandparent_id,
+                "CategoryAccountName": category_name,
+                "CategoryAccountId": category_id,
+                "Classification": row.get("group", ""),
+                "FullyQualifiedName": "",
+                "AccountType": "",
+                "FullAccountName": full_account_name,
+                "Class": class_name,
+                "Total_Money": amount,
+                "_airbyte_emitted_at": emitted_at
+            }
+            accounts.append(account_record)
 
 
 class BalanceSheetReportMonthly(QuickbooksReportMonthlyBase):

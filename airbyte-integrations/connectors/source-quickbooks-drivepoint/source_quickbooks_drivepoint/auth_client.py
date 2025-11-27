@@ -2,9 +2,7 @@ import requests
 import os
 import time
 import logging
-import threading
-from typing import Tuple, Union, Mapping, Any
-from airbyte_cdk.sources.declarative.interpolation import InterpolatedString
+from typing import Tuple
 from airbyte_cdk.sources.streams.http.requests_native_auth import Oauth2Authenticator, TokenAuthenticator
 from source_quickbooks_drivepoint.firebase_client import FirebaseClient
 from source_quickbooks_drivepoint.secret_manager_client import SecretManagerClient
@@ -29,16 +27,15 @@ class QuickbooksOauth2Authenticator(Oauth2Authenticator):
 
         firebase_project_id = "exceladdinprod"
 
+        if os.path.exists('secrets/firebase_service_account.json'):
+            self.firebase_client = FirebaseClient('secrets/firebase_service_account.json', firebase_project_id)
+        else:
+            secrets_manager = SecretManagerClient("data-infrastructure-324613")
+            firebase_sa = secrets_manager.get_firebase_service_account()
+            self.firebase_client = FirebaseClient(firebase_sa, firebase_project_id)
+
         if not self.refresh_token:
             logger.debug(f"No refresh token provided, attempting to fetch from Firebase for company_id: {self.company_id}")
-
-            if os.path.exists('secrets/firebase_service_account.json'):
-                self.firebase_client = FirebaseClient('secrets/firebase_service_account.json', firebase_project_id)
-            else:
-                secrets_manager = SecretManagerClient("data-infrastructure-324613")
-                firebase_sa = secrets_manager.get_firebase_service_account()
-                self.firebase_client = FirebaseClient(firebase_sa, firebase_project_id)
-
             self.refresh_token = self.firebase_client.get_refresh_token(self.company_id)
 
             if not self.refresh_token:
@@ -87,7 +84,6 @@ class QuickbooksOauth2Authenticator(Oauth2Authenticator):
             response_json = response.json()
 
             if "refresh_token" in response_json:
-                logger.info("Received a refresh token from QuickBooks API. Updating it in Firebase.")
                 self.firebase_client.update_token(self.company_id, response_json)
                 self.firebase_client.update_refresh_info(self.company_id)
                 self.refresh_token = response_json["refresh_token"]

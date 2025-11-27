@@ -1,7 +1,6 @@
-# Quickbooks-Reports source connector
+# Drivepoint Quickbooks source connector
 
-
-This is the repository for the Quickbooks-Reports source connector, written in Python.
+This is the repository for the custom Drivepoint Quickbooks source connector, written in Python.
 For information about how to use this connector within Airbyte, see [the documentation](https://docs.airbyte.com/integrations/sources/Quickbooks-Reports).
 
 ## Local development
