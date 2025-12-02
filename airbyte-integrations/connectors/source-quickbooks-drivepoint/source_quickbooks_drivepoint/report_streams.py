@@ -243,6 +243,12 @@ class QuickbooksReportMonthlyBase(HttpStream):
                     if account_id and " at index " in account_id:
                         account_id = account_id.split(" at index ")[0]
 
+                    if not account_id and account_name == "Net Income":
+                        # Add hardcoded id for Net Income based on the old connector code
+                        # https://github.com/Bainbridge-Growth/airbyte-singer-tap-quickbooks-airbyte-fork/blob/7a03f1c65c9451d0fd7482e2be345dcb71e12b87/tap_quickbooks/ReportProcessing.py
+                        # Issue explained at https://linear.app/drivepoint/issue/ENG-2145/qbo-migration-net-income-from-balance-sheet-special-case
+                        account_id = "1000930"
+
                     full_account_path = []
 
                     if category_name:
