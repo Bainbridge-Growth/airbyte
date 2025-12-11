@@ -15,6 +15,13 @@ if [[ "$BUMP_TYPE" != "major" && "$BUMP_TYPE" != "minor" && "$BUMP_TYPE" != "pat
   exit 1
 fi
 
+ENVIRONMENT=${2}
+if [[ -z "$ENVIRONMENT" ]]; then
+  echo "Must provide VM instance name as a second argument."
+  exit 1
+fi
+
+VM_INSTANCE_NAME="airbyte_quickbooks"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONNECTOR_DIR="$(dirname "$SCRIPT_DIR")"
 MANIFEST="$CONNECTOR_DIR/source_quickbooks_drivepoint/manifest.yaml"
@@ -26,8 +33,18 @@ if [ ! -f "$MANIFEST" ]; then
   exit 1
 fi
 
+# Check if Docker is running
+if ! docker info > /dev/null 2>&1; then
+  echo "Docker is not running. Please start Docker and try again."
+  exit 1
+fi
+
 # 0. Build new docker image locally
 airbyte-ci connectors --name=source-quickbooks-drivepoint build --architecture=linux/amd64
+if [ $? -ne 0 ]; then
+  echo "Build failed. Exiting."
+  exit 1
+fi
 
 # 1. Get current version from manifest.yaml (robust: match 'version:' at start of any line, any indent)
 CUR_VERSION=$(grep -E '^\s*version:' "$MANIFEST" | head -n1 | awk -F ': ' '{print $2}')
@@ -50,15 +67,19 @@ case $BUMP_TYPE in
     ;;
 esac
 
+if [[ "$ENVIRONMENT" == "staging" ]]; then
+  VM_INSTANCE_NAME="airbyte-qbo-staging"
+fi
+
 # 3. Update manifest.yaml (robust: match 'version:' at start of any line, any indent)
-sed -i '' -E "s/^([[:space:]]*version:).*/\1 $NEW_VERSION/" "$MANIFEST"
+sed -i '' "s/^version: .*/version: $NEW_VERSION/" "$MANIFEST"
 
 # 4. Update pyproject.toml (robust: match 'version = "..."' at start of any line)
-sed -i '' -E "s/^version = \".*\"/version = \"$NEW_VERSION\"/" "$PYPROJECT"
+sed -i '' "s/^version = \".*\"/version = \"$NEW_VERSION\"/" "$PYPROJECT"
 
 # 5. Update metadata.yaml
 grep -q 'dockerImageTag:' "$METADATA" && \
-  sed -i '' -E "s/^([[:space:]]*dockerImageTag:).*/\1 $NEW_VERSION/" "$METADATA"
+  sed -i '' "s/^dockerImageTag: .*/dockerImageTag: $NEW_VERSION/" "$METADATA"
 
 # 6. Docker tag and push
 DOCKER_IMAGE="us-central1-docker.pkg.dev/data-infrastructure-324613/airbyte-custom/airbyte/source-quickbooks-drivepoint:$NEW_VERSION"
@@ -66,6 +87,6 @@ docker tag airbyte/source-quickbooks-drivepoint:dev $DOCKER_IMAGE
 docker push $DOCKER_IMAGE
 
 # 7. SSH and update on gcloud
-gcloud compute ssh airbyte-quickbooks --project=data-infrastructure-324613 --command "sudo su - -c 'docker pull $DOCKER_IMAGE && kind load docker-image $DOCKER_IMAGE -n airbyte-abctl'"
+gcloud compute ssh $VM_INSTANCE_NAME --project=data-infrastructure-324613 --command "sudo su - -c 'docker pull $DOCKER_IMAGE && kind load docker-image $DOCKER_IMAGE -n airbyte-abctl'"
 
-echo "Deploy complete. Version: $NEW_VERSION"
+echo "Deploy to $VM_INSTANCE_NAME complete. Version: $NEW_VERSION"
