@@ -17,11 +17,11 @@ fi
 
 ENVIRONMENT=${2}
 if [[ -z "$ENVIRONMENT" ]]; then
-  echo "Must provide VM instance name as a second argument."
+  echo "Must provide target environment name as a second argument ('staging' or 'production')."
   exit 1
 fi
 
-VM_INSTANCE_NAME="airbyte_quickbooks"
+VM_INSTANCE_NAME="airbyte-quickbooks"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONNECTOR_DIR="$(dirname "$SCRIPT_DIR")"
 MANIFEST="$CONNECTOR_DIR/source_quickbooks_drivepoint/manifest.yaml"
@@ -41,10 +41,6 @@ fi
 
 # 0. Build new docker image locally
 airbyte-ci connectors --name=source-quickbooks-drivepoint build --architecture=linux/amd64
-if [ $? -ne 0 ]; then
-  echo "Build failed. Exiting."
-  exit 1
-fi
 
 # 1. Get current version from manifest.yaml (robust: match 'version:' at start of any line, any indent)
 CUR_VERSION=$(grep -E '^\s*version:' "$MANIFEST" | head -n1 | awk -F ': ' '{print $2}')

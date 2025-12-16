@@ -207,7 +207,7 @@ class QuickbooksReportMonthlyBase(HttpStream):
             col_title = col.get("ColTitle", "")
             class_name = col_title.replace(" ", "").replace("-", "") if col_title else f"Column_{i}"
 
-            if len(column_classes) > 1 and class_name.lower() == "total":
+            if len(column_classes) >= 1 and class_name.lower() == "total":
                 # don't add TOTAL row if processing report with classes
                 continue
 
