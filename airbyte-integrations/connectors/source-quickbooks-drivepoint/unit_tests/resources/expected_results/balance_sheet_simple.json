@@ -2,8 +2,8 @@
   {
     "_Account": "Checking",
     "_Account_id": "35",
-    "StartPeriod": "2016-01-01",
-    "EndPeriod": "2016-10-31",
+    "StartPeriod": "2016-01-01T00:00:00Z",
+    "EndPeriod": "2016-10-31T00:00:00Z",
     "Currency": "USD",
     "ParentAccountName": "Bank Accounts",
     "ParentAccountId": "",
@@ -21,8 +21,8 @@
   {
     "_Account": "Savings",
     "_Account_id": "36",
-    "StartPeriod": "2016-01-01",
-    "EndPeriod": "2016-10-31",
+    "StartPeriod": "2016-01-01T00:00:00Z",
+    "EndPeriod": "2016-10-31T00:00:00Z",
     "Currency": "USD",
     "ParentAccountName": "Bank Accounts",
     "ParentAccountId": "",

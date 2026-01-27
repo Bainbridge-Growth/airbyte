@@ -1,0 +1,30 @@
+{
+  "QueryResponse": {
+    "Class": [
+      {
+        "Name": "Retail",
+        "Active": true,
+        "Id": "1",
+        "SyncToken": "0",
+        "MetaData": {
+          "CreateTime": "2016-01-01T10:00:00-08:00",
+          "LastUpdatedTime": "2016-01-01T10:00:00-08:00"
+        }
+      },
+      {
+        "Name": "Wholesale",
+        "Active": true,
+        "Id": "2",
+        "SyncToken": "0",
+        "MetaData": {
+          "CreateTime": "2016-01-01T10:00:00-08:00",
+          "LastUpdatedTime": "2016-01-01T10:00:00-08:00"
+        }
+      }
+    ],
+    "startPosition": 1,
+    "maxResults": 2
+  },
+  "time": "2016-10-31T09:42:21.000-07:00"
+}
+

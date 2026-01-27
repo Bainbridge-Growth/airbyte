@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Any, Iterable, List, Mapping, MutableMapping, Optional
 from airbyte_cdk.sources.streams.http import HttpStream
 from airbyte_cdk.models import AirbyteStateMessage, SyncMode
+from .query_streams import Classes, Departments, Customers, Vendors
 
 logger = logging.getLogger("airbyte")
 
@@ -38,6 +39,7 @@ class QuickbooksReportMonthlyBase(HttpStream):
             second_dimension: str = None,
             start_date: str = None,
             end_date: str = None,
+            authenticator = None,
             **kwargs
     ):
         self.realm_id = realm_id
@@ -46,7 +48,28 @@ class QuickbooksReportMonthlyBase(HttpStream):
         self.second_dimension = second_dimension
         self.start_date = start_date
         self.end_date = end_date
-        super().__init__(**kwargs)
+        self.current_dimension_id = None
+        self.current_dimension_name = None
+        self.authenticator = authenticator
+        super().__init__(authenticator=authenticator, **kwargs)
+
+    def _get_query_stream_class(self):
+        mapping = {
+            "Classes": Classes,
+            "Departments": Departments,
+            "Customers": Customers,
+            "Vendors": Vendors
+        }
+        return mapping.get(self.second_dimension)
+
+    def _get_dimension_param_name(self):
+        mapping = {
+            "Classes": "class",
+            "Departments": "department",
+            "Customers": "customer",
+            "Vendors": "vendor"
+        }
+        return mapping.get(self.second_dimension)
 
     def stream_slices(
             self,
@@ -132,8 +155,17 @@ class QuickbooksReportMonthlyBase(HttpStream):
             "accounting_method": self.accounting_method
         }
 
-        if self.first_dimension and self.first_dimension != "None":
+        if self.first_dimension and self.first_dimension is not None:
             params["summarize_column_by"] = self.first_dimension
+
+        # When second_dimension is set, use first_dimension as summarize_column_by
+        # and filter by the current second_dimension item
+        if self.second_dimension and self.second_dimension is not None and self.current_dimension_id:
+            # Filter by second_dimension item
+            param_name = self._get_dimension_param_name()
+            if param_name:
+                params[param_name] = self.current_dimension_id
+                self.logger.info(f"Using {self.first_dimension} as summarize_column_by and filtering by {param_name}={self.current_dimension_id}")
 
         self.logger.info(f"Processing slice with dates: {stream_slice}")
 
@@ -158,17 +190,60 @@ class QuickbooksReportMonthlyBase(HttpStream):
         return response
 
     def read_records(self, sync_mode, cursor_field=None, stream_slice=None, stream_state=None):
-        # Call the parent implementation which will use _send_request
-        records_generator = super().read_records(
-            sync_mode=sync_mode,
-            cursor_field=cursor_field,
-            stream_slice=stream_slice,
-            stream_state=stream_state
-        )
+        if not self.second_dimension or self.second_dimension is None:
+            # When second_dimension is not provided, just yield records normally
+            self.current_dimension_id = None
+            self.current_dimension_name = None
+            yield from super().read_records(sync_mode, cursor_field, stream_slice, stream_state)
+        else:
+            # When second_dimension is provided, we need to handle slicing ourselves
+            # Only process if this is the initial call (stream_slice is None or is the full period)
+            # This prevents duplicate processing when called from within monthly slices
 
-        # Yield all records from the parent implementation
-        for record in records_generator:
-            yield record
+            # Get all stream slices for the entire period
+            all_slices = list(self.stream_slices(sync_mode, cursor_field, stream_state))
+
+            # Fetch the dimension items once for the entire period
+            query_stream_class = self._get_query_stream_class()
+            if not query_stream_class:
+                self.logger.error(f"Unknown second_dimension: {self.second_dimension}")
+                return
+
+            query_stream = query_stream_class(
+                realm_id=self.realm_id,
+                start_date=self.start_date,
+                end_date=self.end_date,
+                authenticator=self.authenticator
+            )
+
+            # Fetch all second_dimension items and extract distinct Id->Name pairs
+            second_dimension_items = list(query_stream.read_records(sync_mode=None))
+            self.logger.info(f"Fetched {len(second_dimension_items)} items for {self.second_dimension}")
+
+            # Extract distinct Id->Name pairs
+            distinct_items = {}
+            for item in second_dimension_items:
+                item_id = item.get("Id")
+                item_name = item.get("Name")
+                if item_id and item_name:
+                    distinct_items[item_id] = item_name
+
+            self.logger.info(f"Found {len(distinct_items)} distinct Id->Name pairs for {self.second_dimension}")
+
+            # Get the parameter name for this dimension type (class/department/customer/vendor)
+            param_name = self._get_dimension_param_name()
+
+            # For each distinct Id->Name pair, fetch a report for each time slice
+            for item_id, item_name in distinct_items.items():
+                self.logger.info(f"Fetching report for {param_name}={item_id} (Name: {item_name})")
+
+                # Set current dimension info for use in request_params and _create_account_records
+                self.current_dimension_id = item_id
+                self.current_dimension_name = item_name
+
+                # Fetch records for each time slice with this dimension filter
+                for time_slice in all_slices:
+                    yield from super().read_records(sync_mode, cursor_field, time_slice, stream_state)
 
     def request_headers(
             self,
@@ -319,33 +394,9 @@ class QuickbooksReportMonthlyBase(HttpStream):
                             )
 
                 # Process the section header as data if it has amounts
-                if len(header_col_data) > 1:
-                    col_data = header_col_data
-                    account_name = section_display_name
-                    account_id = section_id
-
-                    full_account_path = []
-
-                    if category_name:
-                        full_account_path.append(category_name)
-
-                    if section_type and section_type != category_name and section_type not in full_account_path:
-                        full_account_path.append(section_type)
-
-                    if grandparent_name and grandparent_name != section_type and grandparent_name not in full_account_path:
-                        full_account_path.append(grandparent_name)
-
-                    if parent_name and parent_name not in full_account_path:
-                        full_account_path.append(parent_name)
-
-                    if account_name:
-                        full_account_path.append(account_name)
-
-                    full_account_name = ":".join(full_account_path)
-
-                    self._create_account_records(accounts, col_data, account_name, account_id, start_period, end_period, currency,
-                                                 parent_name, parent_id, grandparent_name, grandparent_id, category_name, category_id,
-                                                 row, full_account_name, column_classes, emitted_at, is_profit_loss)
+                # Note: Section headers are typically just for grouping/hierarchy and should not
+                # be created as individual records. Only Data rows should become records.
+                # The Summary rows contain totals but are not processed here.
 
                 self._process_rows(
                     nested_rows, accounts, start_period, end_period, currency, column_classes,
@@ -407,6 +458,7 @@ class QuickbooksReportMonthlyBase(HttpStream):
                 "AccountType": {"type": ["null", "string"]},
                 "FullAccountName": {"type": ["null", "string"]},
                 "Class": {"type": ["null", "string"]},
+                "Dimension1": {"type": ["null", "string"]},
                 "Total_Money": {"type": ["null", "number"]},
                 "_airbyte_emitted_at": {"type": "string", "format": "date-time"}
             }
@@ -451,6 +503,7 @@ class QuickbooksReportMonthlyBase(HttpStream):
                 "AccountType": "",
                 "FullAccountName": full_account_name,
                 "Class": class_name,
+                "Dimension1": self.current_dimension_name,
                 "Total_Money": amount,
                 "_airbyte_emitted_at": emitted_at
             }

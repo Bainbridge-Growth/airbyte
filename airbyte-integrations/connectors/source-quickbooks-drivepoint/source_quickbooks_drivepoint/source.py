@@ -13,11 +13,14 @@ logger = logging.getLogger("airbyte")
 class SourceQuickbooksDrivepoint(AbstractSource):
     @staticmethod
     def get_authenticator(config):
+        # Handle both test config format (with 'credentials' nested) and production format
+        credentials = config.get("credentials", {})
+
         return QuickbooksOauth2Authenticator(
-            company_id=config.get("company_id"),
-            client_id=config.get("client_id"),
-            client_secret=config.get("client_secret"),
-            refresh_token=config.get("refresh_token")
+            company_id=config.get("company_id") or config.get("realm_id"),  # Support both keys
+            client_id=credentials.get("client_id") or config.get("client_id"),
+            client_secret=credentials.get("client_secret") or config.get("client_secret"),
+            refresh_token=credentials.get("refresh_token") or config.get("refresh_token")
         )
 
     def check_connection(self, logger, config) -> Tuple[bool, any]:
@@ -56,24 +59,64 @@ class SourceQuickbooksDrivepoint(AbstractSource):
 
     def streams(self, config: Mapping[str, Any]) -> List[Stream]:
         authenticator = self.get_authenticator(config)
-        realm_id = authenticator.firebase_client.get_realm_id(config.get("company_id"))
+
+        # Use realm_id from config if available (for tests), otherwise fetch from Firebase
+        realm_id = config.get("realm_id")
+        if not realm_id and hasattr(authenticator, 'firebase_client') and authenticator.firebase_client:
+            realm_id = authenticator.firebase_client.get_realm_id(config.get("company_id") or config.get("realm_id"))
 
         streams = [
-            Accounts(realm_id=realm_id, start_date=config.get("start_date"), end_date=config.get("end_date"), authenticator=authenticator),
-            Classes(realm_id=realm_id, start_date=config.get("start_date"), end_date=config.get("end_date"), authenticator=authenticator),
-            Customers(realm_id=realm_id, start_date=config.get("start_date"), end_date=config.get("end_date"), authenticator=authenticator),
-            Departments(realm_id=realm_id, start_date=config.get("start_date"), end_date=config.get("end_date"), authenticator=authenticator),
-            Vendors(realm_id=realm_id, start_date=config.get("start_date"), end_date=config.get("end_date"), authenticator=authenticator)
+            Accounts(
+                realm_id=realm_id,
+                authenticator=authenticator
+            ),
+            Classes(
+                realm_id=realm_id,
+                authenticator=authenticator
+            ),
+            Customers(
+                realm_id=realm_id,
+                authenticator=authenticator
+            ),
+            Departments(
+                realm_id=realm_id,
+                authenticator=authenticator
+            ),
+            Vendors(
+                realm_id=realm_id,
+                authenticator=authenticator
+            )
         ]
 
-        accounting_method = config.get("accounting_method").get("selected_method") if config.get("accounting_method") else None
+        # Safely extract accounting method
+        accounting_method = None
+        if config.get("accounting_method"):
+            accounting_method = config.get("accounting_method").get("selected_method")
+
+        # Safely extract balance sheet settings
+        bs_first_dimension = None
+        bs_second_dimension = None
+        if config.get("balance_sheet_settings"):
+            if config.get("balance_sheet_settings").get("summarize_column"):
+                bs_first_dimension = config.get("balance_sheet_settings").get("summarize_column").get("selected_first_dimension")
+            if config.get("balance_sheet_settings").get("second_dimension"):
+                bs_second_dimension = config.get("balance_sheet_settings").get("second_dimension").get("selected_second_dimension")
+
+        # Safely extract profit loss settings
+        pl_first_dimension = None
+        pl_second_dimension = None
+        if config.get("profit_loss_settings"):
+            if config.get("profit_loss_settings").get("summarize_column"):
+                pl_first_dimension = config.get("profit_loss_settings").get("summarize_column").get("selected_first_dimension")
+            if config.get("profit_loss_settings").get("second_dimension"):
+                pl_second_dimension = config.get("profit_loss_settings").get("second_dimension").get("selected_second_dimension")
 
         streams.extend([
             BalanceSheetReportMonthly(
                 realm_id=realm_id,
                 accounting_method=accounting_method,
-                first_dimension=config.get("balance_sheet_settings").get("summarize_column").get("selected_first_dimension") if config.get("balance_sheet_settings").get("summarize_column") else None,
-                second_dimension=config.get("balance_sheet_settings").get("second_dimension").get("selected_second_dimension") if config.get("balance_sheet_settings").get("second_dimension") else None,
+                first_dimension=bs_first_dimension,
+                second_dimension=bs_second_dimension,
                 start_date=config.get("start_date"),
                 end_date=config.get("end_date"),
                 authenticator=authenticator
@@ -81,19 +124,13 @@ class SourceQuickbooksDrivepoint(AbstractSource):
             ProfitLossReportMonthly(
                 realm_id=realm_id,
                 accounting_method=accounting_method,
-                first_dimension=config.get("profit_loss_settings").get("summarize_column").get("selected_first_dimension") if config.get("profit_loss_settings").get("summarize_column") else None,
-                second_dimension=config.get("profit_loss_settings").get("second_dimension").get("selected_second_dimension") if config.get("profit_loss_settings").get("second_dimension") else None,
+                first_dimension=pl_first_dimension,
+                second_dimension=pl_second_dimension,
                 start_date=config.get("start_date"),
                 end_date=config.get("end_date"),
                 authenticator=authenticator
             )
         ])
-
-        # base_streams = super().streams(config) or []
-        # for stream in base_streams:
-        #     if hasattr(stream, "authenticator"):
-        #         stream.authenticator = authenticator
-        # streams.extend(base_streams)
 
         return streams
 
