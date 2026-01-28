@@ -113,7 +113,6 @@ class QueryStreamBase(HttpStream):
 
             records = json_response.get("QueryResponse", {}).get(self.entity_name, [])
             logger.info(f"Received {len(records)} records for {self.entity_name}")
-            logger.debug(f"First record (if any): {records[0] if records else 'No records'}")
 
             current_time = datetime.utcnow().isoformat()
             for record in records:

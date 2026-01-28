@@ -22,6 +22,14 @@ def format_date(date_str):
         return date_str  # fallback to original if parsing fails
 
 
+# Clean ID by removing " at index X" suffix
+def clean_id(id_str):
+    """Remove ' at index X' suffix from IDs if present"""
+    if id_str and " at index " in id_str:
+        return id_str.split(" at index ")[0]
+    return id_str
+
+
 class QuickbooksReportMonthlyBase(HttpStream):
     """Base class for QuickBooks Reports API connectors
 
@@ -155,12 +163,12 @@ class QuickbooksReportMonthlyBase(HttpStream):
             "accounting_method": self.accounting_method
         }
 
-        if self.first_dimension and self.first_dimension is not None:
+        if self.first_dimension:
             params["summarize_column_by"] = self.first_dimension
 
         # When second_dimension is set, use first_dimension as summarize_column_by
         # and filter by the current second_dimension item
-        if self.second_dimension and self.second_dimension is not None and self.current_dimension_id:
+        if self.second_dimension and self.current_dimension_id:
             # Filter by second_dimension item
             param_name = self._get_dimension_param_name()
             if param_name:
@@ -190,15 +198,13 @@ class QuickbooksReportMonthlyBase(HttpStream):
         return response
 
     def read_records(self, sync_mode, cursor_field=None, stream_slice=None, stream_state=None):
-        if not self.second_dimension or self.second_dimension is None:
-            # When second_dimension is not provided, just yield records normally
-            self.current_dimension_id = None
-            self.current_dimension_name = None
-            yield from super().read_records(sync_mode, cursor_field, stream_slice, stream_state)
-        else:
+        # When second_dimension is set AND this is the initial call (stream_slice is None),
+        # we fetch dimension items and manage slicing ourselves.
+        # If stream_slice is provided, we're in a nested call from super().read_records()
+        # and should use the normal flow.
+        if self.second_dimension and stream_slice is None:
             # When second_dimension is provided, we need to handle slicing ourselves
-            # Only process if this is the initial call (stream_slice is None or is the full period)
-            # This prevents duplicate processing when called from within monthly slices
+            # This is the initial call from Airbyte framework
 
             # Get all stream slices for the entire period
             all_slices = list(self.stream_slices(sync_mode, cursor_field, stream_state))
@@ -244,6 +250,11 @@ class QuickbooksReportMonthlyBase(HttpStream):
                 # Fetch records for each time slice with this dimension filter
                 for time_slice in all_slices:
                     yield from super().read_records(sync_mode, cursor_field, time_slice, stream_state)
+        else:
+            # Normal flow: no second_dimension OR this is a nested call with stream_slice provided
+            self.current_dimension_id = None
+            self.current_dimension_name = None
+            yield from super().read_records(sync_mode, cursor_field, stream_slice, stream_state)
 
     def request_headers(
             self,
@@ -288,23 +299,25 @@ class QuickbooksReportMonthlyBase(HttpStream):
 
             column_classes.append(class_name)
 
+        # Determine report type once before processing rows
+        is_profit_loss = False
+        if hasattr(self, "path"):
+            path = self.path().split("/")[-1]
+            is_profit_loss = path == "ProfitAndLoss"
+
         # Process all accounts and return flat list
         accounts = []
         current_time = datetime.utcnow().isoformat() + "Z"
-        self._process_rows(rows, accounts, start_period, end_period, currency, column_classes, emitted_at=current_time)
+        self._process_rows(rows, accounts, start_period, end_period, currency, column_classes,
+                          is_profit_loss=is_profit_loss, emitted_at=current_time)
 
         return accounts
 
     def _process_rows(self, rows: list, accounts: list, start_period: str, end_period: str, currency: str, column_classes: list,
                       parent_name: str = "", parent_id: str = "", grandparent_name: str = "", grandparent_id: str = "",
-                      category_name: str = "", category_id: str = "", section_type: str = "", emitted_at: str = None):
+                      category_name: str = "", category_id: str = "", section_type: str = "",
+                      is_profit_loss: bool = False, emitted_at: str = None):
         """Recursively process rows to extract account data"""
-
-        # Determine if this is a P&L report or Balance Sheet report based on the path or report structure
-        is_profit_loss = False
-        if hasattr(self, "path"):
-            path = self.path().split("/")[-1]
-            is_profit_loss = path == "ProfitAndLoss"
 
         for row in rows:
             row_type = row.get("type", "")
@@ -314,9 +327,7 @@ class QuickbooksReportMonthlyBase(HttpStream):
 
                 if len(col_data) >= 2:
                     account_name = col_data[0].get("value", "")
-                    account_id = col_data[0].get("id", "")
-                    if account_id and " at index " in account_id:
-                        account_id = account_id.split(" at index ")[0]
+                    account_id = clean_id(col_data[0].get("id", ""))
 
                     if not account_id and account_name == "Net Income":
                         # Add hardcoded id for Net Income based on the old connector code
@@ -355,9 +366,7 @@ class QuickbooksReportMonthlyBase(HttpStream):
                 if header_col_data:
                     section_display_name = header_col_data[0].get("value", "")
 
-                section_id = header_col_data[0].get("id", "") if header_col_data else ""
-                if section_id and " at index " in section_id:
-                    section_id = section_id.split(" at index ")[0]
+                section_id = clean_id(header_col_data[0].get("id", "") if header_col_data else "")
 
                 nested_rows = row.get("Rows", {}).get("Row", [])
 
@@ -401,7 +410,8 @@ class QuickbooksReportMonthlyBase(HttpStream):
                 self._process_rows(
                     nested_rows, accounts, start_period, end_period, currency, column_classes,
                     new_parent_name, new_parent_id, new_grandparent, new_grandparent_id,
-                    new_category, new_category_id, new_section_type, emitted_at=emitted_at
+                    new_category, new_category_id, new_section_type,
+                    is_profit_loss=is_profit_loss, emitted_at=emitted_at
                 )
 
     def _process_profit_loss_hierarchy(self, category_name, category_id, section_display_name, section_id,
@@ -468,18 +478,14 @@ class QuickbooksReportMonthlyBase(HttpStream):
                                 parent_name, parent_id, grandparent_name, grandparent_id, category_name, category_id,
                                 row, full_account_name, column_classes, emitted_at, is_profit_loss):
         """Create account records for each column/class"""
+        # Clean IDs once before the loop
+        clean_parent_id = clean_id(parent_id)
+        clean_grandparent_id = clean_id(grandparent_id)
+
         for i, class_name in enumerate(column_classes, 1):
             amount = ""
             if i < len(col_data):
                 amount = col_data[i].get("value", "")
-
-            clean_parent_id = parent_id
-            if clean_parent_id and " at index " in clean_parent_id:
-                clean_parent_id = clean_parent_id.split(" at index ")[0]
-
-            clean_grandparent_id = grandparent_id
-            if clean_grandparent_id and " at index " in clean_grandparent_id:
-                clean_grandparent_id = clean_grandparent_id.split(" at index ")[0]
 
             # For balance sheet, grandparent is as set
             actual_grandparent_name = grandparent_name
