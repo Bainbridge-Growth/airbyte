@@ -89,7 +89,7 @@ class QueryStreamBase(HttpStream):
                 STARTPOSITION {start_position}
                 MAXRESULTS {MAX_RESULTS_PER_PAGE}"""
 
-            logger.info(f"Built query for {self.entity_name}: start_time={start_time}, end_time={end_time}, start_position={start_position}")
+            logger.debug(f"Built query for {self.entity_name}: start_time={start_time}, end_time={end_time}, start_position={start_position}")
             return {"query": query}
         except Exception as e:
             logger.error(f"Error building query parameters: {str(e)}")
@@ -132,7 +132,6 @@ class QueryStreamBase(HttpStream):
             json_response = response.json()
             records = json_response.get("QueryResponse", {}).get(self.entity_name, [])
             num_records = len(records)
-            logger.info(f"Pagination check for {self.entity_name}: num_records={num_records}")
 
             # If we got MAX_RESULTS_PER_PAGE records, there may be more pages
             if num_records == MAX_RESULTS_PER_PAGE:
@@ -140,9 +139,7 @@ class QueryStreamBase(HttpStream):
                 current_start = (self.current_token.get("next_page_token", 0) if self.current_token else 0)
                 next_start = current_start + MAX_RESULTS_PER_PAGE
                 next_token = {"next_page_token": next_start}
-                logger.info(f"Next page token for {self.entity_name}: {next_token}")
                 return next_token
-            logger.info(f"No more pages for {self.entity_name}")
             return None
         except Exception as e:
             logger.error(f"Error calculating next page token: {str(e)}")

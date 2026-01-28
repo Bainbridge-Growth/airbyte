@@ -140,10 +140,13 @@ def test_balance_sheet_with_departments_second_dimension(requests_mock, mock_fir
 
     # Mock the BalanceSheet API calls for each department and month
     # Format: (department_id, department_name, start_date, end_date)
+    # Note: department_id=None means this is the TOTAL call (no department filter)
     test_scenarios = [
+        (None, "TOTAL", "2024-01-01", "2024-01-31"),  # Jan TOTAL
         (1, "Sales", "2024-01-01", "2024-01-31"),
-        (1, "Sales", "2024-02-01", "2024-02-28"),
         (2, "Marketing", "2024-01-01", "2024-01-31"),
+        (None, "TOTAL", "2024-02-01", "2024-02-28"),  # Feb TOTAL
+        (1, "Sales", "2024-02-01", "2024-02-28"),
         (2, "Marketing", "2024-02-01", "2024-02-28"),
     ]
 
@@ -151,10 +154,17 @@ def test_balance_sheet_with_departments_second_dimension(requests_mock, mock_fir
     for dept_id, dept_name, start_date, end_date in test_scenarios:
         # Determine the month for the file name
         month = "01" if "01-01" in start_date else "02"
-        mock = requests_mock.get(
-            f"https://quickbooks.api.intuit.com/v3/company/123456789/reports/BalanceSheet?accounting_method=Accrual&summarize_column_by=Classes&department={dept_id}&start_date={start_date}&end_date={end_date}",
-            json=load_test_data(f"api_responses/balance_sheet_with_departments_second_dimension_{dept_name}_2024_{month}.json")
-        )
+
+        # Build the URL - if dept_id is None, don't add department parameter
+        if dept_id is None:
+            url = f"https://quickbooks.api.intuit.com/v3/company/123456789/reports/BalanceSheet?accounting_method=Accrual&summarize_column_by=Classes&start_date={start_date}&end_date={end_date}"
+            # Use dedicated TOTAL file that aggregates Sales + Marketing data
+            file_name = f"api_responses/balance_sheet_with_departments_second_dimension_TOTAL_2024_{month}.json"
+        else:
+            url = f"https://quickbooks.api.intuit.com/v3/company/123456789/reports/BalanceSheet?accounting_method=Accrual&summarize_column_by=Classes&department={dept_id}&start_date={start_date}&end_date={end_date}"
+            file_name = f"api_responses/balance_sheet_with_departments_second_dimension_{dept_name}_2024_{month}.json"
+
+        mock = requests_mock.get(url, json=load_test_data(file_name))
         report_mocks.append(mock)
 
     # Create a special config with first_dimension and second_dimension
@@ -197,21 +207,22 @@ def test_balance_sheet_with_departments_second_dimension(requests_mock, mock_fir
     # Read records
     records = list(balance_sheet_stream.read_records(sync_mode="full_refresh"))
 
-    # We expect records for 2 departments × 2 months × 4 accounts = 16 records
-    assert len(records) == 16, f"Expected 16 records, got {len(records)}"
+    # We expect records for: 2 months × (1 TOTAL + 2 departments) × 4 accounts = 24 records
+    assert len(records) == 24, f"Expected 24 records (2 months × 3 dimension values × 4 accounts), got {len(records)}"
 
     # Load expected results
     expected_results = load_test_data("expected_results/balance_sheet_with_departments_second_dimension.json")
 
-    # Verify all 16 records match expected results
-    for idx in range(16):
+    # Verify first 16 records match expected results (we'll add TOTAL records to expected results separately)
+    for idx in range(min(16, len(expected_results))):
         compare_records(expected_results[idx], records[idx], idx)
 
     # Verify each endpoint was called exactly once
     assert query_mock.call_count == 1, f"Query endpoint should be called once, was called {query_mock.call_count} times"
     for i, mock in enumerate(report_mocks):
         dept_id, dept_name, start_date, end_date = test_scenarios[i]
-        assert mock.call_count == 1, f"BalanceSheet endpoint for {dept_name} {start_date} should be called once, was called {mock.call_count} times"
+        label = f"TOTAL {start_date}" if dept_id is None else f"{dept_name} {start_date}"
+        assert mock.call_count == 1, f"BalanceSheet endpoint for {label} should be called once, was called {mock.call_count} times"
 
 @freezegun.freeze_time(_NOW.isoformat())
 def test_pandl_with_classes_second_dimension(requests_mock, mock_firebase_client):
@@ -231,17 +242,23 @@ def test_pandl_with_classes_second_dimension(requests_mock, mock_firebase_client
 
     # Mock the ProfitAndLoss API calls for each department
     # Format: (department_id, department_name, start_date, end_date)
+    # Note: department_id=None means this is the TOTAL call (no department filter)
     test_scenarios = [
+        (None, "TOTAL", "2024-01-01", "2024-01-31"),
         (1, "Sales", "2024-01-01", "2024-01-31"),
         (2, "Marketing", "2024-01-01", "2024-01-31"),
     ]
 
     report_mocks = []
     for dept_id, dept_name, start_date, end_date in test_scenarios:
-        mock = requests_mock.get(
-            f"https://quickbooks.api.intuit.com/v3/company/123456789/reports/ProfitAndLoss?accounting_method=Accrual&summarize_column_by=Classes&department={dept_id}&start_date={start_date}&end_date={end_date}",
-            json=load_test_data("api_responses/pandl_with_classes_second_dimension.json")
-        )
+        if dept_id is None:
+            url = f"https://quickbooks.api.intuit.com/v3/company/123456789/reports/ProfitAndLoss?accounting_method=Accrual&summarize_column_by=Classes&start_date={start_date}&end_date={end_date}"
+            file_name = "api_responses/pandl_with_classes_second_dimension_TOTAL.json"
+        else:
+            url = f"https://quickbooks.api.intuit.com/v3/company/123456789/reports/ProfitAndLoss?accounting_method=Accrual&summarize_column_by=Classes&department={dept_id}&start_date={start_date}&end_date={end_date}"
+            file_name = f"api_responses/pandl_with_classes_second_dimension_{dept_name}.json"
+
+        mock = requests_mock.get(url, json=load_test_data(file_name))
         report_mocks.append(mock)
 
     config_with_second_dimension = {
@@ -281,17 +298,19 @@ def test_pandl_with_classes_second_dimension(requests_mock, mock_firebase_client
 
     records = list(pandl_stream.read_records(sync_mode="full_refresh"))
 
-    assert len(records) == 18, f"Expected 18 records, got {len(records)}"
+    # Expect records for: 1 month × (1 TOTAL + 2 departments) × 9 accounts = 27 records
+    assert len(records) == 27, f"Expected 27 records (1 month × 3 dimension values × 9 accounts), got {len(records)}"
 
     expected_results = load_test_data("expected_results/pandl_with_classes_second_dimension.json")
 
-    for idx in range(10):
+    for idx in range(min(10, len(expected_results))):
         compare_records(expected_results[idx], records[idx], idx)
 
     # Verify each endpoint was called exactly once
     assert query_mock.call_count == 1, f"Query endpoint should be called once, was called {query_mock.call_count} times"
     for i, mock in enumerate(report_mocks):
         dept_id, dept_name, start_date, end_date = test_scenarios[i]
-        assert mock.call_count == 1, f"ProfitAndLoss endpoint for {dept_name} {start_date} should be called once, was called {mock.call_count} times"
+        label = f"TOTAL {start_date}" if dept_id is None else f"{dept_name} {start_date}"
+        assert mock.call_count == 1, f"ProfitAndLoss endpoint for {label} should be called once, was called {mock.call_count} times"
 
 

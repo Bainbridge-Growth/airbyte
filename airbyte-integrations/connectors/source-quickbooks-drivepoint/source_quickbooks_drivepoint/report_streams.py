@@ -117,9 +117,6 @@ class QuickbooksReportMonthlyBase(HttpStream):
         start = pendulum.datetime(start_dt.year, start_dt.month, start_dt.day)
         end = pendulum.datetime(end_dt.year, end_dt.month, end_dt.day)
 
-        # Log the full period we're processing
-        self.logger.info(f"Breaking period {start.format('YYYY-MM-DD')} to {end.format('YYYY-MM-DD')} into monthly chunks")
-
         slices = []
         current_start = start
 
@@ -175,8 +172,6 @@ class QuickbooksReportMonthlyBase(HttpStream):
                 params[param_name] = self.current_dimension_id
                 self.logger.info(f"Using {self.first_dimension} as summarize_column_by and filtering by {param_name}={self.current_dimension_id}")
 
-        self.logger.info(f"Processing slice with dates: {stream_slice}")
-
         # Use dates from the stream slice if available
         if stream_slice:
             if stream_slice.get("start_date"):
@@ -198,13 +193,14 @@ class QuickbooksReportMonthlyBase(HttpStream):
         return response
 
     def read_records(self, sync_mode, cursor_field=None, stream_slice=None, stream_state=None):
-        # When second_dimension is set AND this is the initial call (stream_slice is None),
+        # When second_dimension is set AND we haven't fetched dimension items yet,
         # we fetch dimension items and manage slicing ourselves.
-        # If stream_slice is provided, we're in a nested call from super().read_records()
-        # and should use the normal flow.
-        if self.second_dimension and stream_slice is None:
+        # We detect the initial call by checking if current_dimension_id is None.
+        # Once we set current_dimension_id and call super().read_records(), subsequent
+        # nested calls will have current_dimension_id set and will use normal flow.
+        if self.second_dimension and self.current_dimension_id is None:
             # When second_dimension is provided, we need to handle slicing ourselves
-            # This is the initial call from Airbyte framework
+            # This is the initial call - we haven't started processing dimensions yet
 
             # Get all stream slices for the entire period
             all_slices = list(self.stream_slices(sync_mode, cursor_field, stream_state))
@@ -239,21 +235,35 @@ class QuickbooksReportMonthlyBase(HttpStream):
             # Get the parameter name for this dimension type (class/department/customer/vendor)
             param_name = self._get_dimension_param_name()
 
-            # For each distinct Id->Name pair, fetch a report for each time slice
-            for item_id, item_name in distinct_items.items():
-                self.logger.info(f"Fetching report for {param_name}={item_id} (Name: {item_name})")
+            # For each time slice, first fetch the total (without dimension filter)
+            # then fetch data for each dimension item
+            for time_slice in all_slices:
+                # First, fetch report without second_dimension filter to get totals
+                self.logger.info(f"Fetching TOTAL report (no {param_name} filter) for period {time_slice['start_date']} to {time_slice['end_date']}")
 
-                # Set current dimension info for use in request_params and _create_account_records
-                self.current_dimension_id = item_id
-                self.current_dimension_name = item_name
+                # Set dimension info to indicate this is the total
+                self.current_dimension_id = None  # No filter applied
+                self.current_dimension_name = "DRIVEPOINT_CLASS_TOTAL"
 
-                # Fetch records for each time slice with this dimension filter
-                for time_slice in all_slices:
+                # Fetch records without dimension filter
+                yield from super().read_records(sync_mode, cursor_field, time_slice, stream_state)
+
+                # Now fetch for each distinct Id->Name pair with dimension filter
+                for item_id, item_name in distinct_items.items():
+                    self.logger.info(f"Fetching report for {param_name}={item_id} (Name: {item_name}) for period {time_slice['start_date']} to {time_slice['end_date']}")
+
+                    # Set current dimension info for use in request_params and _create_account_records
+                    self.current_dimension_id = item_id
+                    self.current_dimension_name = item_name
+
+                    # Fetch records for this time slice with this dimension filter
                     yield from super().read_records(sync_mode, cursor_field, time_slice, stream_state)
         else:
-            # Normal flow: no second_dimension OR this is a nested call with stream_slice provided
-            self.current_dimension_id = None
-            self.current_dimension_name = None
+            # Normal flow: no second_dimension OR we're in a nested call with current_dimension_id already set
+            if not self.second_dimension:
+                # Only clear dimension info if second_dimension is not configured
+                self.current_dimension_id = None
+                self.current_dimension_name = None
             yield from super().read_records(sync_mode, cursor_field, stream_slice, stream_state)
 
     def request_headers(

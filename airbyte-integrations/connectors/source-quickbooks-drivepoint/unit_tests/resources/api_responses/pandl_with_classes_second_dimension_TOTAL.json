@@ -1,0 +1,326 @@
+{
+  "Header": {
+    "Time": "2024-04-18T07:18:38-07:00",
+    "ReportName": "ProfitAndLoss",
+    "ReportBasis": "Accrual",
+    "StartPeriod": "2024-01-01",
+    "EndPeriod": "2024-01-31",
+    "SummarizeColumnsBy": "Classes",
+    "Currency": "USD",
+    "Option": [
+      {
+        "Name": "AccountingStandard",
+        "Value": "GAAP"
+      },
+      {
+        "Name": "NoReportData",
+        "Value": "false"
+      }
+    ]
+  },
+  "Columns": {
+    "Column": [
+      {
+        "ColTitle": "",
+        "ColType": "Account",
+        "MetaData": [
+          {
+            "Name": "ColKey",
+            "Value": "account"
+          }
+        ]
+      },
+      {
+        "ColTitle": "Distribution",
+        "ColType": "Money",
+        "MetaData": [
+          {
+            "Name": "ColKey",
+            "Value": "100000000001634765"
+          }
+        ]
+      },
+      {
+        "ColTitle": "e-Commerce",
+        "ColType": "Money",
+        "MetaData": [
+          {
+            "Name": "ColKey",
+            "Value": "100000000001634762"
+          }
+        ]
+      },
+      {
+        "ColTitle": "Not Specified",
+        "ColType": "Money",
+        "MetaData": [
+          {
+            "Name": "ColKey",
+            "Value": "not_specified"
+          }
+        ]
+      },
+      {
+        "ColTitle": "TOTAL",
+        "ColType": "Money",
+        "MetaData": [
+          {
+            "Name": "ColKey",
+            "Value": "total"
+          }
+        ]
+      }
+    ]
+  },
+  "Rows": {
+    "Row": [
+      {
+        "Header": {
+          "ColData": [
+            {
+              "value": "Income"
+            },
+            {
+              "value": ""
+            },
+            {
+              "value": ""
+            },
+            {
+              "value": ""
+            },
+            {
+              "value": ""
+            }
+          ]
+        },
+        "Rows": {
+          "Row": [
+            {
+              "Header": {
+                "ColData": [
+                  {
+                    "value": "4000 Sales of Product Income",
+                    "id": "37"
+                  },
+                  {
+                    "value": ""
+                  },
+                  {
+                    "value": ""
+                  },
+                  {
+                    "value": ""
+                  },
+                  {
+                    "value": "0.00"
+                  }
+                ]
+              },
+              "Rows": {
+                "Row": [
+                  {
+                    "ColData": [
+                      {
+                        "id": "79",
+                        "value": "4001 Sales"
+                      },
+                      {
+                        "value": "5800"
+                      },
+                      {
+                        "value": "9500"
+                      },
+                      {
+                        "value": "14200"
+                      },
+                      {
+                        "value": "29500.00"
+                      }
+                    ],
+                    "type": "Data"
+                  },
+                  {
+                    "ColData": [
+                      {
+                        "id": "80",
+                        "value": "5001 Services"
+                      },
+                      {
+                        "value": "2400"
+                      },
+                      {
+                        "value": "4800"
+                      },
+                      {
+                        "value": "7200"
+                      },
+                      {
+                        "value": "14400.00"
+                      }
+                    ],
+                    "type": "Data"
+                  }
+                ]
+              },
+              "Summary": {
+                "ColData": [
+                  {
+                    "value": "Total 4000 Sales of Product Income"
+                  },
+                  {
+                    "value": "8200"
+                  },
+                  {
+                    "value": "14300"
+                  },
+                  {
+                    "value": "21400"
+                  },
+                  {
+                    "value": "43900.00"
+                  }
+                ]
+              },
+              "type": "Section"
+            }
+          ]
+        },
+        "Summary": {
+          "ColData": [
+            {
+              "value": "Total Income"
+            },
+            {
+              "value": "8200"
+            },
+            {
+              "value": "14300"
+            },
+            {
+              "value": "21400"
+            },
+            {
+              "value": "43900.00"
+            }
+          ]
+        },
+        "type": "Section",
+        "group": "Income"
+      },
+      {
+        "Header": {
+          "ColData": [
+            {
+              "value": "Cost of Goods Sold"
+            },
+            {
+              "value": ""
+            },
+            {
+              "value": ""
+            },
+            {
+              "value": ""
+            },
+            {
+              "value": ""
+            }
+          ]
+        },
+        "Rows": {
+          "Row": [
+            {
+              "Header": {
+                "ColData": [
+                  {
+                    "value": "5000 Cost of Goods Sold",
+                    "id": "28"
+                  },
+                  {
+                    "value": ""
+                  },
+                  {
+                    "value": ""
+                  },
+                  {
+                    "value": ""
+                  },
+                  {
+                    "value": "0.00"
+                  }
+                ]
+              },
+              "Rows": {
+                "Row": [
+                  {
+                    "ColData": [
+                      {
+                        "id": "81",
+                        "value": "7001 Cost of Sales"
+                      },
+                      {
+                        "value": "2300"
+                      },
+                      {
+                        "value": "2400"
+                      },
+                      {
+                        "value": "4700"
+                      },
+                      {
+                        "value": "9400.00"
+                      }
+                    ],
+                    "type": "Data"
+                  }
+                ]
+              },
+              "Summary": {
+                "ColData": [
+                  {
+                    "value": "Total 5000 Cost of Goods Sold"
+                  },
+                  {
+                    "value": "2300"
+                  },
+                  {
+                    "value": "2400"
+                  },
+                  {
+                    "value": "4700"
+                  },
+                  {
+                    "value": "9400.00"
+                  }
+                ]
+              },
+              "type": "Section"
+            }
+          ]
+        },
+        "Summary": {
+          "ColData": [
+            {
+              "value": "Total Cost of Goods Sold"
+            },
+            {
+              "value": "2300"
+            },
+            {
+              "value": "2400"
+            },
+            {
+              "value": "4700"
+            },
+            {
+              "value": "9400.00"
+            }
+          ]
+        },
+        "type": "Section",
+        "group": "COGS"
+      }
+    ]
+  }
+}
