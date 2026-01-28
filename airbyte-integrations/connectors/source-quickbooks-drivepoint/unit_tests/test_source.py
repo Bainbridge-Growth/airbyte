@@ -314,3 +314,145 @@ def test_pandl_with_classes_second_dimension(requests_mock, mock_firebase_client
         assert mock.call_count == 1, f"ProfitAndLoss endpoint for {label} should be called once, was called {mock.call_count} times"
 
 
+@freezegun.freeze_time(_NOW.isoformat())
+def test_request_params_without_first_dimension(requests_mock, mock_firebase_client):
+    """Test that summarize_column_by parameter is NOT included when first_dimension is None"""
+
+    # Mock the OAuth token refresh endpoint
+    requests_mock.post(
+        "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer",
+        json={"access_token": "fake-token", "expires_in": 3600, "token_type": "Bearer"}
+    )
+
+    # Mock the BalanceSheet API call - we'll inspect what was actually requested
+    balance_sheet_mock = requests_mock.get(
+        "https://quickbooks.api.intuit.com/v3/company/123456789/reports/BalanceSheet",
+        json=load_test_data("api_responses/balance_sheet_simple.json")
+    )
+
+    # Config WITHOUT first_dimension (no summarize_column settings)
+    config_without_first_dimension = {
+        "realm_id": "123456789",
+        "start_date": "2024-01-01",
+        "end_date": "2024-01-31",  # Single month
+        "credentials": {
+            "client_id": "test_client_id",
+            "client_secret": "test_client_secret",
+            "refresh_token": "test_refresh_token"
+        },
+        "accounting_method": {
+            "selected_method": "Accrual"
+        }
+        # Note: no balance_sheet_settings with summarize_column
+    }
+
+    source = SourceQuickbooksDrivepoint()
+    streams = source.streams(config_without_first_dimension)
+
+    # Find the BalanceSheet stream
+    balance_sheet_stream = None
+    for stream in streams:
+        if hasattr(stream, '__class__') and "BalanceSheet" in stream.__class__.__name__:
+            balance_sheet_stream = stream
+            break
+
+    assert balance_sheet_stream is not None, "BalanceSheet stream not found"
+    assert balance_sheet_stream.first_dimension is None, "first_dimension should be None"
+
+    # Read records to trigger the API call
+    records = list(balance_sheet_stream.read_records(sync_mode="full_refresh"))
+
+    # Verify the API was called
+    assert balance_sheet_mock.call_count == 1, "BalanceSheet endpoint should be called once"
+
+    # Get the actual request that was made
+    actual_request = balance_sheet_mock.request_history[0]
+
+    # Parse query string - requests_mock stores it as a string
+    from urllib.parse import parse_qs, urlparse
+    parsed_url = urlparse(actual_request.url)
+    query_params = parse_qs(parsed_url.query)
+
+    # Verify that summarize_column_by is NOT in the query parameters
+    assert "summarize_column_by" not in query_params, \
+        f"summarize_column_by should NOT be in query params when first_dimension is None. Query params: {query_params}"
+
+    # Verify that other expected params ARE present
+    assert "accounting_method" in query_params, "accounting_method should be present"
+    assert query_params["accounting_method"][0] == "Accrual", "accounting_method should be Accrual"
+    assert "start_date" in query_params, "start_date should be present"
+    assert "end_date" in query_params, "end_date should be present"
+
+
+@freezegun.freeze_time(_NOW.isoformat())
+def test_request_params_with_first_dimension(requests_mock, mock_firebase_client):
+    """Test that summarize_column_by parameter IS included when first_dimension is set"""
+
+    # Mock the OAuth token refresh endpoint
+    requests_mock.post(
+        "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer",
+        json={"access_token": "fake-token", "expires_in": 3600, "token_type": "Bearer"}
+    )
+
+    # Mock the BalanceSheet API call
+    balance_sheet_mock = requests_mock.get(
+        "https://quickbooks.api.intuit.com/v3/company/123456789/reports/BalanceSheet",
+        json=load_test_data("api_responses/balance_sheet_nguyen_with_classes_20240423.json")
+    )
+
+    # Config WITH first_dimension set to Classes
+    config_with_first_dimension = {
+        "realm_id": "123456789",
+        "start_date": "2024-01-01",
+        "end_date": "2024-01-31",
+        "credentials": {
+            "client_id": "test_client_id",
+            "client_secret": "test_client_secret",
+            "refresh_token": "test_refresh_token"
+        },
+        "accounting_method": {
+            "selected_method": "Accrual"
+        },
+        "balance_sheet_settings": {
+            "summarize_column": {
+                "selected_first_dimension": "Classes"
+            }
+        }
+    }
+
+    source = SourceQuickbooksDrivepoint()
+    streams = source.streams(config_with_first_dimension)
+
+    # Find the BalanceSheet stream
+    balance_sheet_stream = None
+    for stream in streams:
+        if hasattr(stream, '__class__') and "BalanceSheet" in stream.__class__.__name__:
+            balance_sheet_stream = stream
+            break
+
+    assert balance_sheet_stream is not None, "BalanceSheet stream not found"
+    assert balance_sheet_stream.first_dimension == "Classes", "first_dimension should be 'Classes'"
+
+    # Read records to trigger the API call
+    records = list(balance_sheet_stream.read_records(sync_mode="full_refresh"))
+
+    # Verify the API was called
+    assert balance_sheet_mock.call_count == 1, "BalanceSheet endpoint should be called once"
+
+    # Get the actual request that was made
+    actual_request = balance_sheet_mock.request_history[0]
+
+    # Parse query string - requests_mock stores it as a string
+    from urllib.parse import parse_qs, urlparse
+    parsed_url = urlparse(actual_request.url)
+    query_params = parse_qs(parsed_url.query)
+
+    # Verify that summarize_column_by IS in the query parameters
+    assert "summarize_column_by" in query_params, \
+        f"summarize_column_by should be in query params when first_dimension is set. Query params: {query_params}"
+
+    # Verify it has the correct value (parse_qs returns lists, so get first item)
+    assert query_params["summarize_column_by"][0] == "Classes", \
+        f"summarize_column_by should be 'Classes', got '{query_params.get('summarize_column_by', [''])[0]}'"
+
+
