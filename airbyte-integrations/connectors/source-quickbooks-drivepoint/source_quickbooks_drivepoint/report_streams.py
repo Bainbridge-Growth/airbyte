@@ -161,7 +161,7 @@ class QuickbooksReportMonthlyBase(HttpStream):
         }
 
         # Only add summarize_column_by if first_dimension is set and not None
-        if self.first_dimension is not None:
+        if self.first_dimension is not None and self.first_dimension != "None":
             params["summarize_column_by"] = self.first_dimension
 
         # When second_dimension is set, use first_dimension as summarize_column_by
