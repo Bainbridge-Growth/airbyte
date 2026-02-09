@@ -171,7 +171,6 @@ class QuickbooksReportMonthlyBase(HttpStream):
             param_name = self._get_dimension_param_name()
             if param_name:
                 params[param_name] = self.current_dimension_id
-                self.logger.info(f"Using {self.first_dimension} as summarize_column_by and filtering by {param_name}={self.current_dimension_id}")
 
         # Use dates from the stream slice if available
         if stream_slice:
@@ -224,14 +223,20 @@ class QuickbooksReportMonthlyBase(HttpStream):
             self.logger.info(f"Fetched {len(second_dimension_items)} items for {self.second_dimension}")
 
             # Extract distinct Id->Name pairs
+            # Convert IDs to strings to avoid duplicates from type inconsistency (int vs str)
             distinct_items = {}
             for item in second_dimension_items:
                 item_id = item.get("Id")
                 item_name = item.get("Name")
                 if item_id and item_name:
-                    distinct_items[item_id] = item_name
+                    # Normalize ID to string to prevent duplicates from type differences
+                    normalized_id = str(item_id)
+                    if normalized_id in distinct_items:
+                        self.logger.warning(f"Duplicate {self.second_dimension} ID found: {normalized_id} (existing name: '{distinct_items[normalized_id]}', new name: '{item_name}')")
+                    distinct_items[normalized_id] = item_name
 
             self.logger.info(f"Found {len(distinct_items)} distinct Id->Name pairs for {self.second_dimension}")
+            self.logger.debug(f"Distinct items: {distinct_items}")
 
             # Get the parameter name for this dimension type (class/department/customer/vendor)
             param_name = self._get_dimension_param_name()
@@ -240,7 +245,7 @@ class QuickbooksReportMonthlyBase(HttpStream):
             # then fetch data for each dimension item
             for time_slice in all_slices:
                 # First, fetch report without second_dimension filter to get totals
-                self.logger.info(f"Fetching TOTAL report (no {param_name} filter) for period {time_slice['start_date']} to {time_slice['end_date']}")
+                self.logger.info(f"Fetching DRIVEPOINT_CLASS_TOTAL report (no {param_name} filter) for period {time_slice['start_date']} to {time_slice['end_date']}")
 
                 # Set dimension info to indicate this is the total
                 self.current_dimension_id = None  # No filter applied
@@ -249,8 +254,16 @@ class QuickbooksReportMonthlyBase(HttpStream):
                 # Fetch records without dimension filter
                 yield from super().read_records(sync_mode, cursor_field, time_slice, stream_state)
 
+                # Track which dimension IDs we've processed for this time slice to detect duplicates
+                processed_ids = set()
+
                 # Now fetch for each distinct Id->Name pair with dimension filter
                 for item_id, item_name in distinct_items.items():
+                    if item_id in processed_ids:
+                        self.logger.error(f"DUPLICATE PROCESSING DETECTED: {param_name}={item_id} (Name: {item_name}) for period {time_slice['start_date']} to {time_slice['end_date']} - SKIPPING!")
+                        continue
+
+                    processed_ids.add(item_id)
                     self.logger.info(f"Fetching report for {param_name}={item_id} (Name: {item_name}) for period {time_slice['start_date']} to {time_slice['end_date']}")
 
                     # Set current dimension info for use in request_params and _create_account_records
@@ -412,6 +425,41 @@ class QuickbooksReportMonthlyBase(HttpStream):
                                 category_name, category_id, section_display_name, section_id,
                                 parent_name, parent_id, grandparent_name, grandparent_id, section_type
                             )
+
+                # Save the section header as a record if it has an ID (e.g., "4000 Sales of Product Income")
+                # This ensures parent accounts are included in the output along with their children
+                if section_id and header_col_data and len(header_col_data) >= 2:
+                    # Build full account path for this header account
+                    full_account_path = []
+                    if category_name:
+                        full_account_path.append(category_name)
+                    if section_type and section_type != category_name and section_type not in full_account_path:
+                        full_account_path.append(section_type)
+                    if grandparent_name and grandparent_name != section_type and grandparent_name not in full_account_path:
+                        full_account_path.append(grandparent_name)
+                    if parent_name and parent_name not in full_account_path:
+                        full_account_path.append(parent_name)
+                    if section_display_name:
+                        full_account_path.append(section_display_name)
+
+                    full_account_name = ":".join(full_account_path)
+
+                    # For header accounts, determine the correct parent based on hierarchy level
+                    # If parent_name is empty, the header's parent is the category (e.g., Income, Cost of Goods Sold)
+                    header_parent_name = parent_name if parent_name else category_name
+                    header_parent_id = parent_id if parent_id else category_id
+                    # For grandparent, use the category if we're at the second level
+                    header_grandparent_name = grandparent_name if grandparent_name else category_name
+                    header_grandparent_id = grandparent_id if grandparent_id else category_id
+
+                    # Create records for this header account
+                    self._create_account_records(
+                        accounts, header_col_data, section_display_name, section_id,
+                        start_period, end_period, currency,
+                        header_parent_name, header_parent_id, header_grandparent_name, header_grandparent_id,
+                        category_name, category_id,
+                        row, full_account_name, column_classes, emitted_at, is_profit_loss
+                    )
 
                 # Process the section header as data if it has amounts
                 # Note: Section headers are typically just for grouping/hierarchy and should not

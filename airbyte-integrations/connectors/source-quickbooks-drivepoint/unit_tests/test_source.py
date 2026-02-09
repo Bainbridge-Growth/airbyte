@@ -104,23 +104,23 @@ def compare_records(expected_record, actual_record, index = 0):
 
 @freezegun.freeze_time(_NOW.isoformat())
 def test_balance_sheet_simple(requests_mock, mock_firebase_client):
-    source_full_refresh_and_compare("BalanceSheet", requests_mock, mock_firebase_client, "balance_sheet_simple.json", 15, 2)
+    source_full_refresh_and_compare("BalanceSheet", requests_mock, mock_firebase_client, "balance_sheet_simple.json", 16, 2)
 
 @freezegun.freeze_time(_NOW.isoformat())
 def test_balance_sheet_nguyen_without_classes_20240423(requests_mock, mock_firebase_client):
-    source_full_refresh_and_compare("BalanceSheet", requests_mock, mock_firebase_client, "balance_sheet_nguyen_without_classes_20240423.json", 117, 1)
+    source_full_refresh_and_compare("BalanceSheet", requests_mock, mock_firebase_client, "balance_sheet_nguyen_without_classes_20240423.json", 121, 1)
 
 @freezegun.freeze_time(_NOW.isoformat())
 def test_balance_sheet_nguyen_with_classes_20240423(requests_mock, mock_firebase_client):
-    source_full_refresh_and_compare("BalanceSheet", requests_mock, mock_firebase_client, "balance_sheet_nguyen_with_classes_20240423.json", 833, 14)
+    source_full_refresh_and_compare("BalanceSheet", requests_mock, mock_firebase_client, "balance_sheet_nguyen_with_classes_20240423.json", 861, 14)
 
 @freezegun.freeze_time(_NOW.isoformat())
 def test_balance_sheet_dirtylabs_11_levels_deep(requests_mock, mock_firebase_client):
-    source_full_refresh_and_compare("BalanceSheet", requests_mock, mock_firebase_client, "balance_sheet_dirtylabs_11_levels_deep.json", 68, 5)
+    source_full_refresh_and_compare("BalanceSheet", requests_mock, mock_firebase_client, "balance_sheet_dirtylabs_11_levels_deep.json", 90, 5)
 
 @freezegun.freeze_time(_NOW.isoformat())
 def test_pandl_nguyen_with_classes_20240423(requests_mock, mock_firebase_client):
-    source_full_refresh_and_compare("ProfitLoss", requests_mock, mock_firebase_client, "pandl_nguyen_with_classes_20240423.json", 99, 5)
+    source_full_refresh_and_compare("ProfitLoss", requests_mock, mock_firebase_client, "pandl_nguyen_with_classes_20240423.json", 126, 5)
 
 @freezegun.freeze_time(_NOW.isoformat())
 def test_balance_sheet_with_departments_second_dimension(requests_mock, mock_firebase_client):
@@ -298,12 +298,15 @@ def test_pandl_with_classes_second_dimension(requests_mock, mock_firebase_client
 
     records = list(pandl_stream.read_records(sync_mode="full_refresh"))
 
-    # Expect records for: 1 month × (1 TOTAL + 2 departments) × 9 accounts = 27 records
-    assert len(records) == 27, f"Expected 27 records (1 month × 3 dimension values × 9 accounts), got {len(records)}"
+    # Expect records for: 1 month × (1 TOTAL + 2 departments) × 5 accounts × 3 classes = 45 records
+    # 5 accounts = 2 header accounts (4000, 5000) + 3 data accounts (4001, 5001, 7001)
+    # 3 classes = Distribution, eCommerce, NotSpecified (TOTAL column is skipped)
+    assert len(records) == 45, f"Expected 45 records (1 month × 3 dimension values × 5 accounts × 3 classes), got {len(records)}"
 
     expected_results = load_test_data("expected_results/pandl_with_classes_second_dimension.json")
 
-    for idx in range(min(10, len(expected_results))):
+    # Verify records match expected results
+    for idx in range(min(len(expected_results), len(records))):
         compare_records(expected_results[idx], records[idx], idx)
 
     # Verify each endpoint was called exactly once
