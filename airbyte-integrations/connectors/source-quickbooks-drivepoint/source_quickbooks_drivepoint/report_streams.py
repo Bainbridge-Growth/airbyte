@@ -166,7 +166,7 @@ class QuickbooksReportMonthlyBase(HttpStream):
 
         # When second_dimension is set, use first_dimension as summarize_column_by
         # and filter by the current second_dimension item
-        if self.second_dimension and self.current_dimension_id:
+        if self.second_dimension and self.second_dimension != "None" and self.current_dimension_id:
             # Filter by second_dimension item
             param_name = self._get_dimension_param_name()
             if param_name:
@@ -198,7 +198,7 @@ class QuickbooksReportMonthlyBase(HttpStream):
         # We detect the initial call by checking if current_dimension_id is None.
         # Once we set current_dimension_id and call super().read_records(), subsequent
         # nested calls will have current_dimension_id set and will use normal flow.
-        if self.second_dimension and self.current_dimension_id is None:
+        if self.second_dimension and self.second_dimension != "None" and self.current_dimension_id is None:
             # When second_dimension is provided, we need to handle slicing ourselves
             # This is the initial call - we haven't started processing dimensions yet
 
@@ -274,7 +274,7 @@ class QuickbooksReportMonthlyBase(HttpStream):
                     yield from super().read_records(sync_mode, cursor_field, time_slice, stream_state)
         else:
             # Normal flow: no second_dimension OR we're in a nested call with current_dimension_id already set
-            if not self.second_dimension:
+            if not self.second_dimension or self.second_dimension == "None":
                 # Only clear dimension info if second_dimension is not configured
                 self.current_dimension_id = None
                 self.current_dimension_name = None
