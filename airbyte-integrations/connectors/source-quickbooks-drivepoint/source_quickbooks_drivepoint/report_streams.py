@@ -10,6 +10,11 @@ from .query_streams import Classes, Departments, Customers, Vendors
 logger = logging.getLogger("airbyte")
 
 
+class ResultSetBigError(Exception):
+    """Raised when QuickBooks returns error 10100 (Result Set Big Error)"""
+    pass
+
+
 # Convert date string to date-time format
 def format_date(date_str):
     if not date_str:
@@ -59,6 +64,8 @@ class QuickbooksReportMonthlyBase(HttpStream):
         self.current_dimension_id = None
         self.current_dimension_name = None
         self.authenticator = authenticator
+        self._first_dimension_fallback_mode = False  # Set to True when ResultSetBigError is encountered
+        self._first_dimension_filter_id = None  # Current dimension ID being filtered in fallback mode
         super().__init__(authenticator=authenticator, **kwargs)
 
     def _get_query_stream_class(self):
@@ -78,6 +85,26 @@ class QuickbooksReportMonthlyBase(HttpStream):
             "Vendors": "vendor"
         }
         return mapping.get(self.second_dimension)
+
+    def _get_first_dimension_query_stream_class(self):
+        """Get query stream class for first_dimension (used in fallback mode)"""
+        mapping = {
+            "Classes": Classes,
+            "Departments": Departments,
+            "Customers": Customers,
+            "Vendors": Vendors
+        }
+        return mapping.get(self.first_dimension)
+
+    def _get_first_dimension_param_name(self):
+        """Get API parameter name for first_dimension (used in fallback mode)"""
+        mapping = {
+            "Classes": "class",
+            "Departments": "department",
+            "Customers": "customer",
+            "Vendors": "vendor"
+        }
+        return mapping.get(self.first_dimension)
 
     def stream_slices(
             self,
@@ -160,8 +187,16 @@ class QuickbooksReportMonthlyBase(HttpStream):
             "accounting_method": self.accounting_method
         }
 
-        # Only add summarize_column_by if first_dimension is set and not None
-        if self.first_dimension is not None and self.first_dimension != "None":
+        # In fallback mode, filter by dimension ID instead of using summarize_column_by
+        if self._first_dimension_fallback_mode:
+            # Don't use summarize_column_by in fallback mode
+            # Instead, filter by specific dimension ID (or no filter for TOTAL)
+            if self._first_dimension_filter_id:
+                param_name = self._get_first_dimension_param_name()
+                if param_name:
+                    params[param_name] = self._first_dimension_filter_id
+        elif self.first_dimension is not None and self.first_dimension != "None":
+            # Normal mode: add summarize_column_by if first_dimension is set
             params["summarize_column_by"] = self.first_dimension
 
         # When second_dimension is set, use first_dimension as summarize_column_by
@@ -191,6 +226,73 @@ class QuickbooksReportMonthlyBase(HttpStream):
     def _send_request(self, request, request_kwargs):
         response = self._session.send(request, **request_kwargs)
         return response
+
+    def _read_records_with_first_dimension_fallback(self, sync_mode, cursor_field, stream_slice, stream_state):
+        """
+        Fallback mode: fetch each first_dimension item separately instead of using summarize_column_by.
+        This is triggered when QuickBooks returns ResultSetBigError (10100) for reports with too many dimension columns.
+        """
+        self.logger.info(f"Using fallback mode for first_dimension={self.first_dimension}")
+
+        # Fetch the dimension items
+        query_stream_class = self._get_first_dimension_query_stream_class()
+        if not query_stream_class:
+            self.logger.error(f"Unknown first_dimension: {self.first_dimension}")
+            return
+
+        query_stream = query_stream_class(
+            realm_id=self.realm_id,
+            start_date=self.start_date,
+            end_date=self.end_date,
+            authenticator=self.authenticator
+        )
+
+        # Fetch all first_dimension items and extract distinct Id->Name pairs
+        first_dimension_items = list(query_stream.read_records(sync_mode=None))
+        self.logger.info(f"Fetched {len(first_dimension_items)} items for {self.first_dimension} (fallback mode)")
+
+        # Extract distinct Id->Name pairs
+        distinct_items = {}
+        for item in first_dimension_items:
+            item_id = item.get("Id")
+            item_name = item.get("Name")
+            if item_id and item_name:
+                normalized_id = str(item_id)
+                if normalized_id not in distinct_items:
+                    distinct_items[normalized_id] = item_name
+
+        self.logger.info(f"Found {len(distinct_items)} distinct Id->Name pairs for {self.first_dimension}")
+
+        # Get the parameter name for this dimension type
+        param_name = self._get_first_dimension_param_name()
+
+        # Get all stream slices
+        all_slices = list(self.stream_slices(sync_mode, cursor_field, stream_state))
+
+        for time_slice in all_slices:
+            # First, fetch TOTAL report (no dimension filter)
+            self.logger.info(f"Fetching TOTAL report (no {param_name} filter) for period {time_slice.get('start_date')} to {time_slice.get('end_date')}")
+            self._first_dimension_filter_id = None
+
+            # In fallback mode without filter, we get the report without summarize_column_by
+            # The Class field will be set to "Total" for these records
+            for record in super().read_records(sync_mode, cursor_field, time_slice, stream_state):
+                # Override Class field to indicate this is the total
+                record["Class"] = "Total"
+                yield record
+
+            # Now fetch for each distinct dimension item
+            for item_id, item_name in distinct_items.items():
+                self.logger.info(f"Fetching report for {param_name}={item_id} (Name: {item_name}) for period {time_slice.get('start_date')} to {time_slice.get('end_date')}")
+                self._first_dimension_filter_id = item_id
+
+                for record in super().read_records(sync_mode, cursor_field, time_slice, stream_state):
+                    # Set Class field to the dimension name (matches normal behavior)
+                    record["Class"] = item_name
+                    yield record
+
+        # Reset fallback state
+        self._first_dimension_filter_id = None
 
     def read_records(self, sync_mode, cursor_field=None, stream_slice=None, stream_state=None):
         # When second_dimension is set AND we haven't fetched dimension items yet,
@@ -272,13 +374,31 @@ class QuickbooksReportMonthlyBase(HttpStream):
 
                     # Fetch records for this time slice with this dimension filter
                     yield from super().read_records(sync_mode, cursor_field, time_slice, stream_state)
+        elif self._first_dimension_fallback_mode:
+            # Already in fallback mode, use the fallback implementation
+            yield from self._read_records_with_first_dimension_fallback(sync_mode, cursor_field, stream_slice, stream_state)
         else:
             # Normal flow: no second_dimension OR we're in a nested call with current_dimension_id already set
             if not self.second_dimension or self.second_dimension == "None":
                 # Only clear dimension info if second_dimension is not configured
                 self.current_dimension_id = None
                 self.current_dimension_name = None
-            yield from super().read_records(sync_mode, cursor_field, stream_slice, stream_state)
+
+            # Try normal read, catch ResultSetBigError and fall back if needed
+            try:
+                records = []
+                for record in super().read_records(sync_mode, cursor_field, stream_slice, stream_state):
+                    records.append(record)
+
+                # If we got here without error, yield all records
+                yield from records
+            except ResultSetBigError as e:
+                # Report is too large with summarize_column_by, switch to fallback mode
+                self.logger.warning(f"Switching to fallback mode due to ResultSetBigError: {e}")
+                self._first_dimension_fallback_mode = True
+
+                # Re-process with fallback mode
+                yield from self._read_records_with_first_dimension_fallback(sync_mode, cursor_field, stream_slice, stream_state)
 
     def request_headers(
             self,
@@ -296,6 +416,27 @@ class QuickbooksReportMonthlyBase(HttpStream):
 
     def parse_response(self, response: requests.Response, **kwargs) -> Iterable[Mapping]:
         response_json = response.json()
+
+        # Check for QuickBooks API errors
+        fault = response_json.get("Fault")
+        if fault:
+            errors = fault.get("Error", [])
+            for error in errors:
+                error_code = error.get("code")
+                error_message = error.get("Message", "")
+                error_detail = error.get("Detail", "")
+
+                if error_code == "10100":
+                    # Result Set Big Error - report is too large
+                    self.logger.warning(f"QuickBooks returned ResultSetBigError (10100): {error_message} - {error_detail}")
+                    raise ResultSetBigError(f"{error_message}: {error_detail}")
+
+                # Log other errors
+                self.logger.error(f"QuickBooks API error {error_code}: {error_message} - {error_detail}")
+
+            # Return empty if there was an error but not ResultSetBigError
+            return []
+
         header = response_json.get("Header", {})
         rows = response_json.get("Rows", {}).get("Row", [])
         columns = response_json.get("Columns", {}).get("Column", [])

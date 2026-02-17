@@ -459,3 +459,119 @@ def test_request_params_with_first_dimension(requests_mock, mock_firebase_client
         f"summarize_column_by should be 'Classes', got '{query_params.get('summarize_column_by', [''])[0]}'"
 
 
+@freezegun.freeze_time(_NOW.isoformat())
+def test_result_set_big_error_fallback(requests_mock, mock_firebase_client):
+    """Test that when QuickBooks returns ResultSetBigError (10100), the connector
+    falls back to fetching each dimension item separately"""
+
+    # Mock the OAuth token refresh endpoint
+    requests_mock.post(
+        "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer",
+        json={"access_token": "fake-token", "expires_in": 3600, "token_type": "Bearer"}
+    )
+
+    # Error response for the initial request with summarize_column_by
+    result_set_big_error = {
+        "Fault": {
+            "Error": [{
+                "Message": "Result Set Big Error",
+                "Detail": "Result Set Big Error : Report too large, please customize",
+                "code": "10100",
+                "element": "ReportName"
+            }],
+            "type": "ValidationFault"
+        }
+    }
+
+    # Track how many times the report API was called and with what params
+    report_call_count = [0]
+    first_call_done = [False]
+
+    def report_callback(request, context):
+        report_call_count[0] += 1
+        from urllib.parse import parse_qs, urlparse
+        parsed_url = urlparse(request.url)
+        query_params = parse_qs(parsed_url.query)
+
+        # First call has summarize_column_by - return error to trigger fallback
+        if "summarize_column_by" in query_params and not first_call_done[0]:
+            first_call_done[0] = True
+            context.status_code = 200  # QuickBooks returns 200 even for this error
+            return result_set_big_error
+
+        # Fallback calls filter by class ID
+        if "class" in query_params:
+            class_id = query_params["class"][0]
+            # Return appropriate response based on class
+            return load_test_data(f"api_responses/balance_sheet_fallback_class_{class_id}.json")
+
+        # No filter (TOTAL request in fallback mode)
+        return load_test_data("api_responses/balance_sheet_fallback_total.json")
+
+    balance_sheet_mock = requests_mock.get(
+        "https://quickbooks.api.intuit.com/v3/company/123456789/reports/BalanceSheet",
+        json=report_callback
+    )
+
+    # Mock the Classes query endpoint (for fetching dimension items)
+    classes_query_mock = requests_mock.get(
+        "https://quickbooks.api.intuit.com/v3/company/123456789/query",
+        json=load_test_data("api_responses/classes_query_fallback.json")
+    )
+
+    config_with_classes = {
+        "realm_id": "123456789",
+        "start_date": "2024-01-01",
+        "end_date": "2024-01-31",  # Single month
+        "credentials": {
+            "client_id": "test_client_id",
+            "client_secret": "test_client_secret",
+            "refresh_token": "test_refresh_token"
+        },
+        "accounting_method": {
+            "selected_method": "Accrual"
+        },
+        "balance_sheet_settings": {
+            "summarize_column": {
+                "selected_first_dimension": "Classes"
+            }
+        }
+    }
+
+    source = SourceQuickbooksDrivepoint()
+    streams = source.streams(config_with_classes)
+
+    # Find the BalanceSheet stream
+    balance_sheet_stream = None
+    for stream in streams:
+        if hasattr(stream, '__class__') and "BalanceSheet" in stream.__class__.__name__:
+            balance_sheet_stream = stream
+            break
+
+    assert balance_sheet_stream is not None, "BalanceSheet stream not found"
+    assert balance_sheet_stream.first_dimension == "Classes"
+    assert balance_sheet_stream._first_dimension_fallback_mode == False, "Should not be in fallback mode initially"
+
+    # Read records - should trigger fallback
+    records = list(balance_sheet_stream.read_records(sync_mode="full_refresh"))
+
+    # Verify fallback mode was activated
+    assert balance_sheet_stream._first_dimension_fallback_mode == True, "Should be in fallback mode after error"
+
+    # Verify the API was called multiple times:
+    # 1 initial call (returns error) + 1 TOTAL call + N class calls
+    # With 2 classes: 1 + 1 + 2 = 4 calls total
+    assert report_call_count[0] >= 3, f"Expected at least 3 report API calls (1 error + 1 TOTAL + classes), got {report_call_count[0]}"
+
+    # Verify classes query was called to get dimension items
+    assert classes_query_mock.call_count == 1, "Classes query should be called once to get dimension items"
+
+    # Verify we got records
+    assert len(records) > 0, "Should have received records after fallback"
+
+    # Verify Class field is set correctly on records
+    class_values = set(r.get("Class") for r in records)
+    assert "Total" in class_values, "Should have Total records"
+    # Should also have records for each class
+
+
