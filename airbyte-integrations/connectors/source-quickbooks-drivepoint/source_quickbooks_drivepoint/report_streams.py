@@ -5,9 +5,89 @@ from datetime import datetime
 from typing import Any, Iterable, List, Mapping, MutableMapping, Optional
 from airbyte_cdk.sources.streams.http import HttpStream
 from airbyte_cdk.models import AirbyteStateMessage, SyncMode
+from airbyte_cdk.sources.streams.http.error_handlers import ErrorHandler, ErrorResolution, ResponseAction, HttpStatusErrorHandler
+from airbyte_cdk.models import FailureType
+from airbyte_cdk.sources.streams.http.http_client import MessageRepresentationAirbyteTracedErrors
 from .query_streams import Classes, Departments, Customers, Vendors
 
 logger = logging.getLogger("airbyte")
+
+# QuickBooks API error codes
+RESULT_SET_BIG_ERROR_CODE = "10100"
+
+
+class ResultSetBigError(Exception):
+    """Raised when QuickBooks returns error 10100 (Result Set Big Error)"""
+    pass
+
+
+class QuickBooksReportErrorHandler(ErrorHandler):
+    """Custom error handler that allows 10100 errors to pass through for handling in parse_response"""
+
+    def __init__(self, logger, max_retries: int = 5, max_time: int = 600):
+        self._logger = logger
+        self._max_retries = max_retries
+        self._max_time = max_time
+
+    @property
+    def max_retries(self) -> int:
+        return self._max_retries
+
+    @property
+    def max_time(self) -> int:
+        return self._max_time
+
+    def interpret_response(self, response: Optional[requests.Response] = None) -> ErrorResolution:
+        if response is None:
+            return ErrorResolution(
+                response_action=ResponseAction.RETRY,
+                failure_type=FailureType.transient_error,
+                error_message="No response received"
+            )
+
+        # Check if this is a 400 error with 10100 code
+        if response.status_code == 400:
+            try:
+                response_json = response.json()
+                fault = response_json.get("Fault", {})
+                errors = fault.get("Error", [])
+                for error in errors:
+                    if error.get("code") == RESULT_SET_BIG_ERROR_CODE:
+                        # This is ResultSetBigError - let it pass through to parse_response
+                        self._logger.info(f"Detected ResultSetBigError ({RESULT_SET_BIG_ERROR_CODE}), allowing response to pass through")
+                        return ErrorResolution(
+                            response_action=ResponseAction.SUCCESS,
+                            failure_type=None,
+                            error_message=None
+                        )
+            except Exception:
+                pass
+
+        # Default error handling for other status codes
+        if response.status_code == 429:
+            return ErrorResolution(
+                response_action=ResponseAction.RATE_LIMITED,
+                failure_type=FailureType.transient_error,
+                error_message="Rate limited"
+            )
+        elif response.status_code >= 500:
+            return ErrorResolution(
+                response_action=ResponseAction.RETRY,
+                failure_type=FailureType.transient_error,
+                error_message=f"Server error: {response.status_code}"
+            )
+        elif response.status_code >= 400:
+            return ErrorResolution(
+                response_action=ResponseAction.FAIL,
+                failure_type=FailureType.system_error,
+                error_message=f"Client error: {response.status_code}"
+            )
+        else:
+            return ErrorResolution(
+                response_action=ResponseAction.SUCCESS,
+                failure_type=None,
+                error_message=None
+            )
 
 
 # Convert date string to date-time format
@@ -29,6 +109,40 @@ def clean_id(id_str):
         return id_str.split(" at index ")[0]
     return id_str
 
+def get_dimension_query_param_name(dimension: str) -> str:
+    mapping = {
+        "Classes": "class",
+        "Departments": "department",
+        "Customers": "customer",
+        "Vendors": "vendor"
+    }
+    return mapping.get(dimension)
+
+def get_dimension_name_field(dimension: str) -> str:
+    """Get the field name that contains the display name for a dimension type.
+
+    QuickBooks uses different field names for names across entity types:
+    - Classes: "Name"
+    - Departments: "Name"
+    - Customers: "DisplayName"
+    - Vendors: "DisplayName"
+    """
+    mapping = {
+        "Classes": "Name",
+        "Departments": "Name",
+        "Customers": "DisplayName",
+        "Vendors": "DisplayName"
+    }
+    return mapping.get(dimension, "Name")
+
+def get_query_stream_class(dimension: str):
+    mapping = {
+        "Classes": Classes,
+        "Departments": Departments,
+        "Customers": Customers,
+        "Vendors": Vendors
+    }
+    return mapping.get(dimension)
 
 class QuickbooksReportMonthlyBase(HttpStream):
     """Base class for QuickBooks Reports API connectors
@@ -38,6 +152,8 @@ class QuickbooksReportMonthlyBase(HttpStream):
 
     primary_key = ["_Account_id", "Class", "StartPeriod"]
     url_base = "https://quickbooks.api.intuit.com/v3/"
+    # Disable automatic HTTP error raising so we can handle 400 errors with ResultSetBigError
+    raise_on_http_errors = False
 
     def __init__(
             self,
@@ -59,25 +175,126 @@ class QuickbooksReportMonthlyBase(HttpStream):
         self.current_dimension_id = None
         self.current_dimension_name = None
         self.authenticator = authenticator
+        self._first_dimension_fallback_mode = False  # Set to True when ResultSetBigError is encountered
+        self._first_dimension_filter_ids = None  # List of dimension IDs being filtered in fallback mode (for batching)
+        self._fallback_batch_size = 1000  # Starting batch size for fallback mode
+        self._fallback_mode_first_dimension_items = None  # Cache of dimension items for fallback mode
         super().__init__(authenticator=authenticator, **kwargs)
 
-    def _get_query_stream_class(self):
-        mapping = {
-            "Classes": Classes,
-            "Departments": Departments,
-            "Customers": Customers,
-            "Vendors": Vendors
-        }
-        return mapping.get(self.second_dimension)
+    def get_error_handler(self) -> Optional["ErrorHandler"]:
+        """Override to provide custom error handler that allows 10100 errors to pass through"""
+        if ErrorHandler is not None:
+            return QuickBooksReportErrorHandler(logger=self.logger)
+        return None
 
-    def _get_dimension_param_name(self):
-        mapping = {
-            "Classes": "class",
-            "Departments": "department",
-            "Customers": "customer",
-            "Vendors": "vendor"
-        }
-        return mapping.get(self.second_dimension)
+    def _fetch_all_dimension_items(self, query_stream) -> List[Mapping[str, Any]]:
+        """Fetch all dimension items with explicit pagination handling.
+
+        The CDK's read_records may not handle pagination correctly when called
+        outside the normal sync context. This method explicitly paginates by
+        making direct HTTP requests.
+        """
+        all_items = []
+
+        # Get the stream slice (typically one slice with date range)
+        slices = list(query_stream.stream_slices(sync_mode=None, cursor_field=None, stream_state=None))
+        if not slices:
+            slices = [None]
+
+        for stream_slice in slices:
+            next_page_token = None
+            page_count = 0
+
+            while True:
+                page_count += 1
+                # Get request parameters for this page
+                params = query_stream.request_params(
+                    stream_state=None,
+                    stream_slice=stream_slice,
+                    next_page_token=next_page_token
+                )
+
+                # Build and send request
+                url = f"{query_stream.url_base}{query_stream.path()}"
+                headers = query_stream.request_headers()
+
+                response = requests.get(url, params=params, headers={
+                    **headers,
+                    "Authorization": f"Bearer {self.authenticator.get_access_token()}"
+                })
+
+                if response.status_code != 200:
+                    self.logger.error(f"Error fetching dimension items: {response.status_code} - {response.text}")
+                    break
+
+                # Parse response
+                records = list(query_stream.parse_response(response))
+                all_items.extend(records)
+
+                # Check if there are more pages
+                next_page_token = query_stream.next_page_token(response)
+                if not next_page_token:
+                    break
+
+        self.logger.info(f"Fetched total of {len(all_items)} items across {page_count} pages")
+        return all_items
+
+    def _get_dimension_items(self, dimension: str) -> Optional[List[Mapping[str, Any]]]:
+        """Fetch all items for a dimension type.
+
+        Args:
+            dimension: The dimension type (Classes, Departments, Customers, Vendors)
+
+        Returns:
+            List of dimension items, or None if the dimension type is unknown
+        """
+        query_stream_class = get_query_stream_class(dimension)
+        if not query_stream_class:
+            self.logger.error(f"Unknown dimension: {dimension}")
+            return None
+
+        # Don't pass start_date/end_date - we want ALL dimension items, not filtered by date
+        # The query stream filters by Metadata.LastUpdatedTime, which would exclude
+        # items not updated within the report's date range
+        query_stream = query_stream_class(
+            realm_id=self.realm_id,
+            authenticator=self.authenticator
+        )
+
+        items = self._fetch_all_dimension_items(query_stream)
+        self.logger.info(f"Fetched {len(items)} items for {dimension}")
+        return items
+
+    def _extract_distinct_dimension_pairs(self, items: List[Mapping[str, Any]], dimension: str, context: str = "") -> Mapping[str, str]:
+        """Extract distinct Id->Name pairs from dimension items.
+
+        Args:
+            items: List of dimension items from query stream
+            dimension: The dimension type (Classes, Departments, Customers, Vendors)
+            context: Optional context string for logging (e.g., "fallback mode")
+
+        Returns:
+            Dict mapping normalized IDs to names
+        """
+        name_field = get_dimension_name_field(dimension)
+        self.logger.info(f"Using name field '{name_field}' for {dimension}")
+
+        distinct_items = {}
+        for item in items:
+            item_id = item.get("Id")
+            item_name = item.get(name_field)
+            if item_id and item_name:
+                normalized_id = str(item_id)
+                if normalized_id in distinct_items:
+                    self.logger.info(
+                        f"Duplicate {dimension} id found: {normalized_id} "
+                        f"(existing name: '{distinct_items[normalized_id]}', new name: '{item_name}')"
+                    )
+                distinct_items[normalized_id] = item_name
+
+        context_suffix = f" ({context})" if context else ""
+        self.logger.info(f"Found {len(distinct_items)} distinct Id->Name pairs for {dimension}{context_suffix}")
+        return distinct_items
 
     def stream_slices(
             self,
@@ -160,15 +377,25 @@ class QuickbooksReportMonthlyBase(HttpStream):
             "accounting_method": self.accounting_method
         }
 
-        # Only add summarize_column_by if first_dimension is set and not None
-        if self.first_dimension is not None and self.first_dimension != "None":
+        # In fallback mode, use summarize_column_by with batched dimension filter
+        if self._first_dimension_fallback_mode:
+            if self._first_dimension_filter_ids:
+                # Use summarize_column_by to get columns for each dimension in the batch
+                params["summarize_column_by"] = self.first_dimension
+                # Filter to only include dimensions in this batch (comma-separated IDs)
+                param_name = get_dimension_query_param_name(self.first_dimension)
+                if param_name:
+                    params[param_name] = ",".join(self._first_dimension_filter_ids)
+            # If no filter IDs, we're not making a request (shouldn't happen)
+        elif self.first_dimension is not None and self.first_dimension != "None":
+            # Normal mode: add summarize_column_by if first_dimension is set
             params["summarize_column_by"] = self.first_dimension
 
         # When second_dimension is set, use first_dimension as summarize_column_by
         # and filter by the current second_dimension item
         if self.second_dimension and self.second_dimension != "None" and self.current_dimension_id:
             # Filter by second_dimension item
-            param_name = self._get_dimension_param_name()
+            param_name = get_dimension_query_param_name(self.second_dimension)
             if param_name:
                 params[param_name] = self.current_dimension_id
 
@@ -192,6 +419,112 @@ class QuickbooksReportMonthlyBase(HttpStream):
         response = self._session.send(request, **request_kwargs)
         return response
 
+    def _reduce_batch_size(self, current_batch_size: int, source: str = "") -> tuple:
+        """
+        Reduce batch size by roughly 20% after receiving ResultSetBigError.
+
+        Returns:
+            tuple: (new_batch_size, should_skip_batch)
+        """
+        old_batch_size = current_batch_size
+        new_batch_size = max(1, int(current_batch_size * 0.8))
+        self._fallback_batch_size = new_batch_size
+
+        source_suffix = f" ({source})" if source else ""
+        self.logger.warning(f"ResultSetBigError{source_suffix} with batch size {old_batch_size}, reducing to {new_batch_size} and retrying")
+
+        if new_batch_size == old_batch_size:
+            self.logger.error(f"Cannot reduce batch size further (already at {new_batch_size}), giving up on this batch")
+            return new_batch_size, True  # should_skip = True
+
+        return new_batch_size, False  # should_skip = False
+
+    def _read_records_with_first_dimension_fallback(self, sync_mode, cursor_field, stream_slice, stream_state):
+        """
+        Fallback mode: fetch first_dimension items in batches instead of all at once.
+        This is triggered when QuickBooks returns ResultSetBigError (10100) for reports with too many dimension columns.
+
+        Uses adaptive batch sizing: starts with a large batch and reduces by ~20% on each ResultSetBigError
+        until a working batch size is found.
+        """
+        self.logger.info(f"Using fallback mode for first_dimension={self.first_dimension}")
+
+        if not self._fallback_mode_first_dimension_items:
+            # Fetch the dimension items
+            first_dimension_items = self._get_dimension_items(self.first_dimension)
+            if first_dimension_items is None:
+                return
+
+            # Extract distinct Id->Name pairs and convert to list for batching
+            distinct_items_dict = self._extract_distinct_dimension_pairs(
+                first_dimension_items, self.first_dimension, "fallback mode"
+            )
+
+            if not distinct_items_dict:
+                self.logger.warning(f"No dimension items found for {self.first_dimension}, skipping fallback")
+                return
+
+            # Convert to list of tuples for batching
+            self._fallback_mode_first_dimension_items = list(distinct_items_dict.items())
+
+        distinct_items = self._fallback_mode_first_dimension_items
+
+        # Get the parameter name for this dimension type
+        param_name = get_dimension_query_param_name(self.first_dimension)
+
+        # Get all stream slices
+        all_slices = list(self.stream_slices(sync_mode, cursor_field, stream_state))
+
+        # Determine initial batch size (min of configured batch size and total items)
+        batch_size = min(self._fallback_batch_size, len(distinct_items))
+        self.logger.info(f"Starting with batch size {batch_size} for {len(distinct_items)} dimension items")
+
+        for time_slice in all_slices:
+            # Process dimension items in batches
+            i = 0
+            while i < len(distinct_items):
+                # Get the current batch
+                batch_end = min(i + batch_size, len(distinct_items))
+                batch = distinct_items[i:batch_end]
+                batch_ids = [item_id for item_id, _ in batch]
+
+                self.logger.info(f"Fetching report for batch of {len(batch)} {param_name}s (IDs: {batch_ids[0]}...{batch_ids[-1]}) for period {time_slice.get('start_date')} to {time_slice.get('end_date')}")
+
+                # Set the batch IDs for request_params
+                self._first_dimension_filter_ids = batch_ids
+
+                try:
+                    # Fetch records for this batch
+                    records = []
+                    for record in super().read_records(sync_mode, cursor_field, time_slice, stream_state):
+                        records.append(record)
+
+                    # Batch succeeded, yield records
+                    yield from records
+
+                    # Move to next batch
+                    i = batch_end
+                    self.logger.info(f"Successfully fetched {len(records)} records for batch")
+
+                except ResultSetBigError as e:
+                    batch_size, should_skip = self._reduce_batch_size(batch_size)
+                    if should_skip:
+                        i = batch_end  # Skip this batch
+                    # Otherwise don't increment i - retry with smaller batch
+
+                except Exception as e:
+                    # Check if this is a CDK exception containing the 10100 error
+                    error_str = str(e)
+                    if f"'{RESULT_SET_BIG_ERROR_CODE}'" in error_str or f'"{RESULT_SET_BIG_ERROR_CODE}"' in error_str or f"code': '{RESULT_SET_BIG_ERROR_CODE}'" in error_str:
+                        batch_size, should_skip = self._reduce_batch_size(batch_size, "from CDK")
+                        if should_skip:
+                            i = batch_end
+                    else:
+                        raise
+
+        # Reset fallback state
+        self._first_dimension_filter_ids = None
+
     def read_records(self, sync_mode, cursor_field=None, stream_slice=None, stream_state=None):
         # When second_dimension is set AND we haven't fetched dimension items yet,
         # we fetch dimension items and manage slicing ourselves.
@@ -206,40 +539,17 @@ class QuickbooksReportMonthlyBase(HttpStream):
             all_slices = list(self.stream_slices(sync_mode, cursor_field, stream_state))
 
             # Fetch the dimension items once for the entire period
-            query_stream_class = self._get_query_stream_class()
-            if not query_stream_class:
-                self.logger.error(f"Unknown second_dimension: {self.second_dimension}")
+            second_dimension_items = self._get_dimension_items(self.second_dimension)
+            if second_dimension_items is None:
                 return
 
-            query_stream = query_stream_class(
-                realm_id=self.realm_id,
-                start_date=self.start_date,
-                end_date=self.end_date,
-                authenticator=self.authenticator
+            # Extract distinct Id->Name pairs
+            distinct_items = self._extract_distinct_dimension_pairs(
+                second_dimension_items, self.second_dimension
             )
 
-            # Fetch all second_dimension items and extract distinct Id->Name pairs
-            second_dimension_items = list(query_stream.read_records(sync_mode=None))
-            self.logger.info(f"Fetched {len(second_dimension_items)} items for {self.second_dimension}")
-
-            # Extract distinct Id->Name pairs
-            # Convert IDs to strings to avoid duplicates from type inconsistency (int vs str)
-            distinct_items = {}
-            for item in second_dimension_items:
-                item_id = item.get("Id")
-                item_name = item.get("Name")
-                if item_id and item_name:
-                    # Normalize ID to string to prevent duplicates from type differences
-                    normalized_id = str(item_id)
-                    if normalized_id in distinct_items:
-                        self.logger.warning(f"Duplicate {self.second_dimension} ID found: {normalized_id} (existing name: '{distinct_items[normalized_id]}', new name: '{item_name}')")
-                    distinct_items[normalized_id] = item_name
-
-            self.logger.info(f"Found {len(distinct_items)} distinct Id->Name pairs for {self.second_dimension}")
-            self.logger.debug(f"Distinct items: {distinct_items}")
-
             # Get the parameter name for this dimension type (class/department/customer/vendor)
-            param_name = self._get_dimension_param_name()
+            param_name = get_dimension_query_param_name(self.second_dimension)
 
             # For each time slice, first fetch the total (without dimension filter)
             # then fetch data for each dimension item
@@ -272,13 +582,42 @@ class QuickbooksReportMonthlyBase(HttpStream):
 
                     # Fetch records for this time slice with this dimension filter
                     yield from super().read_records(sync_mode, cursor_field, time_slice, stream_state)
+        elif self._first_dimension_fallback_mode:
+            # Already in fallback mode, use the fallback implementation
+            yield from self._read_records_with_first_dimension_fallback(sync_mode, cursor_field, stream_slice, stream_state)
         else:
             # Normal flow: no second_dimension OR we're in a nested call with current_dimension_id already set
             if not self.second_dimension or self.second_dimension == "None":
                 # Only clear dimension info if second_dimension is not configured
                 self.current_dimension_id = None
                 self.current_dimension_name = None
-            yield from super().read_records(sync_mode, cursor_field, stream_slice, stream_state)
+
+            # Try normal read, catch ResultSetBigError and fall back if needed
+            try:
+                records = []
+                for record in super().read_records(sync_mode, cursor_field, stream_slice, stream_state):
+                    records.append(record)
+
+                # If we got here without error, yield all records
+                yield from records
+            except ResultSetBigError as e:
+                # Report is too large with summarize_column_by, switch to fallback mode
+                self.logger.warning(f"Switching to fallback mode due to ResultSetBigError: {e}")
+                self._first_dimension_fallback_mode = True
+
+                # Re-process with fallback mode
+                yield from self._read_records_with_first_dimension_fallback(sync_mode, cursor_field, stream_slice, stream_state)
+            except Exception as e:
+                # Check if this is a CDK exception containing the 10100 error
+                error_str = str(e)
+                if f"'{RESULT_SET_BIG_ERROR_CODE}'" in error_str or f'"{RESULT_SET_BIG_ERROR_CODE}"' in error_str or f"code': '{RESULT_SET_BIG_ERROR_CODE}'" in error_str:
+                    self.logger.warning(f"Switching to fallback mode due to ResultSetBigError detected in CDK exception: {e}")
+                    self._first_dimension_fallback_mode = True
+
+                    # Re-process with fallback mode
+                    yield from self._read_records_with_first_dimension_fallback(sync_mode, cursor_field, stream_slice, stream_state)
+                else:
+                    raise
 
     def request_headers(
             self,
@@ -295,7 +634,43 @@ class QuickbooksReportMonthlyBase(HttpStream):
         return None
 
     def parse_response(self, response: requests.Response, **kwargs) -> Iterable[Mapping]:
-        response_json = response.json()
+        # Handle HTTP errors since we have raise_on_http_errors = False
+        try:
+            response_json = response.json()
+        except Exception as e:
+            # Response is not valid JSON
+            if not response.ok:
+                self.logger.error(f"HTTP error {response.status_code}: {response.text}")
+                response.raise_for_status()  # Re-raise the HTTP error
+            raise e
+
+        # Check for QuickBooks API errors (can occur with 400 status code)
+        fault = response_json.get("Fault")
+        if fault:
+            errors = fault.get("Error", [])
+            for error in errors:
+                error_code = error.get("code")
+                error_message = error.get("Message", "")
+                error_detail = error.get("Detail", "")
+
+                if error_code == RESULT_SET_BIG_ERROR_CODE:
+                    # Result Set Big Error - report is too large
+                    self.logger.warning(f"QuickBooks returned ResultSetBigError ({RESULT_SET_BIG_ERROR_CODE}): {error_message} - {error_detail}")
+                    raise ResultSetBigError(f"{error_message}: {error_detail}")
+
+                # Log other errors
+                self.logger.error(f"QuickBooks API error {error_code}: {error_message} - {error_detail}")
+
+            # For other errors, raise HTTP error to let Airbyte handle it
+            if not response.ok:
+                response.raise_for_status()
+            return []
+
+        # If response is not OK and no Fault, raise the error
+        if not response.ok:
+            self.logger.error(f"Unexpected HTTP error {response.status_code}: {response.text}")
+            response.raise_for_status()
+
         header = response_json.get("Header", {})
         rows = response_json.get("Rows", {}).get("Row", [])
         columns = response_json.get("Columns", {}).get("Column", [])

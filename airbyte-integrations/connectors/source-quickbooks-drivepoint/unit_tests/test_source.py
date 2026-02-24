@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 import freezegun
 import pytest
 from source_quickbooks_drivepoint.source import SourceQuickbooksDrivepoint
+from source_quickbooks_drivepoint.report_streams import RESULT_SET_BIG_ERROR_CODE
 
 _CONFIG = {
     "realm_id": "123456789",
@@ -457,5 +458,120 @@ def test_request_params_with_first_dimension(requests_mock, mock_firebase_client
     # Verify it has the correct value (parse_qs returns lists, so get first item)
     assert query_params["summarize_column_by"][0] == "Classes", \
         f"summarize_column_by should be 'Classes', got '{query_params.get('summarize_column_by', [''])[0]}'"
+
+
+@freezegun.freeze_time(_NOW.isoformat())
+def test_result_set_big_error_fallback(requests_mock, mock_firebase_client):
+    """Test that when QuickBooks returns ResultSetBigError (10100), the connector
+    falls back to fetching dimension items in batches with adaptive batch sizing"""
+
+    # Mock the OAuth token refresh endpoint
+    requests_mock.post(
+        "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer",
+        json={"access_token": "fake-token", "expires_in": 3600, "token_type": "Bearer"}
+    )
+
+    # Error response for the initial request with summarize_column_by (no filter)
+    result_set_big_error = {
+        "Fault": {
+            "Error": [{
+                "Message": "Result Set Big Error",
+                "Detail": "Result Set Big Error : Report too large, please customize",
+                "code": RESULT_SET_BIG_ERROR_CODE,
+                "element": "ReportName"
+            }],
+            "type": "ValidationFault"
+        }
+    }
+
+    # Track how many times the report API was called and with what params
+    report_call_count = [0]
+    first_call_done = [False]
+
+    def report_callback(request, context):
+        report_call_count[0] += 1
+        from urllib.parse import parse_qs, urlparse
+        parsed_url = urlparse(request.url)
+        query_params = parse_qs(parsed_url.query)
+
+        # First call has summarize_column_by but no class filter - return error to trigger fallback
+        if "summarize_column_by" in query_params and "class" not in query_params and not first_call_done[0]:
+            first_call_done[0] = True
+            context.status_code = 400  # QuickBooks returns 400 for this error
+            return result_set_big_error
+
+        # Fallback calls have summarize_column_by AND class filter (comma-separated IDs)
+        if "summarize_column_by" in query_params and "class" in query_params:
+            # Return batched response with columns for each class in the batch
+            return load_test_data("api_responses/balance_sheet_fallback_batched.json")
+
+        # Shouldn't reach here in normal flow
+        return load_test_data("api_responses/balance_sheet_simple.json")
+
+    balance_sheet_mock = requests_mock.get(
+        "https://quickbooks.api.intuit.com/v3/company/123456789/reports/BalanceSheet",
+        json=report_callback
+    )
+
+    # Mock the Classes query endpoint (for fetching dimension items)
+    classes_query_mock = requests_mock.get(
+        "https://quickbooks.api.intuit.com/v3/company/123456789/query",
+        json=load_test_data("api_responses/classes_query_fallback.json")
+    )
+
+    config_with_classes = {
+        "realm_id": "123456789",
+        "start_date": "2024-01-01",
+        "end_date": "2024-01-31",  # Single month
+        "credentials": {
+            "client_id": "test_client_id",
+            "client_secret": "test_client_secret",
+            "refresh_token": "test_refresh_token"
+        },
+        "accounting_method": {
+            "selected_method": "Accrual"
+        },
+        "balance_sheet_settings": {
+            "summarize_column": {
+                "selected_first_dimension": "Classes"
+            }
+        }
+    }
+
+    source = SourceQuickbooksDrivepoint()
+    streams = source.streams(config_with_classes)
+
+    # Find the BalanceSheet stream
+    balance_sheet_stream = None
+    for stream in streams:
+        if hasattr(stream, '__class__') and "BalanceSheet" in stream.__class__.__name__:
+            balance_sheet_stream = stream
+            break
+
+    assert balance_sheet_stream is not None, "BalanceSheet stream not found"
+    assert balance_sheet_stream.first_dimension == "Classes"
+    assert balance_sheet_stream._first_dimension_fallback_mode == False, "Should not be in fallback mode initially"
+
+    # Read records - should trigger fallback
+    records = list(balance_sheet_stream.read_records(sync_mode="full_refresh"))
+
+    # Verify fallback mode was activated
+    assert balance_sheet_stream._first_dimension_fallback_mode == True, "Should be in fallback mode after error"
+
+    # Verify the API was called:
+    # 1 initial call (returns error) + 1 batched call (with both classes in one batch since batch_size > 2)
+    assert report_call_count[0] >= 2, f"Expected at least 2 report API calls (1 error + 1 batch), got {report_call_count[0]}"
+
+    # Verify classes query was called to get dimension items
+    assert classes_query_mock.call_count == 1, "Classes query should be called once to get dimension items"
+
+    # Verify we got records
+    assert len(records) > 0, "Should have received records after fallback"
+
+    # Verify Class field is set correctly on records
+    class_values = set(r.get("Class") for r in records)
+    # Should have records for each class (Retail and Wholesale)
+    assert "Retail" in class_values, "Should have Retail records"
+    assert "Wholesale" in class_values, "Should have Wholesale records"
 
 
