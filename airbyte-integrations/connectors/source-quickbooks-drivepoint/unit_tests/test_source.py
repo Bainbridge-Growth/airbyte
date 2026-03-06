@@ -461,6 +461,114 @@ def test_request_params_with_first_dimension(requests_mock, mock_firebase_client
 
 
 @freezegun.freeze_time(_NOW.isoformat())
+def test_fallback_mode_no_duplicate_records_across_months(requests_mock, mock_firebase_client):
+    """
+    Test for duplicate records in fallback mode across multiple monthly slices.
+
+    Setup:
+      - 2 monthly slices (Jan + Feb 2024)
+      - first_dimension = Classes (2 classes: Retail, Wholesale)
+      - balance_sheet_fallback_batched.json has 1 account row × 2 class columns
+        → 2 records per slice
+
+    Expected: 2 slices × 2 records = 4 total
+    """
+
+    requests_mock.post(
+        "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer",
+        json={"access_token": "fake-token", "expires_in": 3600, "token_type": "Bearer"}
+    )
+
+    result_set_big_error = {
+        "Fault": {
+            "Error": [{
+                "Message": "Result Set Big Error",
+                "Detail": "Report too large, please customize",
+                "code": RESULT_SET_BIG_ERROR_CODE,
+                "element": "ReportName"
+            }],
+            "type": "ValidationFault"
+        }
+    }
+
+    initial_error_returned = [False]
+
+    def report_callback(request, context):
+        from urllib.parse import parse_qs, urlparse
+        query_params = parse_qs(urlparse(request.url).query)
+
+        # First call: summarize_column_by set but no class filter — triggers fallback
+        if "summarize_column_by" in query_params and "class" not in query_params and not initial_error_returned[0]:
+            initial_error_returned[0] = True
+            context.status_code = 400
+            return result_set_big_error
+
+        # All subsequent calls: batched fallback with class filter — return success
+        return load_test_data("api_responses/balance_sheet_fallback_batched.json")
+
+    requests_mock.get(
+        "https://quickbooks.api.intuit.com/v3/company/123456789/reports/BalanceSheet",
+        json=report_callback
+    )
+
+    requests_mock.get(
+        "https://quickbooks.api.intuit.com/v3/company/123456789/query",
+        json=load_test_data("api_responses/classes_query_fallback.json")
+    )
+
+    config = {
+        "realm_id": "123456789",
+        "start_date": "2024-01-01",
+        "end_date": "2024-02-29",  # Two months — critical for exposing the bug
+        "credentials": {
+            "client_id": "test_client_id",
+            "client_secret": "test_client_secret",
+            "refresh_token": "test_refresh_token"
+        },
+        "accounting_method": {"selected_method": "Accrual"},
+        "balance_sheet_settings": {
+            "summarize_column": {"selected_first_dimension": "Classes"}
+        }
+    }
+
+    source = SourceQuickbooksDrivepoint()
+    streams = source.streams(config)
+    balance_sheet_stream = next(
+        s for s in streams if "BalanceSheet" in s.__class__.__name__
+    )
+
+    # Simulate what the Airbyte framework does: call read_records once per slice
+    all_slices = list(balance_sheet_stream.stream_slices(sync_mode="full_refresh"))
+    assert len(all_slices) == 2, f"Expected 2 monthly slices, got {len(all_slices)}"
+
+    all_records = []
+    for stream_slice in all_slices:
+        slice_records = list(balance_sheet_stream.read_records(
+            sync_mode="full_refresh",
+            stream_slice=stream_slice
+        ))
+        all_records.extend(slice_records)
+
+    # 2 months × 1 account × 2 classes = 4 records
+    # With the bug: 2 months × (2 months × 1 account × 2 classes) = 8 records
+    records_per_slice = 2  # 1 account row × 2 class columns in balance_sheet_fallback_batched.json
+    expected_total = len(all_slices) * records_per_slice
+    assert len(all_records) == expected_total, (
+        f"Expected {expected_total} records ({len(all_slices)} slices × {records_per_slice} records/slice), "
+        f"got {len(all_records)}. "
+        f"A count of {expected_total * len(all_slices)} would indicate the duplicate-records bug."
+    )
+
+    # Verify fallback mode was activated
+    assert balance_sheet_stream._first_dimension_fallback_mode is True
+
+    # Verify both classes appear in records from each slice
+    class_values = {r.get("Class") for r in all_records}
+    assert "Retail" in class_values
+    assert "Wholesale" in class_values
+
+
+@freezegun.freeze_time(_NOW.isoformat())
 def test_result_set_big_error_fallback(requests_mock, mock_firebase_client):
     """Test that when QuickBooks returns ResultSetBigError (10100), the connector
     falls back to fetching dimension items in batches with adaptive batch sizing"""
@@ -552,8 +660,10 @@ def test_result_set_big_error_fallback(requests_mock, mock_firebase_client):
     assert balance_sheet_stream.first_dimension == "Classes"
     assert balance_sheet_stream._first_dimension_fallback_mode == False, "Should not be in fallback mode initially"
 
-    # Read records - should trigger fallback
-    records = list(balance_sheet_stream.read_records(sync_mode="full_refresh"))
+    # Read records - should trigger fallback (pass stream_slice as the framework does)
+    slices = list(balance_sheet_stream.stream_slices(sync_mode="full_refresh"))
+    assert len(slices) == 1, f"Expected 1 monthly slice, got {len(slices)}"
+    records = list(balance_sheet_stream.read_records(sync_mode="full_refresh", stream_slice=slices[0]))
 
     # Verify fallback mode was activated
     assert balance_sheet_stream._first_dimension_fallback_mode == True, "Should be in fallback mode after error"

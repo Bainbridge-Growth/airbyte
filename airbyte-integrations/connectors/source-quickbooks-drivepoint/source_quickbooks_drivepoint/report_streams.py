@@ -472,55 +472,52 @@ class QuickbooksReportMonthlyBase(HttpStream):
         # Get the parameter name for this dimension type
         param_name = get_dimension_query_param_name(self.first_dimension)
 
-        # Get all stream slices
-        all_slices = list(self.stream_slices(sync_mode, cursor_field, stream_state))
-
         # Determine initial batch size (min of configured batch size and total items)
         batch_size = min(self._fallback_batch_size, len(distinct_items))
         self.logger.info(f"Starting with batch size {batch_size} for {len(distinct_items)} dimension items")
 
-        for time_slice in all_slices:
-            # Process dimension items in batches
-            i = 0
-            while i < len(distinct_items):
-                # Get the current batch
-                batch_end = min(i + batch_size, len(distinct_items))
-                batch = distinct_items[i:batch_end]
-                batch_ids = [item_id for item_id, _ in batch]
+        # Process only the stream_slice passed in — the framework calls read_records()
+        # once per slice, so we must not re-iterate all slices here.
+        i = 0
+        while i < len(distinct_items):
+            # Get the current batch
+            batch_end = min(i + batch_size, len(distinct_items))
+            batch = distinct_items[i:batch_end]
+            batch_ids = [item_id for item_id, _ in batch]
 
-                self.logger.info(f"Fetching report for batch of {len(batch)} {param_name}s (IDs: {batch_ids[0]}...{batch_ids[-1]}) for period {time_slice.get('start_date')} to {time_slice.get('end_date')}")
+            self.logger.info(f"Fetching report for batch of {len(batch)} {param_name}s (IDs: {batch_ids[0]}...{batch_ids[-1]}) for period {stream_slice.get('start_date')} to {stream_slice.get('end_date')}")
 
-                # Set the batch IDs for request_params
-                self._first_dimension_filter_ids = batch_ids
+            # Set the batch IDs for request_params
+            self._first_dimension_filter_ids = batch_ids
 
-                try:
-                    # Fetch records for this batch
-                    records = []
-                    for record in super().read_records(sync_mode, cursor_field, time_slice, stream_state):
-                        records.append(record)
+            try:
+                # Fetch records for this batch
+                records = []
+                for record in super().read_records(sync_mode, cursor_field, stream_slice, stream_state):
+                    records.append(record)
 
-                    # Batch succeeded, yield records
-                    yield from records
+                # Batch succeeded, yield records
+                yield from records
 
-                    # Move to next batch
-                    i = batch_end
-                    self.logger.info(f"Successfully fetched {len(records)} records for batch")
+                # Move to next batch
+                i = batch_end
+                self.logger.info(f"Successfully fetched {len(records)} records for batch")
 
-                except ResultSetBigError as e:
-                    batch_size, should_skip = self._reduce_batch_size(batch_size)
+            except ResultSetBigError as e:
+                batch_size, should_skip = self._reduce_batch_size(batch_size)
+                if should_skip:
+                    i = batch_end  # Skip this batch
+                # Otherwise don't increment i - retry with smaller batch
+
+            except Exception as e:
+                # Check if this is a CDK exception containing the 10100 error
+                error_str = str(e)
+                if f"'{RESULT_SET_BIG_ERROR_CODE}'" in error_str or f'"{RESULT_SET_BIG_ERROR_CODE}"' in error_str or f"code': '{RESULT_SET_BIG_ERROR_CODE}'" in error_str:
+                    batch_size, should_skip = self._reduce_batch_size(batch_size, "from CDK")
                     if should_skip:
-                        i = batch_end  # Skip this batch
-                    # Otherwise don't increment i - retry with smaller batch
-
-                except Exception as e:
-                    # Check if this is a CDK exception containing the 10100 error
-                    error_str = str(e)
-                    if f"'{RESULT_SET_BIG_ERROR_CODE}'" in error_str or f'"{RESULT_SET_BIG_ERROR_CODE}"' in error_str or f"code': '{RESULT_SET_BIG_ERROR_CODE}'" in error_str:
-                        batch_size, should_skip = self._reduce_batch_size(batch_size, "from CDK")
-                        if should_skip:
-                            i = batch_end
-                    else:
-                        raise
+                        i = batch_end
+                else:
+                    raise
 
         # Reset fallback state
         self._first_dimension_filter_ids = None
