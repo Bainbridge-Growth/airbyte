@@ -158,7 +158,7 @@ class QuickbooksReportMonthlyBase(HttpStream):
     def __init__(
             self,
             realm_id: str,  # company id
-            accounting_method: str = "Accrual",
+            accounting_method: str = None,
             first_dimension: str = None,
             second_dimension: str = None,
             start_date: str = None,
@@ -373,9 +373,9 @@ class QuickbooksReportMonthlyBase(HttpStream):
             stream_slice: Mapping[str, Any] = None,
             next_page_token: Mapping[str, Any] = None,
     ) -> MutableMapping[str, Any]:
-        params = {
-            "accounting_method": self.accounting_method
-        }
+        params = {}
+        if self.accounting_method:
+            params["accounting_method"] = self.accounting_method
 
         # In fallback mode, use summarize_column_by with batched dimension filter
         if self._first_dimension_fallback_mode:
@@ -948,7 +948,7 @@ class QuickbooksReportMonthlyBase(HttpStream):
 
 
 class BalanceSheetReportMonthly(QuickbooksReportMonthlyBase):
-    """QuickBooks Balance Sheet Report API connector
+    """QuickBooks Balance Sheet Report
 
     Reference: https://developer.intuit.com/app/developer/qbo/docs/api/accounting/all-entities/balancesheet
     """
@@ -962,7 +962,7 @@ class BalanceSheetReportMonthly(QuickbooksReportMonthlyBase):
 
 
 class ProfitLossReportMonthly(QuickbooksReportMonthlyBase):
-    """QuickBooks Profit and Loss Report API connector
+    """QuickBooks Profit and Loss Report
 
     Reference: https://developer.intuit.com/app/developer/qbo/docs/api/accounting/all-entities/profitandloss
     """
@@ -974,3 +974,17 @@ class ProfitLossReportMonthly(QuickbooksReportMonthlyBase):
             next_page_token: Mapping[str, Any] = None,
     ) -> str:
         return f"company/{self.realm_id}/reports/ProfitAndLoss"
+
+class TransactionListReportMonthly(QuickbooksReportMonthlyBase):
+    """TransactionLists Report
+
+    Reference: https://developer.intuit.com/app/developer/qbo/docs/api/accounting/report-entities/transactionlist
+    """
+
+    def path(
+            self,
+            stream_state: Mapping[str, Any] = None,
+            stream_slice: Mapping[str, Any] = None,
+            next_page_token: Mapping[str, Any] = None,
+    ) -> str:
+        return f"company/{self.realm_id}/reports/TransactionList"

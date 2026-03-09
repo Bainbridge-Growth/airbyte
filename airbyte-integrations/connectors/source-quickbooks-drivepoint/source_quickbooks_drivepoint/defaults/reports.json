@@ -14,5 +14,13 @@
       "date"
     ],
     "metrics": []
+  },
+  {
+    "id": "transaction_list_report_monthly",
+    "name": "Transaction List",
+    "dimensions": [
+      "date"
+    ],
+    "metrics": []
   }
 ]

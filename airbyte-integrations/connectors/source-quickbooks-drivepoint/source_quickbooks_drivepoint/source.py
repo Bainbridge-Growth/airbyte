@@ -5,8 +5,8 @@ from typing import Any, List, Mapping, Tuple
 from airbyte_cdk.sources import AbstractSource
 from airbyte_cdk.sources.streams import Stream
 from source_quickbooks_drivepoint.auth_client import QuickbooksOauth2Authenticator
-from source_quickbooks_drivepoint.report_streams import BalanceSheetReportMonthly, ProfitLossReportMonthly
-from source_quickbooks_drivepoint.query_streams import Accounts, Classes, Customers, Departments, Vendors
+from source_quickbooks_drivepoint.report_streams import BalanceSheetReportMonthly, ProfitLossReportMonthly, TransactionListReportMonthly
+from source_quickbooks_drivepoint.query_streams import Accounts, Bills, Classes, Customers, Departments, Employees, Items, JournalEntries, Invoices, Payments, PurchaseOrders, Purchases, Vendors
 
 logger = logging.getLogger("airbyte")
 
@@ -66,26 +66,19 @@ class SourceQuickbooksDrivepoint(AbstractSource):
             realm_id = authenticator.firebase_client.get_realm_id(config.get("company_id") or config.get("realm_id"))
 
         streams = [
-            Accounts(
-                realm_id=realm_id,
-                authenticator=authenticator
-            ),
-            Classes(
-                realm_id=realm_id,
-                authenticator=authenticator
-            ),
-            Customers(
-                realm_id=realm_id,
-                authenticator=authenticator
-            ),
-            Departments(
-                realm_id=realm_id,
-                authenticator=authenticator
-            ),
-            Vendors(
-                realm_id=realm_id,
-                authenticator=authenticator
-            )
+            Accounts(realm_id=realm_id, authenticator=authenticator),
+            Bills(realm_id=realm_id, authenticator=authenticator),
+            Classes(realm_id=realm_id, authenticator=authenticator),
+            Customers(realm_id=realm_id, authenticator=authenticator),
+            Departments(realm_id=realm_id, authenticator=authenticator),
+            Employees(realm_id=realm_id, authenticator=authenticator),
+            Items(realm_id=realm_id, authenticator=authenticator),
+            JournalEntries(realm_id=realm_id, authenticator=authenticator),
+            Invoices(realm_id=realm_id, authenticator=authenticator),
+            Payments(realm_id=realm_id, authenticator=authenticator),
+            PurchaseOrders(realm_id=realm_id, authenticator=authenticator),
+            Purchases(realm_id=realm_id, authenticator=authenticator),
+            Vendors(realm_id=realm_id, authenticator=authenticator)
         ]
 
         # Safely extract accounting method
@@ -114,7 +107,7 @@ class SourceQuickbooksDrivepoint(AbstractSource):
         streams.extend([
             BalanceSheetReportMonthly(
                 realm_id=realm_id,
-                accounting_method=accounting_method,
+                accounting_method=accounting_method if accounting_method else "Accrual",
                 first_dimension=bs_first_dimension,
                 second_dimension=bs_second_dimension,
                 start_date=config.get("start_date"),
@@ -123,9 +116,15 @@ class SourceQuickbooksDrivepoint(AbstractSource):
             ),
             ProfitLossReportMonthly(
                 realm_id=realm_id,
-                accounting_method=accounting_method,
+                accounting_method=accounting_method if accounting_method else "Accrual",
                 first_dimension=pl_first_dimension,
                 second_dimension=pl_second_dimension,
+                start_date=config.get("start_date"),
+                end_date=config.get("end_date"),
+                authenticator=authenticator
+            ),
+            TransactionListReportMonthly(
+                realm_id=realm_id,
                 start_date=config.get("start_date"),
                 end_date=config.get("end_date"),
                 authenticator=authenticator

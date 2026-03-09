@@ -1,5 +1,3 @@
-import os
-import json
 import requests
 import logging
 from typing import Any, Iterable, List, Mapping, MutableMapping, Optional
@@ -43,6 +41,18 @@ class QueryStreamBase(HttpStream):
         """
         return self.__class__.__name__
 
+    def api_query(self, start_time, end_time, start_position) -> str:
+        """
+        Build the base query for the stream
+        """
+        return f"""SELECT * FROM {self.entity_name}
+                WHERE Metadata.LastUpdatedTime > '{start_time}'
+                AND Metadata.LastUpdatedTime <= '{end_time}'
+                AND Active IN (true, false)
+                ORDER BY Metadata.LastUpdatedTime ASC
+                STARTPOSITION {start_position}
+                MAXRESULTS {MAX_RESULTS_PER_PAGE}"""
+
     def path(
         self,
         stream_state: Mapping[str, Any] = None,
@@ -81,13 +91,7 @@ class QueryStreamBase(HttpStream):
             self.current_token = next_page_token
 
             # Build query exactly matching the manifest format
-            query = f"""SELECT * FROM {self.entity_name}
-                WHERE Metadata.LastUpdatedTime > '{start_time}'
-                AND Metadata.LastUpdatedTime <= '{end_time}'
-                AND Active IN (true, false)
-                ORDER BY Metadata.LastUpdatedTime ASC
-                STARTPOSITION {start_position}
-                MAXRESULTS {MAX_RESULTS_PER_PAGE}"""
+            query = self.api_query(start_time,end_time, start_position)
 
             logger.debug(f"Built query for {self.entity_name}: start_time={start_time}, end_time={end_time}, start_position={start_position}")
             return {"query": query}
@@ -196,6 +200,24 @@ class Accounts(QueryStreamBase):
         return "Account"
 
 
+class Bills(QueryStreamBase):
+    @property
+    def name(self) -> str:
+        return self.__class__.__name__.lower()
+
+    @property
+    def entity_name(self) -> str:
+        return "Bill"
+
+    def api_query(self, start_time, end_time, start_position) -> str:
+        return f"""SELECT * FROM {self.entity_name}
+                WHERE Metadata.LastUpdatedTime > '{start_time}'
+                AND Metadata.LastUpdatedTime <= '{end_time}'
+                ORDER BY Metadata.LastUpdatedTime ASC
+                STARTPOSITION {start_position}
+                MAXRESULTS {MAX_RESULTS_PER_PAGE}"""
+
+
 class Classes(QueryStreamBase):
     @property
     def name(self) -> str:
@@ -224,6 +246,119 @@ class Departments(QueryStreamBase):
     @property
     def entity_name(self) -> str:
         return "Department"
+
+
+class Employees(QueryStreamBase):
+    @property
+    def name(self) -> str:
+        return self.__class__.__name__.lower()
+
+    @property
+    def entity_name(self) -> str:
+        return "Employee"
+
+
+class Items(QueryStreamBase):
+    @property
+    def name(self) -> str:
+        return self.__class__.__name__.lower()
+
+    @property
+    def entity_name(self) -> str:
+        return "Item"
+
+
+class JournalEntries(QueryStreamBase):
+    @property
+    def name(self) -> str:
+        return "journal_entries"
+
+    @property
+    def entity_name(self) -> str:
+        return "JournalEntry"
+
+    def api_query(self, start_time, end_time, start_position) -> str:
+        return f"""SELECT * FROM {self.entity_name}
+                WHERE Metadata.LastUpdatedTime > '{start_time}'
+                AND Metadata.LastUpdatedTime <= '{end_time}'
+                ORDER BY Metadata.LastUpdatedTime ASC
+                STARTPOSITION {start_position}
+                MAXRESULTS {MAX_RESULTS_PER_PAGE}"""
+
+
+class Invoices(QueryStreamBase):
+    @property
+    def name(self) -> str:
+        return self.__class__.__name__.lower()
+
+    @property
+    def entity_name(self) -> str:
+        return "Invoice"
+
+    def api_query(self, start_time, end_time, start_position) -> str:
+        """
+        Build the base query for the stream
+        """
+        return f"""SELECT * FROM {self.entity_name}
+                WHERE Metadata.LastUpdatedTime > '{start_time}'
+                AND Metadata.LastUpdatedTime <= '{end_time}'
+                ORDER BY Metadata.LastUpdatedTime ASC
+                STARTPOSITION {start_position}
+                MAXRESULTS {MAX_RESULTS_PER_PAGE}"""
+
+
+class PurchaseOrders(QueryStreamBase):
+    @property
+    def name(self) -> str:
+        return "purchase_orders"
+
+    @property
+    def entity_name(self) -> str:
+        return "PurchaseOrder"
+
+    def api_query(self, start_time, end_time, start_position) -> str:
+        return f"""SELECT * FROM {self.entity_name}
+                WHERE Metadata.LastUpdatedTime > '{start_time}'
+                AND Metadata.LastUpdatedTime <= '{end_time}'
+                ORDER BY Metadata.LastUpdatedTime ASC
+                STARTPOSITION {start_position}
+                MAXRESULTS {MAX_RESULTS_PER_PAGE}"""
+
+
+class Purchases(QueryStreamBase):
+    @property
+    def name(self) -> str:
+        return self.__class__.__name__.lower()
+
+    @property
+    def entity_name(self) -> str:
+        return "Purchase"
+
+    def api_query(self, start_time, end_time, start_position) -> str:
+        return f"""SELECT * FROM {self.entity_name}
+                WHERE Metadata.LastUpdatedTime > '{start_time}'
+                AND Metadata.LastUpdatedTime <= '{end_time}'
+                ORDER BY Metadata.LastUpdatedTime ASC
+                STARTPOSITION {start_position}
+                MAXRESULTS {MAX_RESULTS_PER_PAGE}"""
+
+
+class Payments(QueryStreamBase):
+    @property
+    def name(self) -> str:
+        return self.__class__.__name__.lower()
+
+    @property
+    def entity_name(self) -> str:
+        return "Payment"
+
+    def api_query(self, start_time, end_time, start_position) -> str:
+        return f"""SELECT * FROM {self.entity_name}
+                WHERE Metadata.LastUpdatedTime > '{start_time}'
+                AND Metadata.LastUpdatedTime <= '{end_time}'
+                ORDER BY Metadata.LastUpdatedTime ASC
+                STARTPOSITION {start_position}
+                MAXRESULTS {MAX_RESULTS_PER_PAGE}"""
 
 
 class Vendors(QueryStreamBase):

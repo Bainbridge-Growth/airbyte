@@ -1,0 +1,208 @@
+{
+  "type": ["null", "object"],
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "properties": {
+    "Id": {
+      "type": ["null", "string"]
+    },
+    "SyncToken": {
+      "type": ["null", "string"]
+    },
+    "DocNumber": {
+      "type": ["null", "string"]
+    },
+    "TxnDate": {
+      "type": ["null", "string"],
+      "format": "date"
+    },
+    "domain": {
+      "type": ["null", "string"]
+    },
+    "sparse": {
+      "type": ["null", "boolean"]
+    },
+    "Adjustment": {
+      "type": ["null", "boolean"]
+    },
+    "PrivateNote": {
+      "type": ["null", "string"]
+    },
+    "ExchangeRate": {
+      "type": ["null", "number"]
+    },
+    "CurrencyRef": {
+      "type": ["null", "object"],
+      "properties": {
+        "value": {
+          "type": ["null", "string"]
+        },
+        "name": {
+          "type": ["null", "string"]
+        }
+      }
+    },
+    "TaxRateRef": {
+      "type": ["null", "object"],
+      "properties": {
+        "value": {
+          "type": ["null", "string"]
+        },
+        "name": {
+          "type": ["null", "string"]
+        }
+      }
+    },
+    "MetaData": {
+      "type": ["null", "object"],
+      "properties": {
+        "CreateTime": {
+          "type": ["null", "string"],
+          "format": "date-time"
+        },
+        "LastUpdatedTime": {
+          "type": ["null", "string"],
+          "format": "date-time"
+        }
+      }
+    },
+    "Line": {
+      "type": ["null", "array"],
+      "items": {
+        "type": ["null", "object"],
+        "properties": {
+          "Id": {
+            "type": ["null", "string"]
+          },
+          "Amount": {
+            "type": ["null", "number"]
+          },
+          "Description": {
+            "type": ["null", "string"]
+          },
+          "DetailType": {
+            "type": ["null", "string"]
+          },
+          "JournalEntryLineDetail": {
+            "type": ["null", "object"],
+            "properties": {
+              "PostingType": {
+                "type": ["null", "string"]
+              },
+              "AccountRef": {
+                "type": ["null", "object"],
+                "properties": {
+                  "value": {
+                    "type": ["null", "string"]
+                  },
+                  "name": {
+                    "type": ["null", "string"]
+                  }
+                }
+              },
+              "ClassRef": {
+                "type": ["null", "object"],
+                "additionalProperties": true,
+                "properties": {
+                  "value": {
+                    "type": ["null", "string"]
+                  },
+                  "name": {
+                    "type": ["null", "string"]
+                  }
+                }
+              },
+              "Entity": {
+                "type": ["null", "object"],
+                "additionalProperties": true,
+                "properties": {
+                  "Type": {
+                    "type": ["null", "string"]
+                  },
+                  "EntityRef": {
+                    "type": ["null", "object"],
+                    "properties": {
+                      "value": {
+                        "type": ["null", "string"]
+                      },
+                      "name": {
+                        "type": ["null", "string"]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "TxnTaxDetail": {
+      "type": ["null", "object"],
+      "properties": {
+        "TotalTax": {
+          "type": ["null", "number"]
+        },
+        "TxnTaxCodeRef": {
+          "type": ["null", "object"],
+          "properties": {
+            "value": {
+              "type": ["null", "string"]
+            },
+            "name": {
+              "type": ["null", "string"]
+            }
+          }
+        },
+        "TaxLine": {
+          "type": ["null", "array"],
+          "items": {
+            "type": ["null", "object"],
+            "properties": {
+              "Amount": {
+                "type": ["null", "number"]
+              },
+              "DetailType": {
+                "type": ["null", "string"]
+              },
+              "TaxLineDetail": {
+                "type": ["null", "object"],
+                "properties": {
+                  "PercentBased": {
+                    "type": ["null", "boolean"]
+                  },
+                  "TaxPercent": {
+                    "type": ["null", "number"]
+                  },
+                  "NetAmountTaxable": {
+                    "type": ["null", "number"]
+                  },
+                  "TaxInclusiveAmount": {
+                    "type": ["null", "number"]
+                  },
+                  "OverrideDeltaAmount": {
+                    "type": ["null", "number"]
+                  },
+                  "TaxRateRef": {
+                    "type": ["null", "object"],
+                    "properties": {
+                      "value": {
+                        "type": ["null", "string"]
+                      },
+                      "name": {
+                        "type": ["null", "string"]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "airbyte_cursor": {
+      "type": ["null", "string"]
+    }
+  }
+}

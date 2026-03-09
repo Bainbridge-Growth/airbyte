@@ -1,0 +1,97 @@
+{
+  "type": ["null", "object"],
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "properties": {
+    "Id": {
+      "type": ["null", "string"]
+    },
+    "SyncToken": {
+      "type": ["null", "string"]
+    },
+    "domain": {
+      "type": ["null", "string"]
+    },
+    "sparse": {
+      "type": ["null", "boolean"]
+    },
+    "Active": {
+      "type": ["null", "boolean"]
+    },
+    "Taxable": {
+      "type": ["null", "boolean"]
+    },
+    "TrackQtyOnHand": {
+      "type": ["null", "boolean"]
+    },
+    "Name": {
+      "type": ["null", "string"]
+    },
+    "FullyQualifiedName": {
+      "type": ["null", "string"]
+    },
+    "Description": {
+      "type": ["null", "string"]
+    },
+    "PurchaseDesc": {
+      "type": ["null", "string"]
+    },
+    "Type": {
+      "type": ["null", "string"]
+    },
+    "UnitPrice": {
+      "type": ["null", "number"]
+    },
+    "PurchaseCost": {
+      "type": ["null", "number"]
+    },
+    "QtyOnHand": {
+      "type": ["null", "integer"]
+    },
+    "InvStartDate": {
+      "type": ["null", "string"],
+      "format": "date"
+    },
+    "IncomeAccountRef": {
+      "type": ["null", "object"],
+      "properties": {
+        "value": { "type": ["null", "string"] },
+        "name": { "type": ["null", "string"] }
+      }
+    },
+    "ExpenseAccountRef": {
+      "type": ["null", "object"],
+      "properties": {
+        "value": { "type": ["null", "string"] },
+        "name": { "type": ["null", "string"] }
+      }
+    },
+    "AssetAccountRef": {
+      "type": ["null", "object"],
+      "properties": {
+        "value": { "type": ["null", "string"] },
+        "name": { "type": ["null", "string"] }
+      }
+    },
+    "MetaData": {
+      "type": ["null", "object"],
+      "properties": {
+        "CreateTime": {
+          "type": ["null", "string"],
+          "format": "date-time"
+        },
+        "LastUpdatedTime": {
+          "type": ["null", "string"],
+          "format": "date-time"
+        }
+      }
+    },
+    "airbyte_cursor": {
+      "type": ["null", "string"]
+    },
+    "_airbyte_emitted_at": {
+      "type": ["null", "string"],
+      "format": "date-time"
+    }
+  }
+}

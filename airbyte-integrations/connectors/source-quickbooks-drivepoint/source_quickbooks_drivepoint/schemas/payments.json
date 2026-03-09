@@ -1,0 +1,191 @@
+{
+  "type": ["null", "object"],
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "properties": {
+    "Id": {
+      "type": ["null", "string"]
+    },
+    "SyncToken": {
+      "type": ["null", "string"]
+    },
+    "TxnDate": {
+      "type": ["null", "string"],
+      "format": "date"
+    },
+    "domain": {
+      "type": ["null", "string"]
+    },
+    "sparse": {
+      "type": ["null", "boolean"]
+    },
+    "TotalAmt": {
+      "type": ["null", "number"]
+    },
+    "UnappliedAmt": {
+      "type": ["null", "number"]
+    },
+    "ExchangeRate": {
+      "type": ["null", "number"]
+    },
+    "PaymentRefNum": {
+      "type": ["null", "string"]
+    },
+    "PrivateNote": {
+      "type": ["null", "string"]
+    },
+    "ProcessPayment": {
+      "type": ["null", "boolean"]
+    },
+    "CustomerRef": {
+      "type": ["null", "object"],
+      "properties": {
+        "value": {
+          "type": ["null", "string"]
+        },
+        "name": {
+          "type": ["null", "string"]
+        }
+      }
+    },
+    "ARAccountRef": {
+      "type": ["null", "object"],
+      "properties": {
+        "value": {
+          "type": ["null", "string"]
+        },
+        "name": {
+          "type": ["null", "string"]
+        }
+      }
+    },
+    "CurrencyRef": {
+      "type": ["null", "object"],
+      "properties": {
+        "value": {
+          "type": ["null", "string"]
+        },
+        "name": {
+          "type": ["null", "string"]
+        }
+      }
+    },
+    "DepositToAccountRef": {
+      "type": ["null", "object"],
+      "properties": {
+        "value": {
+          "type": ["null", "string"]
+        }
+      }
+    },
+    "PaymentMethodRef": {
+      "type": ["null", "object"],
+      "properties": {
+        "value": {
+          "type": ["null", "string"]
+        }
+      }
+    },
+    "MetaData": {
+      "type": ["null", "object"],
+      "properties": {
+        "CreateTime": {
+          "type": ["null", "string"],
+          "format": "date-time"
+        },
+        "LastUpdatedTime": {
+          "type": ["null", "string"],
+          "format": "date-time"
+        }
+      }
+    },
+    "Line": {
+      "type": ["null", "array"],
+      "items": {
+        "type": ["null", "object"],
+        "properties": {
+          "Amount": {
+            "type": ["null", "number"]
+          },
+          "LinkedTxn": {
+            "type": ["null", "array"],
+            "items": {
+              "type": ["null", "object"],
+              "properties": {
+                "TxnId": {
+                  "type": ["null", "string"]
+                },
+                "TxnType": {
+                  "type": ["null", "string"]
+                }
+              }
+            }
+          },
+          "LineEx": {
+            "type": ["null", "object"],
+            "properties": {
+              "any": {
+                "type": ["null", "array"],
+                "items": {
+                  "type": ["null", "object"],
+                  "properties": {
+                    "name": {
+                      "type": ["null", "string"]
+                    },
+                    "declaredType": {
+                      "type": ["null", "string"]
+                    },
+                    "scope": {
+                      "type": ["null", "string"]
+                    },
+                    "nil": {
+                      "type": ["null", "boolean"]
+                    },
+                    "globalScope": {
+                      "type": ["null", "boolean"]
+                    },
+                    "typeSubstituted": {
+                      "type": ["null", "boolean"]
+                    },
+                    "value": {
+                      "type": ["null", "object"],
+                      "properties": {
+                        "Name": {
+                          "type": ["null", "string"]
+                        },
+                        "Value": {
+                          "type": ["null", "string"]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "LinkedTxn": {
+      "type": ["null", "array"],
+      "items": {
+        "type": ["null", "object"],
+        "properties": {
+          "TxnId": {
+            "type": ["null", "string"]
+          },
+          "TxnType": {
+            "type": ["null", "string"]
+          }
+        }
+      }
+    },
+    "airbyte_cursor": {
+      "type": ["null", "string"]
+    },
+    "_airbyte_emitted_at": {
+      "type": ["null", "string"],
+      "format": "date-time"
+    }
+  }
+}

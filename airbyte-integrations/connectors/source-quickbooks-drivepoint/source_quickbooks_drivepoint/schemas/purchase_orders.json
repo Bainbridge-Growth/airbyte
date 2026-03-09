@@ -1,0 +1,215 @@
+{
+  "type": ["null", "object"],
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "properties": {
+    "Id": {
+      "type": ["null", "string"]
+    },
+    "SyncToken": {
+      "type": ["null", "string"]
+    },
+    "TxnDate": {
+      "type": ["null", "string"],
+      "format": "date"
+    },
+    "DueDate": {
+      "type": ["null", "string"],
+      "format": "date"
+    },
+    "domain": {
+      "type": ["null", "string"]
+    },
+    "sparse": {
+      "type": ["null", "boolean"]
+    },
+    "DocNumber": {
+      "type": ["null", "string"]
+    },
+    "Memo": {
+      "type": ["null", "string"]
+    },
+    "PrivateNote": {
+      "type": ["null", "string"]
+    },
+    "POStatus": {
+      "type": ["null", "string"]
+    },
+    "EmailStatus": {
+      "type": ["null", "string"]
+    },
+    "TotalAmt": {
+      "type": ["null", "number"]
+    },
+    "ExchangeRate": {
+      "type": ["null", "number"]
+    },
+    "APAccountRef": {
+      "type": ["null", "object"],
+      "properties": {
+        "value": { "type": ["null", "string"] },
+        "name": { "type": ["null", "string"] }
+      }
+    },
+    "VendorRef": {
+      "type": ["null", "object"],
+      "properties": {
+        "value": { "type": ["null", "string"] },
+        "name": { "type": ["null", "string"] }
+      }
+    },
+    "CurrencyRef": {
+      "type": ["null", "object"],
+      "properties": {
+        "value": { "type": ["null", "string"] },
+        "name": { "type": ["null", "string"] }
+      }
+    },
+    "ClassRef": {
+      "type": ["null", "object"],
+      "properties": {
+        "value": { "type": ["null", "string"] },
+        "name": { "type": ["null", "string"] }
+      }
+    },
+    "DepartmentRef": {
+      "type": ["null", "object"],
+      "properties": {
+        "value": { "type": ["null", "string"] },
+        "name": { "type": ["null", "string"] }
+      }
+    },
+    "SalesTermRef": {
+      "type": ["null", "object"],
+      "properties": {
+        "value": { "type": ["null", "string"] },
+        "name": { "type": ["null", "string"] }
+      }
+    },
+    "ShipTo": {
+      "type": ["null", "object"],
+      "properties": {
+        "value": { "type": ["null", "string"] },
+        "name": { "type": ["null", "string"] }
+      }
+    },
+    "ShipAddr": {
+      "type": ["null", "object"],
+      "properties": {
+        "Id": { "type": ["null", "string"] },
+        "Line1": { "type": ["null", "string"] },
+        "Line2": { "type": ["null", "string"] },
+        "Line3": { "type": ["null", "string"] },
+        "Lat": { "type": ["null", "string"] },
+        "Long": { "type": ["null", "string"] }
+      }
+    },
+    "VendorAddr": {
+      "type": ["null", "object"],
+      "properties": {
+        "Id": { "type": ["null", "string"] },
+        "Line1": { "type": ["null", "string"] },
+        "Line2": { "type": ["null", "string"] },
+        "Line3": { "type": ["null", "string"] },
+        "Line4": { "type": ["null", "string"] },
+        "City": { "type": ["null", "string"] },
+        "Country": { "type": ["null", "string"] },
+        "Lat": { "type": ["null", "string"] },
+        "Long": { "type": ["null", "string"] }
+      }
+    },
+    "TxnTaxDetail": {
+      "type": ["null", "object"],
+      "properties": {}
+    },
+    "CustomField": {
+      "type": ["null", "array"],
+      "items": {
+        "type": ["null", "object"],
+        "properties": {
+          "DefinitionId": { "type": ["null", "string"] },
+          "Name": { "type": ["null", "string"] },
+          "Type": { "type": ["null", "string"] }
+        }
+      }
+    },
+    "MetaData": {
+      "type": ["null", "object"],
+      "properties": {
+        "CreateTime": {
+          "type": ["null", "string"],
+          "format": "date-time"
+        },
+        "LastUpdatedTime": {
+          "type": ["null", "string"],
+          "format": "date-time"
+        }
+      }
+    },
+    "Line": {
+      "type": ["null", "array"],
+      "items": {
+        "type": ["null", "object"],
+        "properties": {
+          "Id": { "type": ["null", "string"] },
+          "LineNum": { "type": ["null", "integer"] },
+          "Description": { "type": ["null", "string"] },
+          "Amount": { "type": ["null", "number"] },
+          "DetailType": { "type": ["null", "string"] },
+          "ItemBasedExpenseLineDetail": {
+            "type": ["null", "object"],
+            "properties": {
+              "ItemRef": {
+                "type": ["null", "object"],
+                "properties": {
+                  "value": { "type": ["null", "string"] },
+                  "name": { "type": ["null", "string"] }
+                }
+              },
+              "BillableStatus": { "type": ["null", "string"] },
+              "Qty": { "type": ["null", "integer"] },
+              "UnitPrice": { "type": ["null", "number"] },
+              "TaxCodeRef": {
+                "type": ["null", "object"],
+                "properties": {
+                  "value": { "type": ["null", "string"] }
+                }
+              },
+              "ClassRef": {
+                "type": ["null", "object"],
+                "properties": {
+                  "value": { "type": ["null", "string"] },
+                  "name": { "type": ["null", "string"] }
+                }
+              },
+              "CustomerRef": {
+                "type": ["null", "object"],
+                "properties": {
+                  "value": { "type": ["null", "string"] },
+                  "name": { "type": ["null", "string"] }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "LinkedTxn": {
+      "type": ["null", "array"],
+      "items": {
+        "type": ["null", "object"],
+        "properties": {
+          "TxnId": { "type": ["null", "string"] },
+          "TxnType": { "type": ["null", "string"] }
+        }
+      }
+    },
+    "airbyte_cursor": {
+      "type": ["null", "string"]
+    },
+    "_airbyte_emitted_at": {
+      "type": ["null", "string"],
+      "format": "date-time"
+    }
+  }
+}
