@@ -559,8 +559,11 @@ def test_fallback_mode_no_duplicate_records_across_months(requests_mock, mock_fi
         f"A count of {expected_total * len(all_slices)} would indicate the duplicate-records bug."
     )
 
-    # Verify fallback mode was activated
-    assert balance_sheet_stream._first_dimension_fallback_mode is True
+    # Verify fallback was triggered for at least one period (items cache populated by fallback logic)
+    assert balance_sheet_stream._fallback_mode_first_dimension_items is not None, \
+        "Fallback should have been triggered and dimension items cached"
+    # Fallback flag is reset to False after each period — fallback is per-period, not sticky
+    assert balance_sheet_stream._first_dimension_fallback_mode is False
 
     # Verify both classes appear in records from each slice
     class_values = {r.get("Class") for r in all_records}
@@ -665,11 +668,14 @@ def test_result_set_big_error_fallback(requests_mock, mock_firebase_client):
     assert len(slices) == 1, f"Expected 1 monthly slice, got {len(slices)}"
     records = list(balance_sheet_stream.read_records(sync_mode="full_refresh", stream_slice=slices[0]))
 
-    # Verify fallback mode was activated
-    assert balance_sheet_stream._first_dimension_fallback_mode == True, "Should be in fallback mode after error"
+    # Verify fallback was triggered (items cache populated); flag itself is reset to False after each period
+    assert balance_sheet_stream._fallback_mode_first_dimension_items is not None, \
+        "Fallback should have been triggered and dimension items cached"
+    assert balance_sheet_stream._first_dimension_fallback_mode is False, \
+        "Fallback flag should be reset to False after period completes (per-period fallback, not sticky)"
 
     # Verify the API was called:
-    # 1 initial call (returns error) + 1 batched call (with both classes in one batch since batch_size > 2)
+    # 1 initial call (returns error) + 1 batched call (with both classes) + 1 "Not Specified" call
     assert report_call_count[0] >= 2, f"Expected at least 2 report API calls (1 error + 1 batch), got {report_call_count[0]}"
 
     # Verify classes query was called to get dimension items

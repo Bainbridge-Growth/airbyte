@@ -179,6 +179,7 @@ class QuickbooksReportMonthlyBase(HttpStream):
         self._first_dimension_filter_ids = None  # List of dimension IDs being filtered in fallback mode (for batching)
         self._fallback_batch_size = 1000  # Starting batch size for fallback mode
         self._fallback_mode_first_dimension_items = None  # Cache of dimension items for fallback mode
+        self._not_specified_only = False  # When True, parse_response keeps only "Not Specified" column
         super().__init__(authenticator=authenticator, **kwargs)
 
     def get_error_handler(self) -> Optional["ErrorHandler"]:
@@ -379,7 +380,11 @@ class QuickbooksReportMonthlyBase(HttpStream):
 
         # In fallback mode, use summarize_column_by with batched dimension filter
         if self._first_dimension_fallback_mode:
-            if self._first_dimension_filter_ids:
+            if self._not_specified_only:
+                # Fetching "Not Specified" records: no dimension filter, but still use summarize_column_by
+                # so QBO returns the "Not Specified" column (parse_response will keep only that column)
+                params["summarize_column_by"] = self.first_dimension
+            elif self._first_dimension_filter_ids:
                 # Use summarize_column_by to get columns for each dimension in the batch
                 params["summarize_column_by"] = self.first_dimension
                 # Filter to only include dimensions in this batch (comma-separated IDs)
@@ -522,6 +527,39 @@ class QuickbooksReportMonthlyBase(HttpStream):
         # Reset fallback state
         self._first_dimension_filter_ids = None
 
+        # Fetch "Not Specified" records: call the report with no dimension filter and keep only
+        # the "Not Specified" column. These are transactions with no class/department assigned
+        # and would be missed by the batched ID-filtered calls above.
+        # NOTE: This call uses summarize_column_by without a dimension filter, so QBO returns
+        # ALL dimension columns at once. If there are too many dimensions this will also hit
+        # ResultSetBigError — in that case we log a warning and skip rather than failing.
+        param_name = get_dimension_query_param_name(self.first_dimension)
+        self.logger.info(f"Fetching 'Not Specified' records (no {param_name} filter) for period {stream_slice.get('start_date')} to {stream_slice.get('end_date')}")
+        self._not_specified_only = True
+        try:
+            for record in super().read_records(sync_mode, cursor_field, stream_slice, stream_state):
+                yield record
+        except ResultSetBigError:
+            self.logger.warning(
+                f"Could not fetch 'Not Specified' records for period "
+                f"{stream_slice.get('start_date')} to {stream_slice.get('end_date')}: "
+                f"report is too large (ResultSetBigError). 'Not Specified' data will be missing "
+                f"for this period because QBO cannot return all {self.first_dimension} columns at once."
+            )
+        except Exception as e:
+            error_str = str(e)
+            if f"'{RESULT_SET_BIG_ERROR_CODE}'" in error_str or f'"{RESULT_SET_BIG_ERROR_CODE}"' in error_str or f"code': '{RESULT_SET_BIG_ERROR_CODE}'" in error_str:
+                self.logger.warning(
+                    f"Could not fetch 'Not Specified' records for period "
+                    f"{stream_slice.get('start_date')} to {stream_slice.get('end_date')}: "
+                    f"report is too large (ResultSetBigError). 'Not Specified' data will be missing "
+                    f"for this period because QBO cannot return all {self.first_dimension} columns at once."
+                )
+            else:
+                raise
+        finally:
+            self._not_specified_only = False
+
     def read_records(self, sync_mode, cursor_field=None, stream_slice=None, stream_state=None):
         # When second_dimension is set AND we haven't fetched dimension items yet,
         # we fetch dimension items and manage slicing ourselves.
@@ -579,42 +617,41 @@ class QuickbooksReportMonthlyBase(HttpStream):
 
                     # Fetch records for this time slice with this dimension filter
                     yield from super().read_records(sync_mode, cursor_field, time_slice, stream_state)
-        elif self._first_dimension_fallback_mode:
-            # Already in fallback mode, use the fallback implementation
-            yield from self._read_records_with_first_dimension_fallback(sync_mode, cursor_field, stream_slice, stream_state)
         else:
-            # Normal flow: no second_dimension OR we're in a nested call with current_dimension_id already set
+            # Normal flow: no second_dimension OR we're in a nested call with current_dimension_id already set.
+            # Always attempt normal mode first for each period — fallback is per-period, not sticky.
+            # This ensures "Not Specified" records are captured whenever QBO can handle the full report.
+            self._first_dimension_fallback_mode = False
+
             if not self.second_dimension or self.second_dimension == "None":
                 # Only clear dimension info if second_dimension is not configured
                 self.current_dimension_id = None
                 self.current_dimension_name = None
 
-            # Try normal read, catch ResultSetBigError and fall back if needed
             try:
                 records = []
                 for record in super().read_records(sync_mode, cursor_field, stream_slice, stream_state):
                     records.append(record)
 
-                # If we got here without error, yield all records
+                # Normal read succeeded — yield all records (includes "Not Specified" column naturally)
                 yield from records
             except ResultSetBigError as e:
-                # Report is too large with summarize_column_by, switch to fallback mode
-                self.logger.warning(f"Switching to fallback mode due to ResultSetBigError: {e}")
+                # Report too large for this period, fall back to per-dimension batching
+                self.logger.warning(f"ResultSetBigError for period {stream_slice}, switching to fallback mode: {e}")
                 self._first_dimension_fallback_mode = True
-
-                # Re-process with fallback mode
                 yield from self._read_records_with_first_dimension_fallback(sync_mode, cursor_field, stream_slice, stream_state)
             except Exception as e:
-                # Check if this is a CDK exception containing the 10100 error
+                # Check if this is a CDK exception wrapping a 10100 error
                 error_str = str(e)
                 if f"'{RESULT_SET_BIG_ERROR_CODE}'" in error_str or f'"{RESULT_SET_BIG_ERROR_CODE}"' in error_str or f"code': '{RESULT_SET_BIG_ERROR_CODE}'" in error_str:
-                    self.logger.warning(f"Switching to fallback mode due to ResultSetBigError detected in CDK exception: {e}")
+                    self.logger.warning(f"ResultSetBigError (CDK-wrapped) for period {stream_slice}, switching to fallback mode: {e}")
                     self._first_dimension_fallback_mode = True
-
-                    # Re-process with fallback mode
                     yield from self._read_records_with_first_dimension_fallback(sync_mode, cursor_field, stream_slice, stream_state)
                 else:
                     raise
+            finally:
+                # Reset fallback flag after each period so the next period tries normal mode first
+                self._first_dimension_fallback_mode = False
 
     def request_headers(
             self,
@@ -634,6 +671,7 @@ class QuickbooksReportMonthlyBase(HttpStream):
         # Handle HTTP errors since we have raise_on_http_errors = False
         try:
             response_json = response.json()
+            # logger.info(f"Parsing response: {response_json}")
         except Exception as e:
             # Response is not valid JSON
             if not response.ok:
@@ -694,6 +732,14 @@ class QuickbooksReportMonthlyBase(HttpStream):
                 continue
 
             column_classes.append(class_name)
+
+        # In "Not Specified only" mode, keep only the "Not Specified" column
+        if self._not_specified_only:
+            not_specified_cols = [c for c in column_classes if c.lower() == "not specified"]
+            if not not_specified_cols:
+                self.logger.info("No 'Not Specified' column found in response, skipping")
+                return []
+            column_classes = not_specified_cols
 
         # Determine report type once before processing rows
         is_profit_loss = False
