@@ -5,7 +5,12 @@ from typing import Any, List, Mapping, Tuple
 from airbyte_cdk.sources import AbstractSource
 from airbyte_cdk.sources.streams import Stream
 from source_quickbooks_drivepoint.auth_client import QuickbooksOauth2Authenticator
-from source_quickbooks_drivepoint.report_streams import BalanceSheetReportMonthly, ProfitLossReportMonthly, TransactionListReportMonthly
+from source_quickbooks_drivepoint.report_streams import (
+    BalanceSheetReportMonthly,
+    DimensionItemsCache,
+    ProfitLossReportMonthly,
+    TransactionListReportMonthly,
+)
 from source_quickbooks_drivepoint.query_streams import Accounts, Bills, Classes, Customers, Departments, Employees, Items, JournalEntries, Invoices, Payments, PurchaseOrders, Purchases, Vendors
 
 logger = logging.getLogger("airbyte")
@@ -104,6 +109,10 @@ class SourceQuickbooksDrivepoint(AbstractSource):
             if config.get("profit_loss_settings").get("second_dimension"):
                 pl_second_dimension = config.get("profit_loss_settings").get("second_dimension").get("selected_second_dimension")
 
+        # Sync-scoped cache so e.g. Departments fetched as second_dimension on
+        # both BalanceSheet and ProfitAndLoss only hits the API once.
+        dimension_cache = DimensionItemsCache()
+
         streams.extend([
             BalanceSheetReportMonthly(
                 realm_id=realm_id,
@@ -112,7 +121,8 @@ class SourceQuickbooksDrivepoint(AbstractSource):
                 second_dimension=bs_second_dimension,
                 start_date=config.get("start_date"),
                 end_date=config.get("end_date"),
-                authenticator=authenticator
+                authenticator=authenticator,
+                dimension_cache=dimension_cache,
             ),
             ProfitLossReportMonthly(
                 realm_id=realm_id,
@@ -121,13 +131,15 @@ class SourceQuickbooksDrivepoint(AbstractSource):
                 second_dimension=pl_second_dimension,
                 start_date=config.get("start_date"),
                 end_date=config.get("end_date"),
-                authenticator=authenticator
+                authenticator=authenticator,
+                dimension_cache=dimension_cache,
             ),
             TransactionListReportMonthly(
                 realm_id=realm_id,
                 start_date=config.get("start_date"),
                 end_date=config.get("end_date"),
-                authenticator=authenticator
+                authenticator=authenticator,
+                dimension_cache=dimension_cache,
             )
         ])
 

@@ -320,25 +320,25 @@ def test_pandl_with_classes_second_dimension(requests_mock, mock_firebase_client
 
 @freezegun.freeze_time(_NOW.isoformat())
 def test_request_params_without_first_dimension(requests_mock, mock_firebase_client):
-    """Test that summarize_column_by parameter is NOT included when first_dimension is None"""
+    """When neither first_dimension nor second_dimension is set the connector now
+    requests summarize_column_by=Month so QBO returns one column per month inside
+    a single response (yearly slicing replaces the previous monthly slicing).
+    """
 
-    # Mock the OAuth token refresh endpoint
     requests_mock.post(
         "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer",
         json={"access_token": "fake-token", "expires_in": 3600, "token_type": "Bearer"}
     )
 
-    # Mock the BalanceSheet API call - we'll inspect what was actually requested
     balance_sheet_mock = requests_mock.get(
         "https://quickbooks.api.intuit.com/v3/company/123456789/reports/BalanceSheet",
         json=load_test_data("api_responses/balance_sheet_simple.json")
     )
 
-    # Config WITHOUT first_dimension (no summarize_column settings)
     config_without_first_dimension = {
         "realm_id": "123456789",
         "start_date": "2024-01-01",
-        "end_date": "2024-01-31",  # Single month
+        "end_date": "2024-01-31",
         "credentials": {
             "client_id": "test_client_id",
             "client_secret": "test_client_secret",
@@ -347,45 +347,30 @@ def test_request_params_without_first_dimension(requests_mock, mock_firebase_cli
         "accounting_method": {
             "selected_method": "Accrual"
         }
-        # Note: no balance_sheet_settings with summarize_column
     }
 
     source = SourceQuickbooksDrivepoint()
     streams = source.streams(config_without_first_dimension)
 
-    # Find the BalanceSheet stream
-    balance_sheet_stream = None
-    for stream in streams:
-        if hasattr(stream, '__class__') and "BalanceSheet" in stream.__class__.__name__:
-            balance_sheet_stream = stream
-            break
+    balance_sheet_stream = next(
+        s for s in streams if "BalanceSheet" in s.__class__.__name__
+    )
+    assert balance_sheet_stream.first_dimension is None
 
-    assert balance_sheet_stream is not None, "BalanceSheet stream not found"
-    assert balance_sheet_stream.first_dimension is None, "first_dimension should be None"
+    list(balance_sheet_stream.read_records(sync_mode="full_refresh"))
 
-    # Read records to trigger the API call
-    records = list(balance_sheet_stream.read_records(sync_mode="full_refresh"))
+    assert balance_sheet_mock.call_count == 1
 
-    # Verify the API was called
-    assert balance_sheet_mock.call_count == 1, "BalanceSheet endpoint should be called once"
-
-    # Get the actual request that was made
-    actual_request = balance_sheet_mock.request_history[0]
-
-    # Parse query string - requests_mock stores it as a string
     from urllib.parse import parse_qs, urlparse
-    parsed_url = urlparse(actual_request.url)
+    parsed_url = urlparse(balance_sheet_mock.request_history[0].url)
     query_params = parse_qs(parsed_url.query)
 
-    # Verify that summarize_column_by is NOT in the query parameters
-    assert "summarize_column_by" not in query_params, \
-        f"summarize_column_by should NOT be in query params when first_dimension is None. Query params: {query_params}"
+    assert query_params.get("summarize_column_by", [None])[0] == "Month", \
+        f"summarize_column_by should be 'Month' for Mode 1 reports, got {query_params}"
 
-    # Verify that other expected params ARE present
-    assert "accounting_method" in query_params, "accounting_method should be present"
-    assert query_params["accounting_method"][0] == "Accrual", "accounting_method should be Accrual"
-    assert "start_date" in query_params, "start_date should be present"
-    assert "end_date" in query_params, "end_date should be present"
+    assert query_params["accounting_method"][0] == "Accrual"
+    assert "start_date" in query_params
+    assert "end_date" in query_params
 
 
 @freezegun.freeze_time(_NOW.isoformat())

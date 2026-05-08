@@ -3,15 +3,15 @@
 
 set -e
 
-VM_INSTANCE_NAME=${2:-patch}
-if not [[ "$VM_INSTANCE_NAME" ]]; then
-  echo "Must provide VM instance name as a first argument."
+VERSION=${1:-patch}
+if not [[ "$VERSION" ]]; then
+  echo "Must provide version to deploy."
   exit 1
 fi
 
-VERSION=${1}
-if not [[ "$VERSION" ]]; then
-  echo "Must provide version to deploy."
+VM_INSTANCE_NAME=${2}
+if not [[ "$VM_INSTANCE_NAME" ]]; then
+  echo "Must provide VM instance name as a first argument."
   exit 1
 fi
 

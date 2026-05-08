@@ -144,6 +144,24 @@ def get_query_stream_class(dimension: str):
     }
     return mapping.get(dimension)
 
+
+class DimensionItemsCache:
+    """Sync-scoped cache for dimension items shared across report streams.
+
+    Created once per `streams()` invocation and passed to every report stream so
+    that fetching e.g. Departments only happens once even when both Balance Sheet
+    and P&L use it as second_dimension.
+    """
+
+    def __init__(self):
+        self._cache: MutableMapping[str, List[Mapping[str, Any]]] = {}
+
+    def get_or_fetch(self, dimension: str, fetcher) -> List[Mapping[str, Any]]:
+        if dimension not in self._cache:
+            self._cache[dimension] = fetcher()
+        return self._cache[dimension]
+
+
 class QuickbooksReportMonthlyBase(HttpStream):
     """Base class for QuickBooks Reports API connectors
 
@@ -164,6 +182,7 @@ class QuickbooksReportMonthlyBase(HttpStream):
             start_date: str = None,
             end_date: str = None,
             authenticator = None,
+            dimension_cache: Optional[DimensionItemsCache] = None,
             **kwargs
     ):
         self.realm_id = realm_id
@@ -175,12 +194,33 @@ class QuickbooksReportMonthlyBase(HttpStream):
         self.current_dimension_id = None
         self.current_dimension_name = None
         self.authenticator = authenticator
+        self._dimension_cache = dimension_cache
         self._first_dimension_fallback_mode = False  # Set to True when ResultSetBigError is encountered
         self._first_dimension_filter_ids = None  # List of dimension IDs being filtered in fallback mode (for batching)
         self._fallback_batch_size = 1000  # Starting batch size for fallback mode
         self._fallback_mode_first_dimension_items = None  # Cache of dimension items for fallback mode
         self._not_specified_only = False  # When True, parse_response keeps only "Not Specified" column
+        self._cached_second_dim_pairs = None  # Cache of distinct id->name pairs for second_dimension
         super().__init__(authenticator=authenticator, **kwargs)
+
+    @property
+    def _uses_monthly_columns(self) -> bool:
+        """True when this stream should use yearly slicing + summarize_column_by=Month.
+
+        Only Mode 1 (no first_dimension AND no second_dimension): collapses many
+        monthly API calls into a few yearly calls returning month columns. Per-record
+        StartPeriod/EndPeriod are sourced from each column's MetaData, so record
+        shape is preserved.
+
+        Mode 2 (first_dimension only) keeps monthly slicing — summarize_column_by
+        is consumed by the dimension grouping.
+        Mode 3 (second_dimension, which requires first_dimension) keeps monthly
+        slicing too — switching it to month columns would drop first_dimension
+        grouping from the emitted records (Class="Total" instead of class names).
+        """
+        has_first = self.first_dimension is not None and self.first_dimension != "None"
+        has_second = self.second_dimension is not None and self.second_dimension != "None"
+        return (not has_first) and (not has_second)
 
     def get_error_handler(self) -> Optional["ErrorHandler"]:
         """Override to provide custom error handler that allows 10100 errors to pass through"""
@@ -243,6 +283,10 @@ class QuickbooksReportMonthlyBase(HttpStream):
     def _get_dimension_items(self, dimension: str) -> Optional[List[Mapping[str, Any]]]:
         """Fetch all items for a dimension type.
 
+        Consults the sync-scoped DimensionItemsCache when available so a dimension
+        used by multiple report streams (e.g. Departments as second_dimension on
+        both BalanceSheet and ProfitAndLoss) is only fetched once.
+
         Args:
             dimension: The dimension type (Classes, Departments, Customers, Vendors)
 
@@ -254,15 +298,21 @@ class QuickbooksReportMonthlyBase(HttpStream):
             self.logger.error(f"Unknown dimension: {dimension}")
             return None
 
-        # Don't pass start_date/end_date - we want ALL dimension items, not filtered by date
-        # The query stream filters by Metadata.LastUpdatedTime, which would exclude
-        # items not updated within the report's date range
-        query_stream = query_stream_class(
-            realm_id=self.realm_id,
-            authenticator=self.authenticator
-        )
+        def fetch():
+            # Don't pass start_date/end_date - we want ALL dimension items, not filtered by date
+            # The query stream filters by Metadata.LastUpdatedTime, which would exclude
+            # items not updated within the report's date range
+            query_stream = query_stream_class(
+                realm_id=self.realm_id,
+                authenticator=self.authenticator
+            )
+            return self._fetch_all_dimension_items(query_stream)
 
-        items = self._fetch_all_dimension_items(query_stream)
+        if self._dimension_cache is not None:
+            items = self._dimension_cache.get_or_fetch(dimension, fetch)
+        else:
+            items = fetch()
+
         self.logger.info(f"Fetched {len(items)} items for {dimension}")
         return items
 
@@ -304,7 +354,13 @@ class QuickbooksReportMonthlyBase(HttpStream):
             stream_state: Mapping[str, Any] = None,
     ) -> Iterable[Mapping[str, Any]]:
         """
-        Create monthly chunks from start_date to today (or end_date if specified)
+        Create date-range chunks from start_date to end_date (or today).
+
+        When `_uses_monthly_columns` is True, slices are yearly because the API
+        request will set summarize_column_by=Month, returning month columns
+        within a single response. Otherwise slices are monthly (one slice per
+        API call), which is required when summarize_column_by is consumed by
+        the first_dimension grouping.
         """
         # If no start_date is provided, return a single slice with no dates
         if not self.start_date:
@@ -335,6 +391,11 @@ class QuickbooksReportMonthlyBase(HttpStream):
         start = pendulum.datetime(start_dt.year, start_dt.month, start_dt.day)
         end = pendulum.datetime(end_dt.year, end_dt.month, end_dt.day)
 
+        if self._uses_monthly_columns:
+            return self._yearly_slices(start, end)
+        return self._monthly_slices(start, end)
+
+    def _monthly_slices(self, start, end) -> List[Mapping[str, Any]]:
         slices = []
         current_start = start
 
@@ -342,7 +403,6 @@ class QuickbooksReportMonthlyBase(HttpStream):
             year = current_start.year
             month = current_start.month
 
-            # Calculate the end of the current month
             if month == 12:
                 next_month_year = year + 1
                 next_month = 1
@@ -350,11 +410,9 @@ class QuickbooksReportMonthlyBase(HttpStream):
                 next_month_year = year
                 next_month = month + 1
 
-            # First day of next month minus one day gives us last day of current month
             next_month_first = pendulum.datetime(next_month_year, next_month, 1)
             current_end = next_month_first.add(days=-1)
 
-            # If current_end is beyond our end date, use the end date
             if current_end > end:
                 current_end = end
 
@@ -363,8 +421,25 @@ class QuickbooksReportMonthlyBase(HttpStream):
                 "end_date": current_end.format("YYYY-MM-DD")
             })
 
-            # Move to the first day of next month
             current_start = next_month_first
+
+        return slices
+
+    def _yearly_slices(self, start, end) -> List[Mapping[str, Any]]:
+        slices = []
+        current_start = start
+
+        while current_start <= end:
+            current_end = pendulum.datetime(current_start.year, 12, 31)
+            if current_end > end:
+                current_end = end
+
+            slices.append({
+                "start_date": current_start.format("YYYY-MM-DD"),
+                "end_date": current_end.format("YYYY-MM-DD")
+            })
+
+            current_start = pendulum.datetime(current_start.year + 1, 1, 1)
 
         return slices
 
@@ -392,8 +467,14 @@ class QuickbooksReportMonthlyBase(HttpStream):
                 if param_name:
                     params[param_name] = ",".join(self._first_dimension_filter_ids)
             # If no filter IDs, we're not making a request (shouldn't happen)
+        elif self._uses_monthly_columns:
+            # Mode 1 (no dimensions) or Mode 3 (with second_dimension): collapse
+            # the time axis into month columns within a single response. In Mode 3
+            # this overrides the first_dimension grouping (only one summarize_column_by
+            # is allowed per request).
+            params["summarize_column_by"] = "Month"
         elif self.first_dimension is not None and self.first_dimension != "None":
-            # Normal mode: add summarize_column_by if first_dimension is set
+            # Mode 2: summarize by first_dimension, one API call per monthly slice
             params["summarize_column_by"] = self.first_dimension
 
         # When second_dimension is set, use first_dimension as summarize_column_by
@@ -570,18 +651,20 @@ class QuickbooksReportMonthlyBase(HttpStream):
             # When second_dimension is provided, we need to handle slicing ourselves
             # This is the initial call - we haven't started processing dimensions yet
 
-            # Get all stream slices for the entire period
+            # Get all stream slices for the entire period (monthly slices in Mode 3)
             all_slices = list(self.stream_slices(sync_mode, cursor_field, stream_state))
 
-            # Fetch the dimension items once for the entire period
-            second_dimension_items = self._get_dimension_items(self.second_dimension)
-            if second_dimension_items is None:
-                return
+            # Fetch the dimension items once for the entire period (sync-scoped cache
+            # via DimensionItemsCache so multiple report streams share the lookup)
+            if self._cached_second_dim_pairs is None:
+                second_dimension_items = self._get_dimension_items(self.second_dimension)
+                if second_dimension_items is None:
+                    return
+                self._cached_second_dim_pairs = self._extract_distinct_dimension_pairs(
+                    second_dimension_items, self.second_dimension
+                )
 
-            # Extract distinct Id->Name pairs
-            distinct_items = self._extract_distinct_dimension_pairs(
-                second_dimension_items, self.second_dimension
-            )
+            distinct_items = self._cached_second_dim_pairs
 
             # Get the parameter name for this dimension type (class/department/customer/vendor)
             param_name = get_dimension_query_param_name(self.second_dimension)
@@ -721,25 +804,54 @@ class QuickbooksReportMonthlyBase(HttpStream):
         end_period = format_date(header.get("EndPeriod"))
         currency = header.get("Currency")
 
-        # Build column mapping (skip first column which is account name)
+        # Build column mapping (skip first column which is account name).
+        # When summarize_column_by=Month/Year/etc., each column carries its own
+        # StartDate/EndDate in MetaData; we extract that so each emitted record
+        # gets the correct period (instead of the response-wide Header period).
+        # column_indices tracks the original ColData index so we stay aligned even
+        # when columns are filtered out (e.g. "Not Specified" only mode).
         column_classes = []
-        for i, col in enumerate(columns[1:], 1):  # Skip first column (Account)
+        column_periods = []
+        column_indices = []
+        for i, col in enumerate(columns[1:], 1):
             col_title = col.get("ColTitle", "")
-            class_name = col_title if col_title else f"Column_{i}"
 
-            if len(column_classes) >= 1 and class_name.lower() == "total":
-                # don't add TOTAL row if processing report with classes
+            # Skip the trailing summary "Total" column when other data columns exist.
+            # Use the original col_title for this check so the rule is independent
+            # of any class_name renaming that follows.
+            if len(column_classes) >= 1 and col_title.lower() == "total":
                 continue
 
+            col_start = None
+            col_end = None
+            for meta in col.get("MetaData", []):
+                if meta.get("Name") == "StartDate":
+                    col_start = format_date(meta.get("Value"))
+                elif meta.get("Name") == "EndDate":
+                    col_end = format_date(meta.get("Value"))
+
+            if col_start or col_end:
+                # Columns represent time periods (Month/Quarter/Year). The period
+                # itself is captured in StartPeriod/EndPeriod on each record, so
+                # collapse Class to "Total" rather than leaking column titles like
+                # "Jan 2024" into the Class field.
+                class_name = "Total"
+            else:
+                class_name = col_title if col_title else f"Column_{i}"
+
             column_classes.append(class_name)
+            column_periods.append((col_start, col_end))
+            column_indices.append(i)
 
         # In "Not Specified only" mode, keep only the "Not Specified" column
         if self._not_specified_only:
-            not_specified_cols = [c for c in column_classes if c.lower() == "not specified"]
-            if not not_specified_cols:
+            keep = [idx for idx, c in enumerate(column_classes) if c.lower() == "not specified"]
+            if not keep:
                 self.logger.info("No 'Not Specified' column found in response, skipping")
                 return []
-            column_classes = not_specified_cols
+            column_classes = [column_classes[idx] for idx in keep]
+            column_periods = [column_periods[idx] for idx in keep]
+            column_indices = [column_indices[idx] for idx in keep]
 
         # Determine report type once before processing rows
         is_profit_loss = False
@@ -751,6 +863,7 @@ class QuickbooksReportMonthlyBase(HttpStream):
         accounts = []
         current_time = datetime.utcnow().isoformat() + "Z"
         self._process_rows(rows, accounts, start_period, end_period, currency, column_classes,
+                          column_periods=column_periods, column_indices=column_indices,
                           is_profit_loss=is_profit_loss, emitted_at=current_time)
 
         return accounts
@@ -758,7 +871,8 @@ class QuickbooksReportMonthlyBase(HttpStream):
     def _process_rows(self, rows: list, accounts: list, start_period: str, end_period: str, currency: str, column_classes: list,
                       parent_name: str = "", parent_id: str = "", grandparent_name: str = "", grandparent_id: str = "",
                       category_name: str = "", category_id: str = "", section_type: str = "",
-                      is_profit_loss: bool = False, emitted_at: str = None):
+                      is_profit_loss: bool = False, emitted_at: str = None,
+                      column_periods: list = None, column_indices: list = None):
         """Recursively process rows to extract account data"""
 
         for row in rows:
@@ -798,7 +912,8 @@ class QuickbooksReportMonthlyBase(HttpStream):
 
                     self._create_account_records(accounts, col_data, account_name, account_id, start_period, end_period, currency,
                                                  parent_name, parent_id, grandparent_name, grandparent_id, category_name, category_id,
-                                                 row, full_account_name, column_classes, emitted_at, is_profit_loss)
+                                                 row, full_account_name, column_classes, emitted_at, is_profit_loss,
+                                                 column_periods=column_periods, column_indices=column_indices)
 
             elif row_type == "Section":
                 # This is a section header - recurse into its rows
@@ -876,7 +991,8 @@ class QuickbooksReportMonthlyBase(HttpStream):
                         start_period, end_period, currency,
                         header_parent_name, header_parent_id, header_grandparent_name, header_grandparent_id,
                         category_name, category_id,
-                        row, full_account_name, column_classes, emitted_at, is_profit_loss
+                        row, full_account_name, column_classes, emitted_at, is_profit_loss,
+                        column_periods=column_periods, column_indices=column_indices
                     )
 
                 # Process the section header as data if it has amounts
@@ -888,7 +1004,8 @@ class QuickbooksReportMonthlyBase(HttpStream):
                     nested_rows, accounts, start_period, end_period, currency, column_classes,
                     new_parent_name, new_parent_id, new_grandparent, new_grandparent_id,
                     new_category, new_category_id, new_section_type,
-                    is_profit_loss=is_profit_loss, emitted_at=emitted_at
+                    is_profit_loss=is_profit_loss, emitted_at=emitted_at,
+                    column_periods=column_periods, column_indices=column_indices
                 )
 
     def _process_profit_loss_hierarchy(self, category_name, category_id, section_display_name, section_id,
@@ -953,16 +1070,28 @@ class QuickbooksReportMonthlyBase(HttpStream):
 
     def _create_account_records(self, accounts, col_data, account_name, account_id, start_period, end_period, currency,
                                 parent_name, parent_id, grandparent_name, grandparent_id, category_name, category_id,
-                                row, full_account_name, column_classes, emitted_at, is_profit_loss):
-        """Create account records for each column/class"""
+                                row, full_account_name, column_classes, emitted_at, is_profit_loss,
+                                column_periods=None, column_indices=None):
+        """Create account records for each column/class.
+
+        column_periods (list of (start, end) tuples) and column_indices (list of
+        original ColData positions) are aligned with column_classes. When a column
+        carries its own period (summarize_column_by=Month), that period overrides
+        the response-wide start_period/end_period on the emitted record.
+        """
         # Clean IDs once before the loop
         clean_parent_id = clean_id(parent_id)
         clean_grandparent_id = clean_id(grandparent_id)
 
-        for i, class_name in enumerate(column_classes, 1):
+        for k, class_name in enumerate(column_classes):
+            col_idx = column_indices[k] if column_indices is not None else k + 1
             amount = ""
-            if i < len(col_data):
-                amount = col_data[i].get("value", "")
+            if col_idx < len(col_data):
+                amount = col_data[col_idx].get("value", "")
+
+            col_start, col_end = (column_periods[k] if column_periods is not None else (None, None))
+            record_start = col_start if col_start else start_period
+            record_end = col_end if col_end else end_period
 
             # For balance sheet, grandparent is as set
             actual_grandparent_name = grandparent_name
@@ -972,8 +1101,8 @@ class QuickbooksReportMonthlyBase(HttpStream):
             account_record = {
                 "_Account": account_name,
                 "_Account_id": account_id,
-                "StartPeriod": start_period,
-                "EndPeriod": end_period,
+                "StartPeriod": record_start,
+                "EndPeriod": record_end,
                 "Currency": currency,
                 "ParentAccountName": parent_name,
                 "ParentAccountId": clean_parent_id,
