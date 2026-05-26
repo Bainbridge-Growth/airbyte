@@ -1,0 +1,42 @@
+[
+  {
+    "TxDate": "2026-01-01T00:00:00Z",
+    "TransactionType": "Expense",
+    "TransactionTypeId": "33256",
+    "DocNum": "",
+    "Posting": "Yes",
+    "Name": "Amazon Business",
+    "NameId": "3",
+    "Department": "",
+    "DepartmentId": "",
+    "Memo": "Amazon; AMAZON.COM",
+    "Account": "2103 Mercury Credit Card",
+    "AccountId": "320",
+    "Split": "6133 Marketing Expenses:Growth Marketing:Amazon Media",
+    "SplitId": "351",
+    "Amount": "501.85",
+    "StartPeriod": "2026-01-01T00:00:00Z",
+    "EndPeriod": "2026-01-31T00:00:00Z",
+    "Currency": "USD"
+  },
+  {
+    "TxDate": "2026-01-27T00:00:00Z",
+    "TransactionType": "Invoice",
+    "TransactionTypeId": "33860",
+    "DocNum": "INV6583873",
+    "Posting": "Yes",
+    "Name": "UNFI",
+    "NameId": "4653",
+    "Department": "",
+    "DepartmentId": "",
+    "Memo": "",
+    "Account": "1100 Accounts receivable (A/R)",
+    "AccountId": "8",
+    "Split": "-Split-",
+    "SplitId": "",
+    "Amount": "32659.20",
+    "StartPeriod": "2026-01-01T00:00:00Z",
+    "EndPeriod": "2026-01-31T00:00:00Z",
+    "Currency": "USD"
+  }
+]

@@ -1,3 +1,5 @@
+import json
+import os
 import pendulum
 import requests
 import logging
@@ -1156,6 +1158,25 @@ class TransactionListReportMonthly(QuickbooksReportMonthlyBase):
     Reference: https://developer.intuit.com/app/developer/qbo/docs/api/accounting/report-entities/transactionlist
     """
 
+    # Maps QBO TransactionList column ColType → (value field, optional id field)
+    # in our schemas/transaction_list.json. ColTypes that carry no QBO id use None.
+    # QBO returns one of two Amount ColTypes depending on currency config:
+    #   subt_nat_amount      - transaction currency (production, single-currency accounts)
+    #   subt_nat_home_amount - home currency (multi-currency accounts; QBO docs sample uses this)
+    COLUMN_MAPPING = {
+        "tx_date":              ("TxDate",          None),
+        "txn_type":             ("TransactionType", "TransactionTypeId"),
+        "doc_num":              ("DocNum",          None),
+        "is_no_post":           ("Posting",         None),
+        "name":                 ("Name",            "NameId"),
+        "dept_name":            ("Department",      "DepartmentId"),
+        "memo":                 ("Memo",            None),
+        "account_name":         ("Account",         "AccountId"),
+        "other_account":        ("Split",           "SplitId"),
+        "subt_nat_amount":      ("Amount",          None),
+        "subt_nat_home_amount": ("Amount",          None),
+    }
+
     def path(
             self,
             stream_state: Mapping[str, Any] = None,
@@ -1163,3 +1184,106 @@ class TransactionListReportMonthly(QuickbooksReportMonthlyBase):
             next_page_token: Mapping[str, Any] = None,
     ) -> str:
         return f"company/{self.realm_id}/reports/TransactionList"
+
+    def get_json_schema(self) -> Mapping[str, Any]:
+        schema_path = os.path.join(os.path.dirname(__file__), "schemas", "transaction_list.json")
+        with open(schema_path) as f:
+            return json.load(f)
+
+    def request_params(
+            self,
+            stream_state: Mapping[str, Any],
+            stream_slice: Mapping[str, Any] = None,
+            next_page_token: Mapping[str, Any] = None,
+    ) -> MutableMapping[str, Any]:
+        # TransactionList does not accept summarize_column_by or dimension filters.
+        # Each row is already a transaction, so we only need date range + accounting method.
+        params = {}
+        if self.accounting_method:
+            params["accounting_method"] = self.accounting_method
+        if stream_slice:
+            if stream_slice.get("start_date"):
+                params["start_date"] = stream_slice["start_date"]
+            if stream_slice.get("end_date"):
+                params["end_date"] = stream_slice["end_date"]
+        else:
+            if self.start_date:
+                params["start_date"] = pendulum.parse(self.start_date).date().strftime("%Y-%m-%d")
+            if self.end_date:
+                params["end_date"] = pendulum.parse(self.end_date).date().strftime("%Y-%m-%d")
+        return params
+
+    def read_records(self, sync_mode, cursor_field=None, stream_slice=None, stream_state=None):
+        # Bypass QuickbooksReportMonthlyBase.read_records (which orchestrates first/second
+        # dimension fetches and ResultSetBigError fallback). TransactionList ignores
+        # dimensions, so we drop straight to the standard HttpStream pagination loop.
+        yield from HttpStream.read_records(self, sync_mode, cursor_field, stream_slice, stream_state)
+
+    def parse_response(self, response: requests.Response, **kwargs) -> Iterable[Mapping]:
+        response.raise_for_status()
+        data = response.json()
+
+        # logger.info("Parsing TransactionList response: %s ", data)
+
+        header = data.get("Header", {})
+        start_period = format_date(header.get("StartPeriod"))
+        end_period = format_date(header.get("EndPeriod"))
+        currency = header.get("Currency")
+
+        # Build column specs in the order QBO returned them: (col_index, value_field, id_field).
+        # Indexing by ColType (not position) so the parser survives QBO reordering columns.
+        column_specs = []
+        for col_index, col in enumerate(data.get("Columns", {}).get("Column", [])):
+            col_type = col.get("ColType", "")
+            mapping = self.COLUMN_MAPPING.get(col_type)
+            if mapping is None:
+                self.logger.warning(f"Unknown TransactionList ColType '{col_type}' at index {col_index}, skipping")
+                continue
+            value_field, id_field = mapping
+            column_specs.append((col_index, value_field, id_field))
+
+        emitted_at = datetime.utcnow().isoformat() + "Z"
+        records: list = []
+        self._walk_transaction_rows(
+            data.get("Rows", {}).get("Row", []),
+            records, column_specs, start_period, end_period, currency, emitted_at,
+        )
+        return records
+
+    def _walk_transaction_rows(self, rows, records, column_specs, start_period, end_period, currency, emitted_at):
+        for row in rows:
+            row_type = row.get("type", "")
+            if row_type == "Section":
+                # Sections (per-customer groupings) carry no record of their own; the customer
+                # name/id are already on each Data row via the Name/NameId columns.
+                self._walk_transaction_rows(
+                    row.get("Rows", {}).get("Row", []),
+                    records, column_specs, start_period, end_period, currency, emitted_at,
+                )
+            elif row_type == "Data":
+                col_data = row.get("ColData", [])
+                record = {
+                    "StartPeriod": start_period,
+                    "EndPeriod": end_period,
+                    "Currency": currency,
+                    "_airbyte_emitted_at": emitted_at,
+                }
+                for col_index, value_field, id_field in column_specs:
+                    if col_index >= len(col_data):
+                        record[value_field] = ""
+                        if id_field:
+                            record[id_field] = ""
+                        continue
+                    cell = col_data[col_index]
+                    value = cell.get("value", "")
+                    if value_field == "TxDate":
+                        value = format_date(value) if value else ""
+                    record[value_field] = value
+                    if id_field:
+                        record[id_field] = cell.get("id", "")
+                # Drop rows with no Amount. QBO emits filler rows (e.g. linking journal entries,
+                # autogenerated credit-to-charge ties) that share TxDate/TxnType/Posting but have
+                # no monetary value — they'd land as near-empty records on the destination side.
+                if not record.get("Amount"):
+                    continue
+                records.append(record)

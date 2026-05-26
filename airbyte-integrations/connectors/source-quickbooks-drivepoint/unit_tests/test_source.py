@@ -123,6 +123,39 @@ def test_balance_sheet_dirtylabs_11_levels_deep(requests_mock, mock_firebase_cli
 def test_pandl_nguyen_with_classes_20240423(requests_mock, mock_firebase_client):
     source_full_refresh_and_compare("ProfitLoss", requests_mock, mock_firebase_client, "pandl_nguyen_with_classes_20240423.json", 126, 5)
 
+def _run_transaction_list_test(requests_mock, fixture_name):
+    requests_mock.post(
+        "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer",
+        json={"access_token": "fake-token", "expires_in": 3600, "token_type": "Bearer"}
+    )
+    requests_mock.get(
+        "https://quickbooks.api.intuit.com/v3/company/123456789/reports/TransactionList",
+        json=load_test_data(f"api_responses/{fixture_name}")
+    )
+
+    source = SourceQuickbooksDrivepoint()
+    streams = source.streams(_CONFIG)
+    report_stream = next(s for s in streams if "TransactionList" in s.__class__.__name__)
+
+    records = list(report_stream.read_records(sync_mode="full_refresh"))
+
+    expected_results = load_test_data(f"expected_results/{fixture_name}")
+    assert len(records) == len(expected_results)
+    for idx, expected in enumerate(expected_results):
+        compare_records(expected, records[idx], idx)
+
+@freezegun.freeze_time(_NOW.isoformat())
+def test_transaction_list_simple(requests_mock, mock_firebase_client):
+    """TransactionList emits one record per Data row (ignores dimensions; yearly slicing
+    means one API call for the configured 2024 date range)."""
+    _run_transaction_list_test(requests_mock, "transaction_list_simple.json")
+
+@freezegun.freeze_time(_NOW.isoformat())
+def test_transaction_list_subt_nat_amount(requests_mock, mock_firebase_client):
+    """Production responses use ColType 'subt_nat_amount' (transaction currency) instead of
+    'subt_nat_home_amount' (home currency, which the QBO docs sample uses). Both must map to Amount."""
+    _run_transaction_list_test(requests_mock, "transaction_list_subt_nat_amount.json")
+
 @freezegun.freeze_time(_NOW.isoformat())
 def test_balance_sheet_with_departments_second_dimension(requests_mock, mock_firebase_client):
     """Test BalanceSheet report with first_dimension (Classes) and second_dimension (Departments)"""

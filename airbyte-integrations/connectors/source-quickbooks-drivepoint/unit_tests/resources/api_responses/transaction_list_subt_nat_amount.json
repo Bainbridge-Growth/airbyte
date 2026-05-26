@@ -1,0 +1,75 @@
+{
+  "Header": {
+    "Time": "2026-05-26T11:50:39-07:00",
+    "ReportName": "TransactionList",
+    "StartPeriod": "2026-01-01",
+    "EndPeriod": "2026-01-31",
+    "Currency": "USD",
+    "Option": [
+      {"Name": "NoReportData", "Value": "false"}
+    ]
+  },
+  "Columns": {
+    "Column": [
+      {"ColTitle": "Date",              "ColType": "tx_date"},
+      {"ColTitle": "Transaction Type",  "ColType": "txn_type"},
+      {"ColTitle": "Num",               "ColType": "doc_num"},
+      {"ColTitle": "Posting",           "ColType": "is_no_post"},
+      {"ColTitle": "Name",              "ColType": "name"},
+      {"ColTitle": "Store",             "ColType": "dept_name"},
+      {"ColTitle": "Memo/Description",  "ColType": "memo"},
+      {"ColTitle": "Account",           "ColType": "account_name"},
+      {"ColTitle": "Split",             "ColType": "other_account"},
+      {"ColTitle": "Amount",            "ColType": "subt_nat_amount"}
+    ]
+  },
+  "Rows": {
+    "Row": [
+      {
+        "type": "Data",
+        "ColData": [
+          {"value": "2026-01-01"},
+          {"value": "Expense", "id": "33256"},
+          {"value": ""},
+          {"value": "Yes"},
+          {"value": "Amazon Business", "id": "3"},
+          {"value": "", "id": ""},
+          {"value": "Amazon; AMAZON.COM"},
+          {"value": "2103 Mercury Credit Card", "id": "320"},
+          {"value": "6133 Marketing Expenses:Growth Marketing:Amazon Media", "id": "351"},
+          {"value": "501.85"}
+        ]
+      },
+      {
+        "type": "Data",
+        "ColData": [
+          {"value": "2026-01-27"},
+          {"value": "Journal Entry", "id": "33908"},
+          {"value": "Settle #017900 Jan 27"},
+          {"value": "Yes"},
+          {"value": "", "id": ""},
+          {"value": "", "id": ""},
+          {"value": ""},
+          {"value": "", "id": ""},
+          {"value": "-Split-", "id": ""},
+          {"value": ""}
+        ]
+      },
+      {
+        "type": "Data",
+        "ColData": [
+          {"value": "2026-01-27"},
+          {"value": "Invoice", "id": "33860"},
+          {"value": "INV6583873"},
+          {"value": "Yes"},
+          {"value": "UNFI", "id": "4653"},
+          {"value": "", "id": ""},
+          {"value": ""},
+          {"value": "1100 Accounts receivable (A/R)", "id": "8"},
+          {"value": "-Split-", "id": ""},
+          {"value": "32659.20"}
+        ]
+      }
+    ]
+  }
+}

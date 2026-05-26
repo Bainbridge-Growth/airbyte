@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "TxDate": {
+      "type": ["null", "string"],
+      "format": "date-time"
+    },
+    "TransactionType": {
+      "type": ["null", "string"]
+    },
+    "TransactionTypeId": {
+      "type": ["null", "string"]
+    },
+    "DocNum": {
+      "type": ["null", "string"]
+    },
+    "Posting": {
+      "type": ["null", "string"]
+    },
+    "Name": {
+      "type": ["null", "string"]
+    },
+    "NameId": {
+      "type": ["null", "string"]
+    },
+    "Department": {
+      "type": ["null", "string"]
+    },
+    "DepartmentId": {
+      "type": ["null", "string"]
+    },
+    "Memo": {
+      "type": ["null", "string"]
+    },
+    "Account": {
+      "type": ["null", "string"]
+    },
+    "AccountId": {
+      "type": ["null", "string"]
+    },
+    "Split": {
+      "type": ["null", "string"]
+    },
+    "SplitId": {
+      "type": ["null", "string"]
+    },
+    "Amount": {
+      "type": ["null", "string"]
+    },
+    "StartPeriod": {
+      "type": ["null", "string"],
+      "format": "date-time"
+    },
+    "EndPeriod": {
+      "type": ["null", "string"],
+      "format": "date-time"
+    },
+    "Currency": {
+      "type": ["null", "string"]
+    },
+    "_airbyte_emitted_at": {
+      "type": ["null", "string"],
+      "format": "date-time"
+    }
+  }
+}
