@@ -46,7 +46,7 @@
       "type": ["null", "string"]
     },
     "Amount": {
-      "type": ["null", "string"]
+      "type": ["null", "number"]
     },
     "StartPeriod": {
       "type": ["null", "string"],

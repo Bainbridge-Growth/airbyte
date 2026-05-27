@@ -14,7 +14,7 @@
     "AccountId": "320",
     "Split": "6133 Marketing Expenses:Growth Marketing:Amazon Media",
     "SplitId": "351",
-    "Amount": "501.85",
+    "Amount": 501.85,
     "StartPeriod": "2026-01-01T00:00:00Z",
     "EndPeriod": "2026-01-31T00:00:00Z",
     "Currency": "USD"
@@ -34,7 +34,7 @@
     "AccountId": "8",
     "Split": "-Split-",
     "SplitId": "",
-    "Amount": "32659.20",
+    "Amount": 32659.2,
     "StartPeriod": "2026-01-01T00:00:00Z",
     "EndPeriod": "2026-01-31T00:00:00Z",
     "Currency": "USD"

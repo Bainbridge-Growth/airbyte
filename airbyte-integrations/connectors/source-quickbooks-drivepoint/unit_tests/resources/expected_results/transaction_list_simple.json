@@ -14,7 +14,7 @@
     "AccountId": "84",
     "Split": "-Split-",
     "SplitId": "",
-    "Amount": "47.60",
+    "Amount": 47.6,
     "StartPeriod": "2016-06-01T00:00:00Z",
     "EndPeriod": "2016-07-31T00:00:00Z",
     "Currency": "USD"
@@ -34,7 +34,7 @@
     "AccountId": "35",
     "Split": "Accounts Receivable (A/R)",
     "SplitId": "84",
-    "Amount": "45.00",
+    "Amount": 45.0,
     "StartPeriod": "2016-06-01T00:00:00Z",
     "EndPeriod": "2016-07-31T00:00:00Z",
     "Currency": "USD"
@@ -54,7 +54,7 @@
     "AccountId": "84",
     "Split": "Design income",
     "SplitId": "82",
-    "Amount": "375.00",
+    "Amount": 375.0,
     "StartPeriod": "2016-06-01T00:00:00Z",
     "EndPeriod": "2016-07-31T00:00:00Z",
     "Currency": "USD"
@@ -74,7 +74,7 @@
     "AccountId": "84",
     "Split": "Sales of Product Income",
     "SplitId": "79",
-    "Amount": "-16.20",
+    "Amount": -16.2,
     "StartPeriod": "2016-06-01T00:00:00Z",
     "EndPeriod": "2016-07-31T00:00:00Z",
     "Currency": "USD"
@@ -94,7 +94,7 @@
     "AccountId": "84",
     "Split": "-Split-",
     "SplitId": "",
-    "Amount": ".00",
+    "Amount": 0.0,
     "StartPeriod": "2016-06-01T00:00:00Z",
     "EndPeriod": "2016-07-31T00:00:00Z",
     "Currency": "USD"
@@ -114,7 +114,7 @@
     "AccountId": "35",
     "Split": "Landscaping Services:Job Materials:Fountains and Garden Lighting",
     "SplitId": "48",
-    "Amount": "54.55",
+    "Amount": 54.55,
     "StartPeriod": "2016-06-01T00:00:00Z",
     "EndPeriod": "2016-07-31T00:00:00Z",
     "Currency": "USD"
@@ -134,7 +134,7 @@
     "AccountId": "84",
     "Split": "Sales of Product Income",
     "SplitId": "79",
-    "Amount": "-16.20",
+    "Amount": -16.2,
     "StartPeriod": "2016-06-01T00:00:00Z",
     "EndPeriod": "2016-07-31T00:00:00Z",
     "Currency": "USD"
@@ -154,7 +154,7 @@
     "AccountId": "84",
     "Split": "-Split-",
     "SplitId": "",
-    "Amount": ".00",
+    "Amount": 0.0,
     "StartPeriod": "2016-06-01T00:00:00Z",
     "EndPeriod": "2016-07-31T00:00:00Z",
     "Currency": "USD"
