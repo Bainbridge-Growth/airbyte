@@ -201,7 +201,7 @@ class QuickbooksReportMonthlyBase(HttpStream):
         self._first_dimension_filter_ids = None  # List of dimension IDs being filtered in fallback mode (for batching)
         self._fallback_batch_size = 1000  # Starting batch size for fallback mode
         self._fallback_mode_first_dimension_items = None  # Cache of dimension items for fallback mode
-        self._not_specified_only = False  # When True, parse_response keeps only "Not Specified" column
+        self._first_dimension_total_only = False  # When True, fetch the plain report (no dimension) and emit it as a DRIVEPOINT_CLASS_TOTAL row
         self._cached_second_dim_pairs = None  # Cache of distinct id->name pairs for second_dimension
         super().__init__(authenticator=authenticator, **kwargs)
 
@@ -457,10 +457,13 @@ class QuickbooksReportMonthlyBase(HttpStream):
 
         # In fallback mode, use summarize_column_by with batched dimension filter
         if self._first_dimension_fallback_mode:
-            if self._not_specified_only:
-                # Fetching "Not Specified" records: no dimension filter, but still use summarize_column_by
-                # so QBO returns the "Not Specified" column (parse_response will keep only that column)
-                params["summarize_column_by"] = self.first_dimension
+            if self._first_dimension_total_only:
+                # Plain report for this period: NO summarize_column_by and NO dimension filter.
+                # This is a small report that always succeeds even when the dimension-summarized
+                # report is too large. parse_response relabels its single value column as the
+                # DRIVEPOINT_CLASS_TOTAL magic row so downstream can derive "Not Specified" =
+                # Total - sum(per-dimension columns) for periods that fell back to batching.
+                pass
             elif self._first_dimension_filter_ids:
                 # Use summarize_column_by to get columns for each dimension in the batch
                 params["summarize_column_by"] = self.first_dimension
@@ -610,38 +613,22 @@ class QuickbooksReportMonthlyBase(HttpStream):
         # Reset fallback state
         self._first_dimension_filter_ids = None
 
-        # Fetch "Not Specified" records: call the report with no dimension filter and keep only
-        # the "Not Specified" column. These are transactions with no class/department assigned
-        # and would be missed by the batched ID-filtered calls above.
-        # NOTE: This call uses summarize_column_by without a dimension filter, so QBO returns
-        # ALL dimension columns at once. If there are too many dimensions this will also hit
-        # ResultSetBigError — in that case we log a warning and skip rather than failing.
-        param_name = get_dimension_query_param_name(self.first_dimension)
-        self.logger.info(f"Fetching 'Not Specified' records (no {param_name} filter) for period {stream_slice.get('start_date')} to {stream_slice.get('end_date')}")
-        self._not_specified_only = True
+        # The batched ID-filtered calls above cannot capture the synthetic "Not Specified"
+        # column — dollars tagged to no dimension item. It is a report-only column with no
+        # entity ID, so it cannot be requested by filter. To recover that amount, pull the
+        # PLAIN report for this period with no dimension breakdown at all (no summarize_column_by,
+        # no filter). That report is small and always succeeds even when the dimension-summarized
+        # report is too large, and we emit it as a DRIVEPOINT_CLASS_TOTAL magic row so downstream
+        # can derive "Not Specified" = Total - sum(per-dimension columns) for this period.
+        self.logger.info(
+            f"Fetching DRIVEPOINT_CLASS_TOTAL report (plain, no {self.first_dimension} breakdown) "
+            f"for period {stream_slice.get('start_date')} to {stream_slice.get('end_date')}"
+        )
+        self._first_dimension_total_only = True
         try:
-            for record in super().read_records(sync_mode, cursor_field, stream_slice, stream_state):
-                yield record
-        except ResultSetBigError:
-            self.logger.warning(
-                f"Could not fetch 'Not Specified' records for period "
-                f"{stream_slice.get('start_date')} to {stream_slice.get('end_date')}: "
-                f"report is too large (ResultSetBigError). 'Not Specified' data will be missing "
-                f"for this period because QBO cannot return all {self.first_dimension} columns at once."
-            )
-        except Exception as e:
-            error_str = str(e)
-            if f"'{RESULT_SET_BIG_ERROR_CODE}'" in error_str or f'"{RESULT_SET_BIG_ERROR_CODE}"' in error_str or f"code': '{RESULT_SET_BIG_ERROR_CODE}'" in error_str:
-                self.logger.warning(
-                    f"Could not fetch 'Not Specified' records for period "
-                    f"{stream_slice.get('start_date')} to {stream_slice.get('end_date')}: "
-                    f"report is too large (ResultSetBigError). 'Not Specified' data will be missing "
-                    f"for this period because QBO cannot return all {self.first_dimension} columns at once."
-                )
-            else:
-                raise
+            yield from super().read_records(sync_mode, cursor_field, stream_slice, stream_state)
         finally:
-            self._not_specified_only = False
+            self._first_dimension_total_only = False
 
     def read_records(self, sync_mode, cursor_field=None, stream_slice=None, stream_state=None):
         # When second_dimension is set AND we haven't fetched dimension items yet,
@@ -811,7 +798,7 @@ class QuickbooksReportMonthlyBase(HttpStream):
         # StartDate/EndDate in MetaData; we extract that so each emitted record
         # gets the correct period (instead of the response-wide Header period).
         # column_indices tracks the original ColData index so we stay aligned even
-        # when columns are filtered out (e.g. "Not Specified" only mode).
+        # when columns are relabeled (e.g. DRIVEPOINT_CLASS_TOTAL plain-report mode).
         column_classes = []
         column_periods = []
         column_indices = []
@@ -845,15 +832,15 @@ class QuickbooksReportMonthlyBase(HttpStream):
             column_periods.append((col_start, col_end))
             column_indices.append(i)
 
-        # In "Not Specified only" mode, keep only the "Not Specified" column
-        if self._not_specified_only:
-            keep = [idx for idx, c in enumerate(column_classes) if c.lower() == "not specified"]
-            if not keep:
-                self.logger.info("No 'Not Specified' column found in response, skipping")
+        # In plain-report "total only" mode (fallback recovery of untagged dollars), the
+        # response carries the account totals with no dimension breakdown. Relabel every
+        # value column as the DRIVEPOINT_CLASS_TOTAL magic row so downstream can derive
+        # "Not Specified" = Total - sum(per-dimension columns) for this period.
+        if self._first_dimension_total_only:
+            if not column_classes:
+                self.logger.info("No value column found in plain total response, skipping")
                 return []
-            column_classes = [column_classes[idx] for idx in keep]
-            column_periods = [column_periods[idx] for idx in keep]
-            column_indices = [column_indices[idx] for idx in keep]
+            column_classes = ["DRIVEPOINT_CLASS_TOTAL"] * len(column_classes)
 
         # Determine report type once before processing rows
         is_profit_loss = False

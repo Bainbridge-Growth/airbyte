@@ -488,8 +488,11 @@ def test_fallback_mode_no_duplicate_records_across_months(requests_mock, mock_fi
       - first_dimension = Classes (2 classes: Retail, Wholesale)
       - balance_sheet_fallback_batched.json has 1 account row × 2 class columns
         → 2 records per slice
+      - each fallback slice also pulls the plain total report
+        (balance_sheet_total_plain.json, 1 account row) → 1 DRIVEPOINT_CLASS_TOTAL
+        record per slice
 
-    Expected: 2 slices × 2 records = 4 total
+    Expected: 2 slices × (2 class + 1 total) records = 6 total
     """
 
     requests_mock.post(
@@ -509,19 +512,21 @@ def test_fallback_mode_no_duplicate_records_across_months(requests_mock, mock_fi
         }
     }
 
-    initial_error_returned = [False]
-
     def report_callback(request, context):
         from urllib.parse import parse_qs, urlparse
         query_params = parse_qs(urlparse(request.url).query)
 
-        # First call: summarize_column_by set but no class filter — triggers fallback
-        if "summarize_column_by" in query_params and "class" not in query_params and not initial_error_returned[0]:
-            initial_error_returned[0] = True
+        # Normal-mode probe for any slice: summarize_column_by set but no class filter —
+        # error every time so each monthly slice falls back (keeps the test symmetric).
+        if "summarize_column_by" in query_params and "class" not in query_params:
             context.status_code = 400
             return result_set_big_error
 
-        # All subsequent calls: batched fallback with class filter — return success
+        # Plain total call: no summarize_column_by at all — the DRIVEPOINT_CLASS_TOTAL recovery
+        if "summarize_column_by" not in query_params:
+            return load_test_data("api_responses/balance_sheet_total_plain.json")
+
+        # Batched fallback call with class filter — return success
         return load_test_data("api_responses/balance_sheet_fallback_batched.json")
 
     requests_mock.get(
@@ -567,14 +572,14 @@ def test_fallback_mode_no_duplicate_records_across_months(requests_mock, mock_fi
         ))
         all_records.extend(slice_records)
 
-    # 2 months × 1 account × 2 classes = 4 records
-    # With the bug: 2 months × (2 months × 1 account × 2 classes) = 8 records
-    records_per_slice = 2  # 1 account row × 2 class columns in balance_sheet_fallback_batched.json
+    # 2 months × (1 account × 2 classes + 1 plain total) = 6 records
+    # With the duplicate bug: each slice would re-emit every other slice's records.
+    records_per_slice = 3  # 2 class columns (batched) + 1 DRIVEPOINT_CLASS_TOTAL (plain total)
     expected_total = len(all_slices) * records_per_slice
     assert len(all_records) == expected_total, (
         f"Expected {expected_total} records ({len(all_slices)} slices × {records_per_slice} records/slice), "
         f"got {len(all_records)}. "
-        f"A count of {expected_total * len(all_slices)} would indicate the duplicate-records bug."
+        f"A larger count would indicate the duplicate-records bug."
     )
 
     # Verify fallback was triggered for at least one period (items cache populated by fallback logic)
@@ -583,10 +588,12 @@ def test_fallback_mode_no_duplicate_records_across_months(requests_mock, mock_fi
     # Fallback flag is reset to False after each period — fallback is per-period, not sticky
     assert balance_sheet_stream._first_dimension_fallback_mode is False
 
-    # Verify both classes appear in records from each slice
+    # Verify both classes plus the plain-total magic row appear in records
     class_values = {r.get("Class") for r in all_records}
     assert "Retail" in class_values
     assert "Wholesale" in class_values
+    assert "DRIVEPOINT_CLASS_TOTAL" in class_values, \
+        "Fallback should emit a DRIVEPOINT_CLASS_TOTAL row so 'Not Specified' can be derived downstream"
 
 
 @freezegun.freeze_time(_NOW.isoformat())
@@ -633,6 +640,10 @@ def test_result_set_big_error_fallback(requests_mock, mock_firebase_client):
         if "summarize_column_by" in query_params and "class" in query_params:
             # Return batched response with columns for each class in the batch
             return load_test_data("api_responses/balance_sheet_fallback_batched.json")
+
+        # Plain total call: no summarize_column_by — the DRIVEPOINT_CLASS_TOTAL recovery
+        if "summarize_column_by" not in query_params:
+            return load_test_data("api_responses/balance_sheet_total_plain.json")
 
         # Shouldn't reach here in normal flow
         return load_test_data("api_responses/balance_sheet_simple.json")
@@ -693,8 +704,8 @@ def test_result_set_big_error_fallback(requests_mock, mock_firebase_client):
         "Fallback flag should be reset to False after period completes (per-period fallback, not sticky)"
 
     # Verify the API was called:
-    # 1 initial call (returns error) + 1 batched call (with both classes) + 1 "Not Specified" call
-    assert report_call_count[0] >= 2, f"Expected at least 2 report API calls (1 error + 1 batch), got {report_call_count[0]}"
+    # 1 initial call (returns error) + 1 batched call (both classes) + 1 plain total call
+    assert report_call_count[0] >= 3, f"Expected at least 3 report API calls (1 error + 1 batch + 1 total), got {report_call_count[0]}"
 
     # Verify classes query was called to get dimension items
     assert classes_query_mock.call_count == 1, "Classes query should be called once to get dimension items"
@@ -707,5 +718,7 @@ def test_result_set_big_error_fallback(requests_mock, mock_firebase_client):
     # Should have records for each class (Retail and Wholesale)
     assert "Retail" in class_values, "Should have Retail records"
     assert "Wholesale" in class_values, "Should have Wholesale records"
+    # And the plain-total magic row from the fallback recovery of untagged ("Not Specified") dollars
+    assert "DRIVEPOINT_CLASS_TOTAL" in class_values, "Should have a DRIVEPOINT_CLASS_TOTAL row"
 
 
