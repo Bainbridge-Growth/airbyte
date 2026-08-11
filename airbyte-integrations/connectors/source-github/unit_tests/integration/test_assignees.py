@@ -113,7 +113,7 @@ class AssigneesTest(TestCase):
         per_partition_state_1 = {"partition": {"repository": "airbytehq/mock-test-1"}, "cursor": {"__ab_full_refresh_sync_complete": True}}
         per_partition_state_2 = {"partition": {"repository": "airbytehq/mock-test-2"}, "cursor": {"__ab_full_refresh_sync_complete": True}}
 
-        source = SourceGithub()
+        source = SourceGithub(config=_CONFIG, catalog=_create_catalog())
         actual_messages = read(source, config=_CONFIG, catalog=_create_catalog())
 
         assert len(actual_messages.records) == 6
@@ -178,14 +178,14 @@ class AssigneesTest(TestCase):
             .build()
         )
 
-        source = SourceGithub()
+        source = SourceGithub(config=_CONFIG, catalog=_create_catalog(), state=incoming_state)
         actual_messages = read(source, config=_CONFIG, catalog=_create_catalog(), state=incoming_state)
 
         assert len(actual_messages.records) == 2
 
         # There should only be on state message since the first two parents were already successfully synced
         assert len(actual_messages.state_messages) == 1
-        final_list_of_per_partition_state = actual_messages.state_messages[0].state.stream.stream_state.model_dump().get("states")
+        final_list_of_per_partition_state = actual_messages.state_messages[0].state.stream.stream_state.states
         assert per_partition_state_0 in final_list_of_per_partition_state
         assert per_partition_state_1 in final_list_of_per_partition_state
         assert per_partition_state_2 in final_list_of_per_partition_state

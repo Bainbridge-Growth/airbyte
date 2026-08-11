@@ -6,7 +6,7 @@ const sectionHeader = (title) => ({
 
 const buildAConnector = {
   type: "category",
-  label: "Building Connectors",
+  label: "Build connectors",
   link: {
     type: "doc",
     id: "connector-development/README",
@@ -24,6 +24,11 @@ const buildAConnector = {
         "connector-development/connector-builder-ui/ai-assist",
         "connector-development/connector-builder-ui/custom-components",
         {
+          label: "Low-Code CDK Intro",
+          type: "doc",
+          id: "connector-development/config-based/low-code-cdk-overview",
+        },
+        {
           type: "category",
           label: "Concepts",
           items: [
@@ -39,13 +44,8 @@ const buildAConnector = {
           ],
         },
         {
-          label: "Low-Code CDK Intro",
-          type: "doc",
-          id: "connector-development/config-based/low-code-cdk-overview",
-        },
-        {
           type: "category",
-          label: "Understanding the YAML file",
+          label: "YAML Components",
           link: {
             type: "doc",
             id: "connector-development/config-based/understanding-the-yaml-file/yaml-overview",
@@ -64,12 +64,12 @@ const buildAConnector = {
                 "connector-development/config-based/understanding-the-yaml-file/error-handling",
               ],
             },
-            "connector-development/config-based/understanding-the-yaml-file/incremental-syncs",
+            "connector-development/config-based/understanding-the-yaml-file/record-selector",
             "connector-development/config-based/understanding-the-yaml-file/pagination",
+            "connector-development/config-based/understanding-the-yaml-file/incremental-syncs",
             "connector-development/config-based/understanding-the-yaml-file/partition-router",
             "connector-development/config-based/understanding-the-yaml-file/property-chunking",
             "connector-development/config-based/understanding-the-yaml-file/rate-limit-api-budget",
-            "connector-development/config-based/understanding-the-yaml-file/record-selector",
             "connector-development/config-based/understanding-the-yaml-file/file-syncing",
             "connector-development/config-based/understanding-the-yaml-file/reference",
           ],
@@ -136,38 +136,17 @@ const buildAConnector = {
       ],
     },
     "connector-development/local-connector-development",
+    "connector-development/submit-new-connector",
+    "connector-development/connector-breaking-changes",
     "connector-development/connector-specification-reference",
     "connector-development/partner-certified-destinations",
+    "operator-guides/using-custom-connectors",
     "connector-development/debugging-docker",
     "connector-development/writing-connector-docs",
     "connector-development/schema-reference",
     "connector-development/connector-metadata-file",
     "connector-development/best-practices",
     "connector-development/ux-handbook",
-  ],
-};
-
-const contributeToAirbyte = {
-  type: "category",
-  label: "Contribute to Airbyte",
-  link: {
-    type: "doc",
-    id: "contributing-to-airbyte/README",
-  },
-  items: [
-    "contributing-to-airbyte/issues-and-requests",
-    "contributing-to-airbyte/change-cdk-connector",
-    "contributing-to-airbyte/submit-new-connector",
-    "contributing-to-airbyte/developing-locally",
-    "contributing-to-airbyte/writing-docs",
-    {
-      type: "category",
-      label: "Resources",
-      items: [
-        "contributing-to-airbyte/resources/pull-requests-handbook",
-        "contributing-to-airbyte/resources/qa-checks",
-      ],
-    },
   ],
 };
 
@@ -249,7 +228,6 @@ const understandingAirbyte = {
     "understanding-airbyte/beginners-guide-to-catalog",
     "understanding-airbyte/supported-data-types",
     "understanding-airbyte/secrets",
-    "understanding-airbyte/cdc",
     "understanding-airbyte/resumability",
     "understanding-airbyte/json-avro-conversion",
     "understanding-airbyte/schemaless-sources-and-destinations",
@@ -263,13 +241,13 @@ module.exports = {
     {
       type: "category",
       collapsible: false,
-      label: "Airbyte Platform",
+      label: "Data replication platform",
       link: {
         type: "doc",
         id: "readme",
       },
       items: [
-        sectionHeader("Getting Started"),
+        sectionHeader("Get started"),
 
         {
           type: "doc",
@@ -284,10 +262,10 @@ module.exports = {
           type: "doc",
           id: "using-airbyte/getting-started/academy",
         },
-        sectionHeader("Moving and Managing Data"),
+        sectionHeader("Move and manage data"),
         {
           type: "category",
-          label: "Moving data",
+          label: "Move data",
           link: {
             type: "doc",
             id: "move-data/readme",
@@ -355,6 +333,19 @@ module.exports = {
                     "using-airbyte/core-concepts/sync-modes/full-refresh-append",
                     "using-airbyte/core-concepts/sync-modes/full-refresh-overwrite",
                     "using-airbyte/core-concepts/sync-modes/full-refresh-overwrite-deduped",
+                    {
+                      type: "category",
+                      label: "Change Data Capture (CDC)",
+                      link: {
+                        type: "generated-index",
+                        title: "Change Data Capture (CDC)",
+                        description: "Learn about CDC in Airbyte and best practices for configuration.",
+                      },
+                      items: [
+                        "understanding-airbyte/cdc",
+                        "understanding-airbyte/cdc-best-practices",
+                      ],
+                    },
                   ],
                 },
               ],
@@ -370,30 +361,83 @@ module.exports = {
                 "move-data/rejected-records"
               ],
             },
-            "using-airbyte/sync-files-and-records"
-          ],
-        },        
-        buildAConnector,
-        sectionHeader("Managing Airbyte"),
-        deployAirbyte,
-        {
-          type: "category",
-          label: "Self-Managed Enterprise",
-          link: {
-            type: "doc",
-            id: "enterprise-setup/README",
-          },
-          items: [
-            "enterprise-setup/implementation-guide",
-            "enterprise-setup/api-access-config",
-            "enterprise-setup/multi-region",
-            "enterprise-setup/audit-logging",
-            "enterprise-setup/scaling-airbyte",
-            "enterprise-setup/upgrade-service-account",
-            "enterprise-setup/upgrading-from-community",
-            "enterprise-setup/chart-v2-enterprise",
+            "using-airbyte/sync-files-and-records",
           ],
         },
+        {
+          type: "category",
+          label: "Organizations and workspaces",
+          link: {
+            type: "doc",
+            id: "organizations-workspaces/readme",
+          },
+          items: [
+            {
+              type: "category",
+              label: "Organizations",
+              link: {
+                type: "doc",
+                id: "organizations-workspaces/organizations/readme",
+              },
+              items: [
+                "organizations-workspaces/organizations/switch-organizations",
+                "cloud/managing-airbyte-cloud/manage-credits",
+                "cloud/managing-airbyte-cloud/manage-data-workers",
+              ],
+            },
+            {
+              type: "category",
+              label: "Workspaces",
+              link: {
+                type: "doc",
+                id: "organizations-workspaces/workspaces/readme",
+              },
+              items: [
+                "using-airbyte/workspaces",
+                "cloud/managing-airbyte-cloud/manage-data-residency",
+                "cloud/managing-airbyte-cloud/manage-airbyte-cloud-notifications",
+              ],
+            },
+            {
+              type: "category",
+              label: "Access management",
+              items: [
+                {
+                  type: "category",
+                  label: "Single Sign-On (SSO)",
+                  link: {
+                    type: "doc",
+                    id: "access-management/sso",
+                  },
+                  items: [
+                    {
+                      type: "autogenerated",
+                      dirName: "access-management/sso-providers",
+                    },
+                  ],
+                },
+                {
+                  type: "category",
+                  label: "Role-Based Access Control (RBAC)",
+                  link: {
+                    type: "doc",
+                    id: "access-management/rbac",
+                  },
+                  items: [
+                    {
+                      type: "doc",
+                      id: "access-management/role-mapping",
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },   
+        buildAConnector,     
+        sectionHeader("Deploy and upgrade Airbyte"),
+        deployAirbyte,
+        "enterprise-setup/README",
         {
           type: "category",
           label: "Enterprise Flex",
@@ -403,7 +447,9 @@ module.exports = {
           },
           items: [
             "enterprise-flex/getting-started",
-            "enterprise-flex/data-plane"
+            "enterprise-flex/data-plane",
+            "enterprise-flex/data-plane-util",
+            "enterprise-flex/log-collection",
           ],
         },
         {
@@ -427,59 +473,11 @@ module.exports = {
             "operator-guides/telemetry",
           ],
         },
-
-        {
-          type: "category",
-          label: "Access Management",
-          items: [
-            {
-              type: "category",
-              label: "Single Sign-On (SSO)",
-              link: {
-                type: "doc",
-                id: "access-management/sso",
-              },
-              items: [
-                {
-                  type: "autogenerated",
-                  dirName: "access-management/sso-providers",
-                },
-              ],
-            },
-            {
-              type: "category",
-              label: "Role-Based Access Control (RBAC)",
-              link: {
-                type: "doc",
-                id: "access-management/rbac",
-              },
-              items: [
-                {
-                  type: "doc",
-                  id: "access-management/role-mapping",
-                },
-              ],
-            },
-          ],
-        },
         {
           type: "category",
           label: "Airbyte at Scale",
           items: [
-            {
-              type: "category",
-              label: "Collecting Metrics",
-              link: {
-                type: "doc",
-                id: "operator-guides/collecting-metrics",
-              },
-              items: [
-                {
-                  type: "doc",
-                  id: "operator-guides/open-telemetry",
-                },
-              ],
-            },
+            "operator-guides/collecting-metrics",
             "operator-guides/scaling-airbyte",
             "cloud/managing-airbyte-cloud/understand-airbyte-cloud-limits",
           ],
@@ -496,70 +494,29 @@ module.exports = {
               type: "doc",
               id: "operating-airbyte/ip-allowlist",
             },
+            {
+              type: "doc",
+              id: "operating-airbyte/privatelink",
+            },
+            {
+              type: "doc",
+              id: "operating-airbyte/external-secrets",
+            },
           ],
         },
         {
           type: "category",
           label: "Integrating with Airbyte",
           items: [
-            "using-airbyte/configuring-api-access",
             "operator-guides/using-the-airflow-airbyte-operator",
-            "operator-guides/using-prefect-task",
             "operator-guides/using-dagster-integration",
             "operator-guides/using-kestra-plugin",
             "operator-guides/using-orchestra-task",
           ],
         },
-        {
-          type: "category",
-          label: "Account Management",
-          items: [
-            "cloud/managing-airbyte-cloud/manage-data-residency",
-            "using-airbyte/workspaces",
-            "cloud/managing-airbyte-cloud/manage-airbyte-cloud-notifications",
-            "cloud/managing-airbyte-cloud/manage-credits",
-            "operator-guides/using-custom-connectors",
-          ],
-        },
-        sectionHeader("Developer Guides"),
-        {
-          type: "doc",
-          id: "api-documentation",
-        },
-        {
-          type: "doc",
-          id: "terraform-documentation",
-        },
-        {
-          type: "doc",
-          label: "Using PyAirbyte",
-          id: "using-airbyte/pyairbyte/getting-started",
-        },
+        sectionHeader("Advanced"),
+        "using-airbyte/configuring-api-access",
         understandingAirbyte,
-        {
-          type: "category",
-          label: "Licenses",
-          link: {
-            type: "doc",
-            id: "developer-guides/licenses/README",
-          },
-          items: [
-            "developer-guides/licenses/license-faq",
-            "developer-guides/licenses/elv2-license",
-            "developer-guides/licenses/mit-license",
-            "developer-guides/licenses/examples",
-          ],
-        },
-        sectionHeader("Community"),
-        contributeToAirbyte,
-        "community/getting-support",
-        "community/code-of-conduct",
-        sectionHeader("Product Updates"),
-        {
-          type: "link",
-          label: "Roadmap",
-          href: "https://go.airbyte.com/roadmap",
-        },
       ],
     },
   ],

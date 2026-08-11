@@ -39,6 +39,10 @@ The Lever Hiring connector should not run into Lever Hiring API limitations unde
 - Lever Hiring Client Secret
 - Lever Hiring Refresh Token
 
+## IP allow list
+
+If you use Airbyte Cloud and your organization restricts access to specific IPs, add the [Airbyte Cloud IP addresses](https://docs.airbyte.com/platform/operating-airbyte/ip-allowlist) to your allow list.
+
 ## Changelog
 
 <details>
@@ -46,6 +50,33 @@ The Lever Hiring connector should not run into Lever Hiring API limitations unde
 
 | Version | Date       | Pull Request                                             | Subject                           |
 |:--------|:-----------|:---------------------------------------------------------|:----------------------------------|
+| 0.4.39 | 2026-08-04 | [83535](https://github.com/airbytehq/airbyte/pull/83535) | Update dependencies |
+| 0.4.38 | 2026-07-28 | [83011](https://github.com/airbytehq/airbyte/pull/83011) | Update dependencies |
+| 0.4.37 | 2026-07-21 | [82510](https://github.com/airbytehq/airbyte/pull/82510) | Update dependencies |
+| 0.4.36 | 2026-07-14 | [81920](https://github.com/airbytehq/airbyte/pull/81920) | Update dependencies |
+| 0.4.35 | 2026-06-30 | [81138](https://github.com/airbytehq/airbyte/pull/81138) | Update dependencies |
+| 0.4.34 | 2026-06-23 | [80552](https://github.com/airbytehq/airbyte/pull/80552) | Update dependencies |
+| 0.4.33 | 2026-06-16 | [79956](https://github.com/airbytehq/airbyte/pull/79956) | Update dependencies |
+| 0.4.32 | 2026-06-09 | [79384](https://github.com/airbytehq/airbyte/pull/79384) | Update dependencies |
+| 0.4.31 | 2026-06-02 | [78801](https://github.com/airbytehq/airbyte/pull/78801) | Update dependencies |
+| 0.4.30 | 2026-04-28 | [77295](https://github.com/airbytehq/airbyte/pull/77295) | Update dependencies |
+| 0.4.29 | 2026-04-21 | [76653](https://github.com/airbytehq/airbyte/pull/76653) | Update dependencies |
+| 0.4.28 | 2026-03-31 | [75032](https://github.com/airbytehq/airbyte/pull/75032) | Update dependencies |
+| 0.4.27 | 2026-02-24 | [73939](https://github.com/airbytehq/airbyte/pull/73939) | Update dependencies |
+| 0.4.26 | 2026-02-17 | [73554](https://github.com/airbytehq/airbyte/pull/73554) | Update dependencies |
+| 0.4.25 | 2026-02-10 | [73047](https://github.com/airbytehq/airbyte/pull/73047) | Update dependencies |
+| 0.4.24 | 2026-02-03 | [72762](https://github.com/airbytehq/airbyte/pull/72762) | Update dependencies |
+| 0.4.23 | 2026-01-20 | [72002](https://github.com/airbytehq/airbyte/pull/72002) | Update dependencies |
+| 0.4.22 | 2026-01-14 | [71449](https://github.com/airbytehq/airbyte/pull/71449) | Update dependencies |
+| 0.4.21 | 2025-12-18 | [70794](https://github.com/airbytehq/airbyte/pull/70794) | Update dependencies |
+| 0.4.20 | 2025-11-25 | [69501](https://github.com/airbytehq/airbyte/pull/69501) | Update dependencies |
+| 0.4.19 | 2025-10-29 | [68936](https://github.com/airbytehq/airbyte/pull/68936) | Update dependencies |
+| 0.4.18 | 2025-10-21 | [68331](https://github.com/airbytehq/airbyte/pull/68331) | Update dependencies |
+| 0.4.17 | 2025-10-14 | [68064](https://github.com/airbytehq/airbyte/pull/68064) | Update dependencies |
+| 0.4.16 | 2025-10-07 | [67526](https://github.com/airbytehq/airbyte/pull/67526) | Update dependencies |
+| 0.4.15 | 2025-09-30 | [66814](https://github.com/airbytehq/airbyte/pull/66814) | Update dependencies |
+| 0.4.14 | 2025-09-24 | [66648](https://github.com/airbytehq/airbyte/pull/66648) | Update dependencies |
+| 0.4.13 | 2025-09-09 | [66083](https://github.com/airbytehq/airbyte/pull/66083) | Update dependencies |
 | 0.4.12 | 2025-08-23 | [65324](https://github.com/airbytehq/airbyte/pull/65324) | Update dependencies |
 | 0.4.11 | 2025-08-09 | [64602](https://github.com/airbytehq/airbyte/pull/64602) | Update dependencies |
 | 0.4.10 | 2025-08-02 | [64302](https://github.com/airbytehq/airbyte/pull/64302) | Update dependencies |

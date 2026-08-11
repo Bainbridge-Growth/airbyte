@@ -6,14 +6,15 @@ data:
     hosts:
       - api.twilio.com
       - monitor.twilio.com
-      - chat.twilio.com
+      - conversations.twilio.com
+      - studio.twilio.com
       - trunking.twilio.com
   connectorBuildOptions:
-    baseImage: docker.io/airbyte/source-declarative-manifest:6.61.6@sha256:a86098c6af1cf9d0b4484f33c973981a4d4f16740924ce9325b01ee4c8ca33df
+    baseImage: docker.io/airbyte/source-declarative-manifest:7.23.8@sha256:58d3593d8e816d4a346570570d5a42bb78e41de344f8c74c2a5c225acdc4c4d1
   connectorSubtype: api
   connectorType: source
   definitionId: b9dc6155-672e-42ea-b10d-9f1f1fb95ab1
-  dockerImageTag: 0.17.0-rc.1
+  dockerImageTag: 1.0.12
   dockerRepository: airbyte/source-twilio
   documentationUrl: https://docs.airbyte.com/integrations/sources/twilio
   githubIssueLabel: source-twilio
@@ -32,8 +33,29 @@ data:
       enabled: true
   releaseStage: generally_available
   releases:
+    breakingChanges:
+      1.0.0:
+        message: >-
+          The `services` and `roles` streams have been migrated from Twilio's deprecated
+          Programmable Chat API (`chat.twilio.com/v2`) to the Twilio Conversations API
+          (`conversations.twilio.com/v1`). Twilio is retiring Programmable Chat on June 1, 2026.
+          Existing Service and Role SIDs carry over automatically, but the record schema for
+          these two streams has been simplified to match the Conversations API response and
+          the `service_sid` field on `roles` records is renamed to `chat_service_sid`.
+          Users of the `services` and `roles` streams should refresh the source schema and
+          clear data for those streams after upgrading.
+        upgradeDeadline: "2026-05-30"
+        scopedImpact:
+          - scopeType: stream
+            impactedScopes:
+              - services
+              - roles
     rolloutConfiguration:
-      enableProgressiveRollout: true
+      enableProgressiveRollout: false
+  suggestedStreams:
+    streams:
+      - calls
+      - messages
   supportLevel: certified
   tags:
     - language:manifest-only
@@ -58,4 +80,23 @@ data:
           secretStore:
             type: GSM
             alias: airbyte-connector-testing-secret-store
+  externalDocumentationUrls:
+    - title: Twilio API reference
+      url: https://www.twilio.com/docs/usage/api
+      type: api_reference
+    - title: Twilio Changelog
+      url: https://www.twilio.com/en-us/changelog
+      type: api_release_history
+    - title: Twilio authentication
+      url: https://www.twilio.com/docs/iam/api-keys
+      type: authentication_guide
+    - title: Twilio API OpenAPI specification
+      url: https://github.com/twilio/twilio-oai
+      type: openapi_spec
+    - title: Twilio rate limits
+      url: https://www.twilio.com/docs/usage/api#rate-limiting
+      type: rate_limits
+    - title: Twilio Status
+      url: https://status.twilio.com/
+      type: status_page
 metadataSpecVersion: "1.0"

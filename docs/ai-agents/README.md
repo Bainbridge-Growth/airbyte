@@ -1,94 +1,40 @@
 ---
-products: embedded
+plan: all
+sidebar_position: 1
 ---
 
-# AI Agents
-Airbyte provides multiple tools to help you build data applications.
+# Airbyte Agents
 
-- **Airbyte Embedded Widget**: App development teams who have signed up for Airbyte Embedded and are looking to get started onboarding customers using the Embedded Widget can follow the get started guide at the bottom of this page, which will step you through a complete sample onboarding app.
-- **MCP Server**: App developers looking to utilize PyAirbyte to generate pipelines in code can follow the steps below to utilize the PyAirbyte MCP server. 
-- **Authentication Proxies**: Connect safely to 3rd party APIs using Airbyte's Authentication Proxies.
+Airbyte Agents is a data and context layer for AI agents. It gives your agents real-time access to business data through open source, type-safe connectors, managed credentials, and low-latency search. Use it as a cloud platform or import connectors directly into your own agents.
 
+[Sign up free at app.airbyte.ai](https://app.airbyte.ai) or [get started with the docs](/ai-agents/get-started/).
 
-## Prerequisites
+## Try it now
 
-Before using any Airbyte developer tools, ensure you have:
+<QuickInstall />
 
-- **Airbyte Cloud account**: Sign up at [cloud.airbyte.com](https://cloud.airbyte.com)
-- **Embedded access**: Contact michel@airbyte.io or teo@airbyte.io to enable Airbyte Embedded on your account
-- **API credentials**: Available in your Airbyte Cloud dashboard under Settings > Applications
+## Dive into the docs
 
-## Airbyte Embedded
+<Grid columns="2">
 
-[Airbyte Embedded](https://airbyte.com/embedded) provides product and software teams the tools and services to move data to provide context for AI applications.
+<CardWithIcon title="Get started" description="New to Airbyte Agents? Learn what the product is, choose the right interface, or jump straight into building." ctaText="Get started" ctaLink="/ai-agents/get-started/" icon="fa-rocket" />
 
-### Embedded Workspaces & Widget
+<CardWithIcon title="Core concepts" description="Understand the building blocks: the Connect-Ask-Act model, agent operations, the Context Store, and system architecture." ctaText="Core concepts" ctaLink="/ai-agents/concepts/" icon="fa-lightbulb" />
 
-Airbyte Embedded creates isolated workspaces for each of your customers, allowing them to configure their own data sources while keeping their data separate and secure. The Embedded Widget provides a pre-built UI component that handles the entire user onboarding flow, from authentication to source configuration.
+</Grid>
 
-:::info
-Currently, S3 is the only supported destination for Airbyte Embedded. Additional destinations will be supported in the future.
-:::
+<Grid columns="2">
 
-Once your Organization is enabled via Airbyte Embedded, you can begin onboarding customers via the Embedded Widget. You can download the code for the onboarding app [via GitHub](https://github.com/airbytehq/embedded-demoapp).
+<CardWithIcon title="Interfaces" description="Choose how to work with your data across the interfaces Airbyte Agents supports." ctaText="Interfaces" ctaLink="/ai-agents/interfaces/" icon="fa-plug" />
 
+<CardWithIcon title="Agent connectors" description="Browse the catalog of open-source connectors that equip agents to call third-party APIs." ctaText="Agent connectors" ctaLink="/ai-agents/connectors/" icon="fa-puzzle-piece" />
 
-## PyAirbyte MCP
+</Grid>
 
-[The PyAirbyte remote MCP server](./pyairbyte-mcp/README.md) provides the ability for application developers to generate a data pipeline in Python using a single prompt. It is currently designed to work within Cursor, with broader support coming in the near future.
+<Grid columns="2">
 
-## Proxy Requests
+<CardWithIcon title="Reference" description="API and SDK reference documentation." ctaText="Reference" ctaLink="/ai-agents/reference/" icon="fa-book" />
 
-### API Sources
-:::warning
-The Airbyte Proxy feature is in alpha, which means it is still in active development and may include backward-incompatible changes. [Share feedback and requests directly with us](mailto:sonar@airbyte.io).
-:::
+<CardWithIcon title="Account and administration" description="Manage billing, plans, payments, and usage." ctaText="Administration" ctaLink="/ai-agents/admin/" icon="fa-gear" />
 
-Airbyte's Authentication Proxy enables you to submit authenticated requests to external APIs. It can be both to fetch and write data.
-
-Here's an example of how to query an external API with the proxy:
-
-```bash
-curl -X POST -H 'Content-Type: application/json' \
--H 'Authorization: Bearer {AIRBYTE_ACCESS_TOKEN}' \
--d {"method": "GET", "url": "https://api.stripe.com/v1/balance", "headers": {"additional_header_key": "value"}}' \
-'https://api.airbyte.ai/api/v1/sonar/apis/{SOURCE_ID}/request'
-```
-
-Here's an example of a POST:
-
-```bash
-curl -X POST -H 'Content-Type: application/json' \
--H 'Authorization: Bearer {AIRBYTE_ACCESS_TOKEN}' \
--d {"method": "POST", "url": "https://api.stripe.com/v1/balance", "body": {"key": "value"}}' \
-'https://api.airbyte.ai/api/v1/sonar/apis/{SOURCE_ID}/request'
-```
-
-Airbyte's Authentication Proxy can be used to authenticate using a Source configured through the Widget.
-
-The following integrations are currently supported. More will follow shortly:
-- Stripe
-
-### File Storage Sources
-
-Airbyte's File Storage Proxy enables you to submit authenticated requests to file storage sources. It can be used to list or fetch files.
-
-Here's an example of how to list files:
-```bash
-curl -X GET -H 'Content-Type: application/json' \
--H 'Authorization: Bearer {AIRBYTE_ACCESS_TOKEN}' \
-'https://api.airbyte.ai/api/v1/sonar/files/{SOURCE_ID}/list/path/to/directory/or/file/prefix'
-```
-
-Here's an example of how to fetch a file:
-```bash
-curl -X GET -H 'Content-Type: application/octet-stream' \
--H 'Authorization: Bearer {AIRBYTE_ACCESS_TOKEN}' \
--H 'Range: bytes=0-1048575' \
-'https://api.airbyte.ai/api/v1/sonar/files/{SOURCE_ID}/get/path/to/file'
-```
-
-For small files, you may omit the `Range` header.
-
-The following integrations are currently supported. More will follow shortly:
-- S3
+</Grid>
