@@ -1,6 +1,6 @@
 ---
 description: Trigger Airbyte jobs with Orchestra in seconds
-products: all
+products: oss-*
 ---
 
 # Using an Orchestra Task

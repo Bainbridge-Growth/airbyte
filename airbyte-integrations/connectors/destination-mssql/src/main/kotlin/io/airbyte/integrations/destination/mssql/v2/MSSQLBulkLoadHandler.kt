@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 Airbyte, Inc., all rights reserved.
+ * Copyright (c) 2024 Airbyte, Inc., all rights reserved.
  */
 
 package io.airbyte.integrations.destination.mssql.v2
@@ -71,8 +71,8 @@ class MSSQLBulkLoadHandler(
     }
 
     /**
-     * Bulk load CSV data into a staging table in the target schema, then upsert (merge) into the
-     * main table when there are multiple primary key columns. This helps deduplicate records.
+     * Bulk load CSV data into a local temp table, then upsert (merge) into a main table when there
+     * are multiple primary key columns. This helps deduplicate records.
      *
      * @param primaryKeyColumns A list of the column names that form the composite PK
      * @param nonPkColumns A list of non-PK column names
@@ -92,35 +92,32 @@ class MSSQLBulkLoadHandler(
             throw IllegalArgumentException("At least one primary key column is required.")
         }
 
-        val stagingTableName = generateStagingTableName()
+        val tempTableName = generateLocalTempTableName()
 
         dataSource.connection.use { conn ->
             conn.autoCommit = false
             try {
-                // Create a staging table in the target schema (avoids global temp tables
-                // in tempdb, which fail on Azure SQL DB due to permission restrictions)
-                createStagingTable(conn, stagingTableName)
-                // Bulk load the CSV data into the staging table
+                // Create the temp table
+                createTempTable(conn, tempTableName)
+                // Bulk load the CSV data into the temp table
                 val bulkInsertSql =
                     buildBulkInsertSql(
-                        quotedTableName = quoteIdentifier(schemaName, stagingTableName),
+                        quotedTableName = "[$tempTableName]",
                         dataFilePath = dataFilePath,
                         formatFilePath = formatFilePath,
                         rowsPerBatch = rowsPerBatch,
                     )
                 logger.info {
-                    "Starting bulk insert into staging table: $schemaName.$stagingTableName from file: $dataFilePath"
+                    "Starting bulk insert into temp table: $tempTableName from file: $dataFilePath"
                 }
                 conn.prepareStatement(bulkInsertSql).use { stmt -> stmt.executeUpdate() }
-                logger.info {
-                    "Bulk insert completed successfully for staging table: $schemaName.$stagingTableName"
-                }
+                logger.info { "Bulk insert completed successfully for temp table: $tempTableName" }
 
-                // Deduplicate staging table
-                deduplicateStagingTable(conn, stagingTableName, primaryKeyColumns, cursorColumns)
+                // Deduplicate temp table
+                deduplicateTempTable(conn, tempTableName, primaryKeyColumns, cursorColumns)
 
                 // Merge into the main table
-                val mergeSql = buildMergeSql(stagingTableName, primaryKeyColumns, nonPkColumns)
+                val mergeSql = buildMergeSql(tempTableName, primaryKeyColumns, nonPkColumns)
                 logger.info { "Starting MERGE into: $schemaName.$mainTableName" }
                 conn.prepareStatement(mergeSql).use { stmt -> stmt.executeUpdate() }
                 logger.info {
@@ -135,25 +132,16 @@ class MSSQLBulkLoadHandler(
                 }
                 conn.rollback()
                 throw ex
-            } finally {
-                try {
-                    dropStagingTable(conn, stagingTableName)
-                } catch (cleanupEx: SQLException) {
-                    logger.warn(cleanupEx) {
-                        "Failed to drop staging table $schemaName.$stagingTableName: ${cleanupEx.message}"
-                    }
-                }
             }
         }
     }
 
-    private fun deduplicateStagingTable(
+    private fun deduplicateTempTable(
         conn: Connection,
-        stagingTableName: String,
+        tempTableName: String,
         primaryKeyColumns: List<String>,
         cursorColumns: List<String>
     ) {
-        val quotedStagingTable = quoteIdentifier(schemaName, stagingTableName)
         // Build the partition clause for primary keys, e.g. T.[id1], T.[id2]
         val pkPartition = primaryKeyColumns.joinToString(", ") { "T.[$it]" }
 
@@ -175,16 +163,16 @@ class MSSQLBulkLoadHandler(
                     PARTITION BY $pkPartition
                     ORDER BY $orderByClause
                 ) AS row_num
-            FROM $quotedStagingTable T
+            FROM [$tempTableName] T
         )
         DELETE
         FROM Dedup_CTE
         WHERE row_num > 1;
     """.trimIndent()
 
-        logger.info { "Starting deduplication for staging table: $schemaName.$stagingTableName" }
+        logger.info { "Starting deduplication for temp table: $tempTableName" }
         conn.prepareStatement(dedupSql).use { stmt -> stmt.executeUpdate() }
-        logger.info { "Deduplication completed for staging table: $schemaName.$stagingTableName" }
+        logger.info { "Deduplication completed for temp table: $tempTableName" }
     }
 
     private fun handleCdcDeletes(conn: Connection) {
@@ -232,26 +220,16 @@ class MSSQLBulkLoadHandler(
             .trimIndent()
     }
 
-    /**
-     * Creates a staging table in the target schema by cloning the column structure from the main
-     * table.
-     */
-    private fun createStagingTable(conn: Connection, stagingTableName: String) {
-        val createStagingTableSql =
+    /** Creates a Global temp table by cloning the column structure from the main table. */
+    private fun createTempTable(conn: Connection, tempTableName: String) {
+        val createTempTableSql =
             """
             SELECT TOP 0 *
-            INTO ${quoteIdentifier(schemaName, stagingTableName)}
+            INTO [${tempTableName}]
             FROM ${quoteIdentifier(schemaName, mainTableName)}
         """.trimIndent()
 
-        conn.prepareStatement(createStagingTableSql).use { stmt -> stmt.executeUpdate() }
-        conn.commit()
-    }
-
-    /** Drops the staging table after the merge operation completes. */
-    private fun dropStagingTable(conn: Connection, stagingTableName: String) {
-        val dropSql = "DROP TABLE IF EXISTS ${quoteIdentifier(schemaName, stagingTableName)}"
-        conn.prepareStatement(dropSql).use { stmt -> stmt.executeUpdate() }
+        conn.prepareStatement(createTempTableSql).use { stmt -> stmt.executeUpdate() }
         conn.commit()
     }
 
@@ -260,12 +238,11 @@ class MSSQLBulkLoadHandler(
      * names to avoid keyword conflicts.
      */
     private fun buildMergeSql(
-        stagingTableName: String,
+        tempTableName: String,
         primaryKeyColumns: List<String>,
         nonPkColumns: List<String>
     ): String {
         val quotedTableName = quoteIdentifier(schemaName = schemaName, tableName = mainTableName)
-        val quotedStagingTable = quoteIdentifier(schemaName, stagingTableName)
         // 1. ON condition:
         //    e.g. Target.[Pk1] = Source.[Pk1] AND Target.[Pk2] = Source.[Pk2]
         val onCondition = primaryKeyColumns.joinToString(" AND ") { "Target.[$it] = Source.[$it]" }
@@ -284,7 +261,7 @@ class MSSQLBulkLoadHandler(
 
         return """
         MERGE INTO $quotedTableName AS Target
-        USING $quotedStagingTable AS Source
+        USING [$tempTableName] AS Source
             ON $onCondition
         WHEN MATCHED THEN
             UPDATE SET
@@ -296,10 +273,10 @@ class MSSQLBulkLoadHandler(
     """.trimIndent()
     }
 
-    /** Generates a staging table name with a timestamp suffix to avoid collisions. */
-    private fun generateStagingTableName(): String {
+    /** Generates a local temp table name with a timestamp suffix to avoid collisions. */
+    private fun generateLocalTempTableName(): String {
         val timestamp =
             LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS"))
-        return "_airbyte_staging_${timestamp}_${Random.nextInt().absoluteValue}"
+        return "##TempTable_${timestamp}_${Random.nextInt().absoluteValue}"
     }
 }

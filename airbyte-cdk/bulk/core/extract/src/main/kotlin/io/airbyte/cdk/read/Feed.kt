@@ -1,9 +1,9 @@
-/* Copyright (c) 2026 Airbyte, Inc., all rights reserved. */
+/* Copyright (c) 2024 Airbyte, Inc., all rights reserved. */
 package io.airbyte.cdk.read
 
 import io.airbyte.cdk.StreamIdentifier
-import io.airbyte.cdk.discover.DataOrMetaField
-import io.airbyte.cdk.discover.EmittedField
+import io.airbyte.cdk.discover.Field
+import io.airbyte.cdk.discover.FieldOrMetaField
 
 /**
  * [Feed] identifies part of the data consumed during a READ operation.
@@ -30,10 +30,10 @@ data class Global(
  */
 data class Stream(
     val id: StreamIdentifier,
-    val schema: Set<DataOrMetaField>,
+    val schema: Set<FieldOrMetaField>,
     val configuredSyncMode: ConfiguredSyncMode,
-    val configuredPrimaryKey: List<EmittedField>?,
-    val configuredCursor: DataOrMetaField?,
+    val configuredPrimaryKey: List<Field>?,
+    val configuredCursor: FieldOrMetaField?,
 ) : Feed {
     val name: String
         get() = id.name
@@ -44,8 +44,8 @@ data class Stream(
     override val label: String
         get() = id.toString()
 
-    val fields: List<EmittedField>
-        get() = schema.filterIsInstance<EmittedField>()
+    val fields: List<Field>
+        get() = schema.filterIsInstance<Field>()
 }
 
 /** List of [Stream]s this [Feed] emits records for. */

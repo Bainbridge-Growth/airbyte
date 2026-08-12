@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 Airbyte, Inc., all rights reserved.
+ * Copyright (c) 2024 Airbyte, Inc., all rights reserved.
  */
 
 package io.airbyte.cdk.read.cdc
@@ -16,7 +16,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import java.util.concurrent.atomic.AtomicReference
 
 /** [PartitionsCreator] implementation for CDC with Debezium. */
-class CdcPartitionsCreator<T : PartiallyOrdered<T>>(
+class CdcPartitionsCreator<T : Comparable<T>>(
     val concurrencyResource: ConcurrencyResource,
     val resourceAcquirer: ResourceAcquirer,
     val feedBootstrap: GlobalFeedBootstrap,
@@ -105,8 +105,6 @@ class CdcPartitionsCreator<T : PartiallyOrdered<T>>(
                 startingSchemaHistory = null
             }
         }
-        // Optional startup hook
-        creatorOps.runStartup(startingOffset)
         // Build and return PartitionReader instance, if applicable.
         val partitionReader =
             CdcPartitionReader(
@@ -127,14 +125,14 @@ class CdcPartitionsCreator<T : PartiallyOrdered<T>>(
             log.info { "Current offset is synthetic." }
             return listOf(partitionReader)
         }
-        if (lowerBound.isGreaterOrEqual(upperBound)) {
+        if (upperBound <= lowerBound) {
             // Handle completion due to reaching the WAL position upper bound.
             log.info {
                 "Current position '$lowerBound' equals or exceeds target position '$upperBound'."
             }
             return emptyList()
         }
-        if (lowerBoundInPreviousRound.isGreaterOrEqual(lowerBound)) {
+        if (lowerBoundInPreviousRound != null && lowerBound <= lowerBoundInPreviousRound) {
             // Handle completion due to stalling.
             log.info {
                 "Current position '$lowerBound' has not increased in the last round, " +

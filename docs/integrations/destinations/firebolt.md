@@ -4,12 +4,6 @@ This page guides you through the process of setting up the Firebolt destination 
 
 ## Prerequisites
 
-1. Firebolt Account: You need an active Firebolt account. Sign up [here](https://www.firebolt.io/) if you don’t have one.
-2. Firebolt Database and Engine created: Follow the [guide](https://docs.firebolt.io/guides/operate-engines/working-with-engines-using-ddl) to create an engine if you don't have one in your Firebolt workspace.
-3. Service Account credentials: all programmatic access to Firebolt requires a service account to interact with the database. Create a service account as described in this [guide](https://docs.firebolt.io/guides/managing-your-organization/service-accounts) and note its ID and secret.
-
-## Replication strategies
-
 This Firebolt destination connector has two replication strategies:
 
 1. SQL: Replicates data via SQL INSERT queries. This leverages
@@ -22,23 +16,24 @@ This Firebolt destination connector has two replication strategies:
    [approach](https://docs.firebolt.io/godocs/Guides/loading-data/loading-data.html). Requires an S3 bucket and
    credentials in addition to Firebolt credentials.
 
-## Connection parameters
+For SQL strategy:
 
-- **Client ID**
-  - Your service account id.
-- **Client Secret**
-  - Your service account secret.
-- **Account**
-  - Your firebolt [account](https://docs.firebolt.io/guides/managing-your-organization/managing-accounts).
+- **Host**
+- **Username**
+- **Password**
 - **Database**
-  - The database name where you want the data to be stored.
+- **Account**
 - **Engine**
-  - Name of the engine that will run the queries.
-- **Host (optional)**
-  - Firebolt backend URL. Can be left blank for most usecases.
 
-Additionally, for S3 strategy:
+Airbyte automatically picks an approach depending on the given configuration - if S3 configuration
+is present, Airbyte will use the S3 strategy.
 
+For S3 strategy:
+
+- **Username**
+- **Password**
+- **Database**
+- **Account**
 - **S3 Bucket Name**
   - See [this](https://docs.aws.amazon.com/AmazonS3/latest/userguide/create-bucket-overview.html) to
     create an S3 bucket.
@@ -53,6 +48,10 @@ Additionally, for S3 strategy:
     to objects in the staging bucket.
 - **Secret Access Key**
   - Corresponding key to the above key id.
+- **Host (optional)**
+  - Firebolt backend URL. Can be left blank for most usecases.
+- **Engine (optional)**
+  - If connecting to a non-default engine you should specify its name or url here.
 
 ## Setup guide
 
@@ -71,13 +70,11 @@ Additionally, for S3 strategy:
 
 ## Supported sync modes
 
-| Sync mode | Supported? |
-| :--- | :--- |
-| [Full Refresh - Overwrite](https://docs.airbyte.com/platform/using-airbyte/core-concepts/sync-modes/full-refresh-overwrite) | Yes |
-| [Full Refresh - Append](https://docs.airbyte.com/platform/using-airbyte/core-concepts/sync-modes/full-refresh-append) | Yes |
-| [Full Refresh - Overwrite + Deduped](https://docs.airbyte.com/platform/using-airbyte/core-concepts/sync-modes/full-refresh-overwrite-deduped) | No |
-| [Incremental Sync - Append](https://docs.airbyte.com/platform/using-airbyte/core-concepts/sync-modes/incremental-append) | Yes |
-| [Incremental Sync - Append + Deduped](https://docs.airbyte.com/platform/using-airbyte/core-concepts/sync-modes/incremental-append-deduped) | No |
+The Firebolt destination connector supports the following
+[sync modes](https://docs.airbyte.com/cloud/core-concepts/#connection-sync-mode):
+
+- Full Refresh
+- Incremental - Append Sync
 
 ## Connector-specific features & highlights
 
@@ -93,10 +90,6 @@ Firebolt. Each table will contain 3 columns:
   The column type in Firebolt is `TIMESTAMP`.
 - `_airbyte_data`: a json blob representing the event data. The column type in Firebolt is `VARCHAR`
   but can be parsed with JSON functions.
-
-## Namespace support
-
-This destination does not support [namespaces](https://docs.airbyte.com/platform/using-airbyte/core-concepts/namespaces).
 
 ## Changelog
 

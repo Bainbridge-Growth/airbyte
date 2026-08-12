@@ -51,7 +51,6 @@
                             <includes>
                                 <include>**/*.kt</include>
                             </includes>
-                            <toggleOffOn />
                             <ktfmt>
                                 <version>0.39</version>
                                 <style>KOTLINLANG</style>

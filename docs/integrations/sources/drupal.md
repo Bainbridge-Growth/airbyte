@@ -26,7 +26,3 @@ Reach out to your service representative or system admin to find the parameters 
 ### Output schema
 
 The schema will be loaded according to the rules of the underlying database's connector.
-
-## IP allow list
-
-If you use Airbyte Cloud and your organization restricts access to specific IPs, add the [Airbyte Cloud IP addresses](https://docs.airbyte.com/platform/operating-airbyte/ip-allowlist) to your allow list.

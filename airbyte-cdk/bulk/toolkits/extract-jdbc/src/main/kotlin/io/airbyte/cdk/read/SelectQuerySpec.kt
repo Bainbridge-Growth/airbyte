@@ -1,8 +1,8 @@
-/* Copyright (c) 2026 Airbyte, Inc., all rights reserved. */
+/* Copyright (c) 2024 Airbyte, Inc., all rights reserved. */
 package io.airbyte.cdk.read
 
 import com.fasterxml.jackson.databind.JsonNode
-import io.airbyte.cdk.discover.DataField
+import io.airbyte.cdk.discover.Field
 import java.math.BigDecimal
 
 /**
@@ -21,19 +21,19 @@ data class SelectQuerySpec(
 )
 
 sealed interface SelectNode {
-    val columns: List<DataField>
+    val columns: List<Field>
 }
 
 data class SelectColumns(
-    override val columns: List<DataField>,
+    override val columns: List<Field>,
 ) : SelectNode {
-    constructor(vararg columns: DataField) : this(columns.toList())
+    constructor(vararg columns: Field) : this(columns.toList())
 }
 
 data class SelectColumnMaxValue(
-    val column: DataField,
+    val column: Field,
 ) : SelectNode {
-    override val columns: List<DataField>
+    override val columns: List<Field>
         get() = listOf(column)
 }
 
@@ -51,9 +51,6 @@ data class FromSample(
     val namespace: String?,
     val sampleRateInvPow2: Int,
     val sampleSize: Int,
-    val where: WhereNode? =
-        null, // Include where clause because we want to apply all filters to the inner sample
-// query, so we don't do sampling on the whole table all the time.
 ) : FromNode {
     val sampleRatePercentage: BigDecimal
         get() = sampleRate.multiply(BigDecimal.valueOf(100L))
@@ -64,13 +61,6 @@ data class FromSample(
     val sampleRateInv: Long
         get() = 1L shl sampleRateInvPow2
 }
-
-fun FromNode.optimize(): FromNode =
-    when (this) {
-        NoFrom -> this
-        is From -> this
-        is FromSample -> where?.let { this.copy(where = where.optimize()) } ?: this
-    }
 
 sealed interface WhereNode
 
@@ -95,41 +85,41 @@ data class Or(
 }
 
 sealed interface WhereClauseLeafNode : WhereClauseNode {
-    val column: DataField
+    val column: Field
     val bindingValue: JsonNode
 }
 
 data class GreaterOrEqual(
-    override val column: DataField,
+    override val column: Field,
     override val bindingValue: JsonNode,
 ) : WhereClauseLeafNode
 
 data class Greater(
-    override val column: DataField,
+    override val column: Field,
     override val bindingValue: JsonNode,
 ) : WhereClauseLeafNode
 
 data class LesserOrEqual(
-    override val column: DataField,
+    override val column: Field,
     override val bindingValue: JsonNode,
 ) : WhereClauseLeafNode
 
 data class Lesser(
-    override val column: DataField,
+    override val column: Field,
     override val bindingValue: JsonNode,
 ) : WhereClauseLeafNode
 
 data class Equal(
-    override val column: DataField,
+    override val column: Field,
     override val bindingValue: JsonNode,
 ) : WhereClauseLeafNode
 
 sealed interface OrderByNode
 
 data class OrderBy(
-    val columns: List<DataField>,
+    val columns: List<Field>,
 ) : OrderByNode {
-    constructor(vararg columns: DataField) : this(columns.toList())
+    constructor(vararg columns: Field) : this(columns.toList())
 }
 
 data object NoOrderBy : OrderByNode
@@ -143,7 +133,7 @@ data class Limit(
 data object NoLimit : LimitNode
 
 fun SelectQuerySpec.optimize(): SelectQuerySpec =
-    SelectQuerySpec(select.optimize(), from.optimize(), where.optimize(), orderBy.optimize(), limit)
+    SelectQuerySpec(select.optimize(), from, where.optimize(), orderBy.optimize(), limit)
 
 fun SelectNode.optimize(): SelectNode =
     when (this) {

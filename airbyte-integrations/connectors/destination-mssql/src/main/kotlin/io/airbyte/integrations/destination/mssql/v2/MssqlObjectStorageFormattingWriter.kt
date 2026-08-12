@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 Airbyte, Inc., all rights reserved.
+ * Copyright (c) 2024 Airbyte, Inc., all rights reserved.
  */
 
 package io.airbyte.integrations.destination.mssql.v2
@@ -10,16 +10,19 @@ import io.airbyte.cdk.load.file.csv.toCsvPrinterWithHeader
 import io.airbyte.cdk.load.file.object_storage.ObjectStorageFormattingWriter
 import io.airbyte.cdk.load.file.object_storage.ObjectStorageFormattingWriterFactory
 import io.airbyte.cdk.load.message.DestinationRecordRaw
+import io.airbyte.integrations.destination.mssql.v2.config.BulkLoadConfiguration
+import io.airbyte.integrations.destination.mssql.v2.config.MSSQLConfiguration
 import java.io.OutputStream
 import javax.inject.Singleton
 
 class MSSQLCSVFormattingWriter(
     stream: DestinationStream,
     outputStream: OutputStream,
+    validateValuesPreLoad: Boolean,
 ) : ObjectStorageFormattingWriter {
     private val finalSchema = stream.schema.withAirbyteMeta(true)
     private val printer = finalSchema.toCsvPrinterWithHeader(outputStream)
-    private val mssqlRowGenerator = MSSQLCsvRowGenerator()
+    private val mssqlRowGenerator = MSSQLCsvRowGenerator(validateValuesPreLoad)
     override fun accept(record: DestinationRecordRaw) {
         printer.printRecord(mssqlRowGenerator.generate(record, finalSchema))
     }
@@ -33,11 +36,18 @@ class MSSQLCSVFormattingWriter(
 }
 
 @Singleton
-class MssqlObjectStorageFormattingWriterFactory : ObjectStorageFormattingWriterFactory {
+class MssqlObjectStorageFormattingWriterFactory(val config: MSSQLConfiguration) :
+    ObjectStorageFormattingWriterFactory {
     override fun create(
         stream: DestinationStream,
         outputStream: OutputStream
     ): ObjectStorageFormattingWriter {
-        return MSSQLCSVFormattingWriter(stream, outputStream)
+        return MSSQLCSVFormattingWriter(
+            stream,
+            outputStream,
+            (config.mssqlLoadTypeConfiguration.loadTypeConfiguration as BulkLoadConfiguration)
+                .validateValuesPreLoad
+                ?: false,
+        )
     }
 }

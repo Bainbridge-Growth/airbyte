@@ -24,5 +24,4 @@ SOFTWARE.
 
 from .source import SourceGithub
 
-
 __all__ = ["SourceGithub"]

@@ -2,7 +2,7 @@
 # Copyright (c) 2023 Airbyte, Inc., all rights reserved.
 #
 
-from airbyte_cdk.models import AirbyteMessage, AirbyteMessageSerializer
+from airbyte_cdk.models import AirbyteMessage
 
 
 class AirbyteMessageWithCachedJSON(AirbyteMessage):
@@ -15,7 +15,7 @@ class AirbyteMessageWithCachedJSON(AirbyteMessage):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._json = AirbyteMessageSerializer.dump(self)
+        self._json = self.json(exclude_unset=True)
         self.json = self.get_json
 
     def get_json(self, **kwargs):

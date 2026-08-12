@@ -19,32 +19,7 @@ from .config_builder import ConfigBuilder
 class TestAdvertiserAudienceReportsLifetime(TestCase):
     stream_name = "advertisers_audience_reports_lifetime"
     advertiser_id = "872746382648"
-    metrics = [
-        "spend",
-        "cpc",
-        "cpm",
-        "impressions",
-        "clicks",
-        "ctr",
-        "reach",
-        "cost_per_1000_reached",
-        "frequency",
-        "video_play_actions",
-        "video_watched_2s",
-        "video_watched_6s",
-        "average_video_play",
-        "average_video_play_per_user",
-        "video_views_p25",
-        "video_views_p50",
-        "video_views_p75",
-        "video_views_p100",
-        "profile_visits",
-        "likes",
-        "comments",
-        "shares",
-        "follows",
-        "clicks_on_music_disc",
-    ]
+    metrics = ["spend", "cpc", "cpm", "impressions", "clicks", "ctr"]
 
     def catalog(self, sync_mode: SyncMode = SyncMode.full_refresh):
         return CatalogBuilder().with_stream(name=self.stream_name, sync_mode=sync_mode).build()
@@ -55,7 +30,7 @@ class TestAdvertiserAudienceReportsLifetime(TestCase):
             config.with_include_deleted()
         return config.build()
 
-    def _mock_response(self, http_mocker: HttpMocker):
+    def _mock_response(self, http_mocker: HttpMocker, include_deleted: bool = False):
         mock_advertisers_slices(http_mocker, self.config())
         query_params = {
             "service_type": "AUCTION",
@@ -69,6 +44,10 @@ class TestAdvertiserAudienceReportsLifetime(TestCase):
             "page_size": 1000,
             "advertiser_id": self.advertiser_id,
         }
+        if include_deleted:
+            query_params["filters"] = (
+                '[{"filter_value": ["STATUS_ALL"], "field_name": "ad_status", "filter_type": "IN"}, {"filter_value": ["STATUS_ALL"], "field_name": "campaign_status", "filter_type": "IN"}, {"filter_value": ["STATUS_ALL"], "field_name": "adgroup_status", "filter_type": "IN"}]'
+            )
         http_mocker.get(
             HttpRequest(
                 url=f"https://business-api.tiktok.com/open_api/v1.3/report/integrated/get/",
@@ -81,22 +60,18 @@ class TestAdvertiserAudienceReportsLifetime(TestCase):
     @freeze_time("2024-12-12")
     def test_basic_read(self, http_mocker: HttpMocker):
         self._mock_response(http_mocker)
-        config = self.config()
 
-        output = read(get_source(config=config, state=None), config, self.catalog())
-
+        output = read(get_source(config=self.config(), state=None), self.config(), self.catalog())
         assert len(output.records) == 2
 
     @HttpMocker()
     @freeze_time("2024-12-12")
     def test_basic_read_include_deleted(self, http_mocker: HttpMocker):
-        """
-        Note that the previous behavior was to add a `filtering` parameter but this got removed as it was resulting in data being missed
-        from the reports (see https://github.com/airbytehq/airbyte/pull/65623).
-        """
-        self._mock_response(http_mocker)
-        config = self.config(include_deleted=True)
+        self._mock_response(http_mocker, True)
 
-        output = read(get_source(config=config, state=None), config, self.catalog())
-
+        output = read(
+            get_source(config=self.config(include_deleted=True), state=None),
+            self.config(include_deleted=True),
+            self.catalog(),
+        )
         assert len(output.records) == 2

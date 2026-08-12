@@ -45,11 +45,6 @@ data:
   supportLevel: community
   connectorTestSuitesOptions:
     - suite: unitTests
-  externalDocumentationUrls:
-    - title: SurrealDB documentation
-      url: https://surrealdb.com/docs
-      type: api_reference
-    - title: Authentication
-      url: https://surrealdb.com/docs/surrealdb/security/authentication
-      type: authentication_guide
+    # - suite: integrationTests
+    # - suite: acceptanceTests
 metadataSpecVersion: "1.0"

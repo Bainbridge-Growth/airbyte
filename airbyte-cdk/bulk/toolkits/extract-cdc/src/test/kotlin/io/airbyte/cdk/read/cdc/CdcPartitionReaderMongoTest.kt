@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 Airbyte, Inc., all rights reserved.
+ * Copyright (c) 2024 Airbyte, Inc., all rights reserved.
  */
 
 package io.airbyte.cdk.read.cdc
@@ -27,17 +27,9 @@ import org.bson.Document
 import org.bson.conversions.Bson
 import org.junit.jupiter.api.Disabled
 
-data class BsonTimestampPosition(val timestamp: BsonTimestamp) :
-    PartiallyOrdered<BsonTimestampPosition> {
-    override fun compareTo(other: BsonTimestampPosition): Int? {
-        val timeCmp = timestamp.time.compareTo(other.timestamp.time)
-        return if (timeCmp != 0) timeCmp else timestamp.inc.compareTo(other.timestamp.inc)
-    }
-}
-
 @Disabled
 class CdcPartitionReaderMongoTest :
-    AbstractCdcPartitionReaderTest<BsonTimestampPosition, MongoDbReplicaSet>(
+    AbstractCdcPartitionReaderTest<BsonTimestamp, MongoDbReplicaSet>(
         namespace = "test",
     ) {
 
@@ -91,19 +83,16 @@ class CdcPartitionReaderMongoTest :
         }
 
     override fun createCdcPartitionsCreatorDbzOps():
-        CdcPartitionsCreatorDebeziumOperations<BsonTimestampPosition> =
-        TestCdcPartitionsCreatorDbzOps()
+        CdcPartitionsCreatorDebeziumOperations<BsonTimestamp> = TestCdcPartitionsCreatorDbzOps()
 
     override fun createCdcPartitionReaderDbzOps():
-        CdcPartitionReaderDebeziumOperations<BsonTimestampPosition> = TestCdcPartitionReaderDbzOps()
+        CdcPartitionReaderDebeziumOperations<BsonTimestamp> = TestCdcPartitionReaderDbzOps()
 
     inner class TestCdcPartitionsCreatorDbzOps :
-        AbstractCdcPartitionsCreatorDbzOps<BsonTimestampPosition>() {
-        override fun position(offset: DebeziumOffset): BsonTimestampPosition {
+        AbstractCdcPartitionsCreatorDbzOps<BsonTimestamp>() {
+        override fun position(offset: DebeziumOffset): BsonTimestamp {
             val offsetValue: ObjectNode = offset.wrapped.values.first() as ObjectNode
-            return BsonTimestampPosition(
-                BsonTimestamp(offsetValue["sec"].asInt(), offsetValue["ord"].asInt())
-            )
+            return BsonTimestamp(offsetValue["sec"].asInt(), offsetValue["ord"].asInt())
         }
 
         override fun generateColdStartOffset(): DebeziumOffset {
@@ -157,22 +146,17 @@ class CdcPartitionReaderMongoTest :
             }
     }
 
-    inner class TestCdcPartitionReaderDbzOps :
-        AbstractCdcPartitionReaderDbzOps<BsonTimestampPosition>() {
-        override fun position(recordValue: DebeziumRecordValue): BsonTimestampPosition? {
+    inner class TestCdcPartitionReaderDbzOps : AbstractCdcPartitionReaderDbzOps<BsonTimestamp>() {
+        override fun position(recordValue: DebeziumRecordValue): BsonTimestamp? {
             val resumeToken: String =
                 recordValue.source["resume_token"]?.takeIf { it.isTextual }?.asText() ?: return null
-            return BsonTimestampPosition(
-                ResumeTokens.getTimestamp(ResumeTokens.fromData(resumeToken))
-            )
+            return ResumeTokens.getTimestamp(ResumeTokens.fromData(resumeToken))
         }
 
-        override fun position(sourceRecord: SourceRecord): BsonTimestampPosition? {
+        override fun position(sourceRecord: SourceRecord): BsonTimestamp? {
             val offset: Map<String, *> = sourceRecord.sourceOffset()
             val resumeTokenBase64: String = offset["resume_token"] as? String ?: return null
-            return BsonTimestampPosition(
-                ResumeTokens.getTimestamp(ResumeTokens.fromBase64(resumeTokenBase64))
-            )
+            return ResumeTokens.getTimestamp(ResumeTokens.fromBase64(resumeTokenBase64))
         }
 
         override fun deserializeRecord(

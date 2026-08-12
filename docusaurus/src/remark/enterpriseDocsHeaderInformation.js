@@ -1,42 +1,31 @@
 const { isEnterpriseConnectorDocsPage } = require("./utils");
 const { toAttributes } = require("../helpers/objects");
 const visit = require("unist-util-visit").visit;
-const { fetchRegistry } = require("../scripts/fetch-registry");
+const { catalog } = require("../connector_registry");
 
-const FALLBACK_VERSION = "No version information available";
-const FALLBACK_DEFINITION_ID = "No definition ID available.";
-
-const getEnterpriseConnectorRegistryInfo = async (dockerRepository) => {
+const getEnterpriseConnectorVersion = async (dockerRepository) => {
   if (!dockerRepository) {
-    return {
-      version: FALLBACK_VERSION,
-      definitionId: FALLBACK_DEFINITION_ID,
-    };
+    return "No version information available";
   }
   try {
-    const registry = await fetchRegistry();
+    const registry = await catalog;
 
     const registryEntry = registry.find(
-      (r) => r.dockerRepository === dockerRepository,
+      (r) =>
+        r.dockerRepository_oss === dockerRepository ||
+        r.dockerRepository_cloud === dockerRepository,
     );
     if (!registryEntry) {
-      return {
-        version: FALLBACK_VERSION,
-        definitionId: FALLBACK_DEFINITION_ID,
-      };
+      return "No version information available";
     }
-    return {
-      version: registryEntry.dockerImageTag || FALLBACK_VERSION,
-      definitionId: registryEntry.definitionId || FALLBACK_DEFINITION_ID,
-    };
+    return (
+      registryEntry.dockerImageTag_oss || registryEntry.dockerImageTag_cloud
+    );
   } catch (error) {
     console.warn(`[Enterprise Connector Debug] Error fetching version:`, error);
   }
 
-  return {
-    version: FALLBACK_VERSION,
-    definitionId: FALLBACK_DEFINITION_ID,
-  };
+  return "No version information available";
 };
 
 const plugin = () => {
@@ -44,7 +33,7 @@ const plugin = () => {
     const isDocsPage = isEnterpriseConnectorDocsPage(vfile);
     if (!isDocsPage) return;
 
-    const { version, definitionId } = await getEnterpriseConnectorRegistryInfo(
+    const version = await getEnterpriseConnectorVersion(
       vfile.data.frontMatter.dockerRepository,
     );
 
@@ -63,9 +52,6 @@ const plugin = () => {
           dockerImageTag: version,
           github_url: undefined,
           originalTitle,
-          "enterprise-connector":
-            vfile.data.frontMatter["enterprise-connector"] || true,
-          definitionId,
         };
 
         firstHeading = false;

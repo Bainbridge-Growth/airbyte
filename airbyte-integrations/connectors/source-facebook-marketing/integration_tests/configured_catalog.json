@@ -74,7 +74,7 @@
     },
     {
       "stream": {
-        "name": "ads_insights_comscore_market",
+        "name": "ads_insights_dma",
         "json_schema": {},
         "supported_sync_modes": ["full_refresh", "incremental"]
       },

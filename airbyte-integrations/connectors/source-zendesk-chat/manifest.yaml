@@ -25,9 +25,6 @@ definitions:
           error_handler:
             type: DefaultErrorHandler
             description: The default error handler
-            response_filters:
-              - http_codes: [404]
-                action: IGNORE
             backoff_strategies:
               - type: WaitTimeFromHeader
                 header: Retry-After
@@ -61,9 +58,6 @@ definitions:
           error_handler:
             type: DefaultErrorHandler
             description: The default error handler
-            response_filters:
-              - http_codes: [404]
-                action: IGNORE
             backoff_strategies:
               - type: WaitTimeFromHeader
                 header: Retry-After
@@ -122,9 +116,6 @@ definitions:
           error_handler:
             type: DefaultErrorHandler
             description: The default error handler
-            response_filters:
-              - http_codes: [404]
-                action: IGNORE
             backoff_strategies:
               - type: WaitTimeFromHeader
                 header: Retry-After
@@ -146,8 +137,8 @@ definitions:
           pagination_strategy:
             type: CursorPagination
             page_size: 1000
-            cursor_value: '{{ response.get("next_page", {}) }}'
-            stop_condition: "{{ response.get('count', 0) < 1000 }}"
+            cursor_value: '{{ response.get("end_time", {}) }}'
+            stop_condition: "{{ last_page_size < 1_000 }}"
       name: agent_timeline
       primary_key:
         - id
@@ -198,9 +189,6 @@ definitions:
           error_handler:
             type: DefaultErrorHandler
             description: The default error handler
-            response_filters:
-              - http_codes: [404]
-                action: IGNORE
             backoff_strategies:
               - type: WaitTimeFromHeader
                 header: Retry-After
@@ -259,9 +247,6 @@ definitions:
           error_handler:
             type: DefaultErrorHandler
             description: The default error handler
-            response_filters:
-              - http_codes: [404]
-                action: IGNORE
             backoff_strategies:
               - type: WaitTimeFromHeader
                 header: Retry-After
@@ -283,8 +268,8 @@ definitions:
           pagination_strategy:
             type: CursorPagination
             page_size: 1000
-            cursor_value: '{{ response.get("next_page", {}) }}'
-            stop_condition: '{{ response.get("count", 0) < 1000 }}'
+            cursor_value: '{{ response.get("end_time", {}) }}'
+            stop_condition: "{{ last_page_size < 1_000 }}"
       name: chats
       primary_key:
         - id
@@ -320,9 +305,6 @@ definitions:
           error_handler:
             type: DefaultErrorHandler
             description: The default error handler
-            response_filters:
-              - http_codes: [404]
-                action: IGNORE
             backoff_strategies:
               - type: WaitTimeFromHeader
                 header: Retry-After
@@ -355,9 +337,6 @@ definitions:
           error_handler:
             type: DefaultErrorHandler
             description: The default error handler
-            response_filters:
-              - http_codes: [404]
-                action: IGNORE
             backoff_strategies:
               - type: WaitTimeFromHeader
                 header: Retry-After
@@ -390,9 +369,6 @@ definitions:
           error_handler:
             type: DefaultErrorHandler
             description: The default error handler
-            response_filters:
-              - http_codes: [404]
-                action: IGNORE
             backoff_strategies:
               - type: WaitTimeFromHeader
                 header: Retry-After
@@ -425,9 +401,6 @@ definitions:
           error_handler:
             type: DefaultErrorHandler
             description: The default error handler
-            response_filters:
-              - http_codes: [404]
-                action: IGNORE
             backoff_strategies:
               - type: WaitTimeFromHeader
                 header: Retry-After
@@ -458,9 +431,6 @@ definitions:
           error_handler:
             type: DefaultErrorHandler
             description: The default error handler
-            response_filters:
-              - http_codes: [404]
-                action: IGNORE
             backoff_strategies:
               - type: WaitTimeFromHeader
                 header: Retry-After
@@ -493,9 +463,6 @@ definitions:
           error_handler:
             type: DefaultErrorHandler
             description: The default error handler
-            response_filters:
-              - http_codes: [404]
-                action: IGNORE
             backoff_strategies:
               - type: WaitTimeFromHeader
                 header: Retry-After
@@ -528,9 +495,6 @@ definitions:
           error_handler:
             type: DefaultErrorHandler
             description: The default error handler
-            response_filters:
-              - http_codes: [404]
-                action: IGNORE
             backoff_strategies:
               - type: WaitTimeFromHeader
                 header: Retry-After
@@ -649,53 +613,6 @@ spec:
                 airbyte_secret: true
         order: 2
     additionalProperties: true
-  advanced_auth:
-    auth_flow_type: oauth2.0
-    predicate_key: ["credentials", "credentials"]
-    predicate_value: oauth2.0
-    oauth_config_specification:
-      complete_oauth_output_specification:
-        type: object
-        additionalProperties: false
-        properties:
-          access_token:
-            type: string
-            path_in_connector_config: ["credentials", "access_token"]
-          refresh_token:
-            type: string
-            path_in_connector_config: ["credentials", "refresh_token"]
-      complete_oauth_server_input_specification:
-        type: object
-        additionalProperties: true
-        properties:
-          client_id:
-            type: string
-          client_secret:
-            type: string
-      complete_oauth_server_output_specification:
-        type: object
-        additionalProperties: false
-        properties:
-          client_id:
-            type: string
-            path_in_connector_config: ["credentials", "client_id"]
-          client_secret:
-            type: string
-            path_in_connector_config: ["credentials", "client_secret"]
-      oauth_connector_input_specification:
-        scopes:
-          - scope: read
-          - scope: chat
-        consent_url: https://{{subdomain}}.zendesk.com/oauth2/chat/authorizations/new?response_type=code&{{client_id_param}}&{{redirect_uri_param}}&{{scopes_param}}&{{state_param}}
-        access_token_url: https://{{subdomain}}.zendesk.com/oauth2/chat/token?grant_type=authorization_code&{{client_id_param}}&{{client_secret_param}}&{{auth_code_param}}&{{redirect_uri_param}}&{{scopes_param}}
-        extract_output: ["access_token", "refresh_token"]
-      oauth_user_input_from_connector_config_specification:
-        type: object
-        additionalProperties: false
-        properties:
-          subdomain:
-            type: string
-            path_in_connector_config: ["subdomain"]
 
 metadata:
   autoImportSchema:

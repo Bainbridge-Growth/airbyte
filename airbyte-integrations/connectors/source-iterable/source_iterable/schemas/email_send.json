@@ -88,9 +88,7 @@
         "categories": {
           "description": "Categories related to the transactional data.",
           "type": ["null", "array"],
-          "items": {
-            "type": "string"
-          }
+          "items": {}
         },
         "createdAt": {
           "description": "The timestamp when the transactional data was created.",

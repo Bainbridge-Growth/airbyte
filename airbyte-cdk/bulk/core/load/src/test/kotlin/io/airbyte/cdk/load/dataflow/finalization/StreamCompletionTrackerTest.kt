@@ -1,124 +1,55 @@
 /*
- * Copyright (c) 2026 Airbyte, Inc., all rights reserved.
+ * Copyright (c) 2025 Airbyte, Inc., all rights reserved.
  */
 
 package io.airbyte.cdk.load.dataflow.finalization
 
 import io.airbyte.cdk.load.command.DestinationCatalog
-import io.airbyte.cdk.load.command.DestinationStream
 import io.airbyte.cdk.load.message.DestinationRecordStreamComplete
 import io.mockk.every
 import io.mockk.mockk
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
-import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
+import org.junit.jupiter.params.provider.ValueSource
 
 class StreamCompletionTrackerTest {
 
-    @Test
-    fun `#allStreamsComplete should return true when all streams received DestinationRecordStreamComplete`() {
+    @ParameterizedTest
+    @ValueSource(ints = [1, 2, 3, 4, 10, 42, 99, 1000])
+    fun `#allStreamsComplete should return true when all streams received`(size: Int) {
         // Given
-        val streams =
-            listOf(
-                createStream("namespace1", "stream1"),
-                createStream("namespace1", "stream2"),
-                createStream("namespace2", "stream1")
-            )
-        val catalog = mockk<DestinationCatalog> { every { this@mockk.streams } returns streams }
+        val catalog = Fixtures.catalog(size)
         val tracker = StreamCompletionTracker(catalog)
 
-        // When - send completion messages for all streams
-        streams.forEach { stream ->
-            val completeMsg =
-                mockk<DestinationRecordStreamComplete> {
-                    every { this@mockk.stream } returns stream
-                }
-            tracker.accept(completeMsg)
-        }
+        // When
+        repeat(size) { tracker.accept(Fixtures.streamCompleteMsg) }
 
         // Then
         assertTrue(tracker.allStreamsComplete())
     }
 
-    @Test
-    fun `#allStreamsComplete should return false when not all streams received completion`() {
+    @ParameterizedTest
+    @CsvSource("1,0", "2, 1", "3, 2", "4, 3", "10, 8", "42, 41", "99, 50", "1001, 1000")
+    fun `#allStreamsComplete should return false when all completes weren't received`(
+        size: Int,
+        received: Int,
+    ) {
         // Given
-        val streams =
-            listOf(
-                createStream("namespace1", "stream1"),
-                createStream("namespace1", "stream2"),
-                createStream("namespace2", "stream1")
-            )
-        val catalog = mockk<DestinationCatalog> { every { this@mockk.streams } returns streams }
+        val catalog = Fixtures.catalog(size)
         val tracker = StreamCompletionTracker(catalog)
 
-        // When - send completion for only 2 out of 3 streams
-        val completeMsg1 =
-            mockk<DestinationRecordStreamComplete> {
-                every { this@mockk.stream } returns streams[0]
-            }
-        val completeMsg2 =
-            mockk<DestinationRecordStreamComplete> {
-                every { this@mockk.stream } returns streams[1]
-            }
-
-        tracker.accept(completeMsg1)
-        tracker.accept(completeMsg2)
-        // Not sending completion for streams[2]
+        // When
+        repeat(received) { tracker.accept(Fixtures.streamCompleteMsg) }
 
         // Then
-        assertFalse(tracker.allStreamsComplete())
+        assertFalse(tracker.allStreamsComplete()) // 2 out of 4 streams complete
     }
 
-    @Test
-    fun `#allStreamsComplete should return false when no streams received completion`() {
-        // Given
-        val streams =
-            listOf(createStream("namespace1", "stream1"), createStream("namespace1", "stream2"))
-        val catalog = mockk<DestinationCatalog> { every { this@mockk.streams } returns streams }
-        val tracker = StreamCompletionTracker(catalog)
+    object Fixtures {
+        fun catalog(size: Int) = mockk<DestinationCatalog> { every { size() } returns size }
 
-        // When - no completion messages sent
-
-        // Then
-        assertFalse(tracker.allStreamsComplete())
-    }
-
-    @Test
-    fun `#allStreamsComplete should handle duplicate completion messages correctly`() {
-        // Given
-        val stream = createStream("namespace1", "stream1")
-        val catalog =
-            mockk<DestinationCatalog> { every { this@mockk.streams } returns listOf(stream) }
-        val tracker = StreamCompletionTracker(catalog)
-
-        // When - send multiple completion messages for the same stream
-        val completeMsg1 =
-            mockk<DestinationRecordStreamComplete> { every { this@mockk.stream } returns stream }
-        val completeMsg2 =
-            mockk<DestinationRecordStreamComplete> { every { this@mockk.stream } returns stream }
-
-        tracker.accept(completeMsg1)
-        tracker.accept(completeMsg2) // Duplicate for same stream
-
-        // Then
-        assertTrue(tracker.allStreamsComplete())
-    }
-
-    @Test
-    fun `#allStreamsComplete should return true for empty catalog`() {
-        // Given
-        val catalog = mockk<DestinationCatalog> { every { this@mockk.streams } returns emptyList() }
-        val tracker = StreamCompletionTracker(catalog)
-
-        // When - no streams to complete
-
-        // Then
-        assertTrue(tracker.allStreamsComplete())
-    }
-
-    private fun createStream(namespace: String, name: String): DestinationStream {
-        val descriptor = DestinationStream.Descriptor(namespace, name)
-        return mockk<DestinationStream> { every { mappedDescriptor } returns descriptor }
+        val streamCompleteMsg = mockk<DestinationRecordStreamComplete>()
     }
 }

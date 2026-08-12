@@ -69,16 +69,14 @@ definitions:
           type: DefaultPaginator
           page_token_option:
             type: RequestOption
-            field_name: cursor
+            field_name: start
             inject_into: request_parameter
           page_size_option:
             type: RequestOption
             field_name: limit
             inject_into: request_parameter
           pagination_strategy:
-            type: CursorPagination
-            cursor_value: '{{ response.get("_links", {}).get("next", "") | regex_search("cursor=([^&]+)") }}'
-            stop_condition: '{{ "next" not in response.get("_links", {}) }}'
+            type: OffsetIncrement
             page_size: 25
         decoder:
           type: JsonDecoder
@@ -146,16 +144,14 @@ definitions:
           type: DefaultPaginator
           page_token_option:
             type: RequestOption
-            field_name: cursor
+            field_name: start
             inject_into: request_parameter
           page_size_option:
             type: RequestOption
             field_name: limit
             inject_into: request_parameter
           pagination_strategy:
-            type: CursorPagination
-            cursor_value: '{{ response.get("_links", {}).get("next", "") | regex_search("cursor=([^&]+)") }}'
-            stop_condition: '{{ "next" not in response.get("_links", {}) }}'
+            type: OffsetIncrement
             page_size: 25
         decoder:
           type: JsonDecoder
@@ -186,16 +182,14 @@ definitions:
           type: DefaultPaginator
           page_token_option:
             type: RequestOption
-            field_name: cursor
+            field_name: start
             inject_into: request_parameter
           page_size_option:
             type: RequestOption
             field_name: limit
             inject_into: request_parameter
           pagination_strategy:
-            type: CursorPagination
-            cursor_value: '{{ response.get("_links", {}).get("next", "") | regex_search("cursor=([^&]+)") }}'
-            stop_condition: '{{ "next" not in response.get("_links", {}) }}'
+            type: OffsetIncrement
             page_size: 25
         decoder:
           type: JsonDecoder

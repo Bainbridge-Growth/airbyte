@@ -16,13 +16,11 @@ You configure all connections in a similar way. However, the exact process is di
 
 - **ELT databases, warehouses, and lakes**: These destinations are more agnostic about schema. You can, for example, create tables with any number of columns and change those column types if you need to. This is typical of data warehouses and data lakes, and allows you more freedom to determine the structure of your data.
 
-- **Data activation**: These destinations have stricter schemas that your connection must adhere to. For example, if you're syncing data to HubSpot, your HubSpot records have pre-existing fields for name, email, company, phone number, etc. Some of those fields may be optional, some may be required, and all expect data in a certain format. This means you need to map data from your source to your destination to ensure it arrives in the necessary format and structure. Typically, you have less freedom over the structure of data in these destinations.
+- **Data activation**: These destinations have stricter schemas that your connection must adhere to. For example, if you're syncing data to Salesforce, your Salesforce records have pre-existing fields for name, email, company, phone number, revenue, etc. Some of those fields may be optional, some may be required, and all expect data in a certain format. This means you need to map data from your source to your destination to ensure it arrives in the necessary format and structure. Typically, you have less freedom over the structure of data in these destinations.
 
 The unique needs of a destination account for why setting up some connections is different than others.
 
 ## Create an ELT connection
-
-<Navattic id="cmhfholey000504ic07qla001" />
 
 Follow these steps to create a connection to a database, warehouse, lake, or similar type of destination.
 
@@ -60,6 +58,10 @@ Follow these steps to create a connection to a database, warehouse, lake, or sim
 9. Click **Set up connection**. Airbyte takes you to the page for that connection, where you can manage it and initiate syncs.
 
 ## Create a data activation connection
+
+:::info
+Data activation is in **early access**. Try it today with the HubSpot and Customer.io destinations in Airbyte Cloud or Self-Managed version 1.8 and later. If you'd like to be an early adopter, chat with the team, and share feedback, [fill out this form](https://form.typeform.com/to/STc7a0jx).
+:::
 
 Follow these steps to create a connection to a data activation destination.
 

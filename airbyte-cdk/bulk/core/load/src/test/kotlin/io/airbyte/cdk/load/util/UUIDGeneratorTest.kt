@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 Airbyte, Inc., all rights reserved.
+ * Copyright (c) 2025 Airbyte, Inc., all rights reserved.
  */
 
 package io.airbyte.cdk.load.util
@@ -9,7 +9,6 @@ import kotlin.time.measureTime
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 
 internal class UUIDGeneratorTest {
@@ -35,7 +34,6 @@ internal class UUIDGeneratorTest {
     }
 
     @Test
-    @Disabled("Flaky in CI due to timing variability. Useful for manual performance testing.")
     fun testV4Performance() {
         val generator = UUIDGenerator()
 
@@ -57,7 +55,6 @@ internal class UUIDGeneratorTest {
     }
 
     @Test
-    @Disabled("Flaky in CI due to timing variability. Useful for manual performance testing.")
     fun testV7Performance() {
         val generator = UUIDGenerator()
 

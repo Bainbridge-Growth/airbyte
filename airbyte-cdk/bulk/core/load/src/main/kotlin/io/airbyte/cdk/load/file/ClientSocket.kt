@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 Airbyte, Inc., all rights reserved.
+ * Copyright (c) 2025 Airbyte, Inc., all rights reserved.
  */
 
 package io.airbyte.cdk.load.file
@@ -11,6 +11,7 @@ import java.net.StandardProtocolFamily
 import java.net.UnixDomainSocketAddress
 import java.nio.channels.Channels
 import java.nio.channels.SocketChannel
+import kotlinx.coroutines.delay
 
 class ClientSocket(
     val socketPath: String,
@@ -20,14 +21,13 @@ class ClientSocket(
 ) {
     private val log = KotlinLogging.logger {}
 
-    fun openInputStream(): InputStream {
+    suspend fun connect(block: suspend (InputStream) -> Unit) {
         log.info { "Connecting client socket at $socketPath" }
         val socketFile = File(socketPath)
         var totalWaitMs = 0L
-
         while (!socketFile.exists()) {
             log.info { "Waiting for socket file to be created: $socketPath" }
-            Thread.sleep(connectWaitDelayMs)
+            delay(connectWaitDelayMs)
             totalWaitMs += connectWaitDelayMs
             if (totalWaitMs > connectTimeoutMs) {
                 throw IllegalStateException(
@@ -38,20 +38,23 @@ class ClientSocket(
         log.info { "Socket file $socketPath created" }
 
         val address = UnixDomainSocketAddress.of(socketFile.toPath())
-        val openedSocket = SocketChannel.open(StandardProtocolFamily.UNIX)
+        SocketChannel.open(StandardProtocolFamily.UNIX).use { channel ->
+            log.info { "Socket file $socketPath opened" }
 
-        log.info { "Socket file $socketPath opened" }
+            if (!channel.connect(address)) {
+                throw IllegalStateException("Failed to connect to socket $socketPath")
+            }
 
-        if (!openedSocket.connect(address)) {
-            throw IllegalStateException("Failed to connect to socket $socketPath")
+            // HACK: The dockerized destination tests uses this exact message
+            // as a signal that it's safe to create the TCP connection to the
+            // socat sidecar that feeds data into the socket. Removing it
+            // will break tests. TODO: Anything else.
+            log.info { "Socket file $socketPath connected for reading" }
+
+            Channels.newInputStream(channel).buffered(bufferSizeBytes).use { inputStream ->
+                block(inputStream)
+            }
         }
-
-        // HACK: The dockerized destination tests uses this exact message
-        // as a signal that it's safe to create the TCP connection to the
-        // socat sidecar that feeds data into the socket. Removing it
-        // will break tests. TODO: Anything else.
-        log.info { "Socket file $socketPath connected for reading" }
-
-        return Channels.newInputStream(openedSocket).buffered(bufferSizeBytes)
+        log.info { "Reading from socket $socketPath complete" }
     }
 }

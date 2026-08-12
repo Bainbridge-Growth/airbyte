@@ -1,9 +1,9 @@
 const { getFromPaths, toAttributes } = require("../helpers/objects");
 const { isDocsPage, getRegistryEntry } = require("./utils");
-const { parseCDKVersion } = require("../scripts/connector_registry");
 const {
-  getDefaultDataWorkersForSource,
-} = require("../scripts/data-worker-consumption");
+  getLatestPythonCDKVersion,
+  parseCDKVersion,
+} = require("../connector_registry");
 const visit = require("unist-util-visit").visit;
 
 /**
@@ -19,12 +19,10 @@ const plugin = () => {
     if (!docsPageInfo.isDocsPage) return;
 
     const registryEntry = await getRegistryEntry(vfile);
-    if (!registryEntry) return;
 
-    const rawCDKVersion = getFromPaths(
-      registryEntry,
-      "packageInfo.cdk_version",
-    );
+    const latestPythonCdkVersion = await getLatestPythonCDKVersion();
+
+    if (!registryEntry) return;
 
     let firstHeading = true;
 
@@ -32,40 +30,42 @@ const plugin = () => {
       if (firstHeading && node.depth === 1 && node.children.length === 1) {
         const originalTitle = node.children[0].value;
 
+        const rawCDKVersion = getFromPaths(
+          registryEntry,
+          "packageInfo_[oss|cloud].cdk_version",
+        );
         const syncSuccessRate = getFromPaths(
           registryEntry,
-          "generated.metrics.[all|cloud|oss].sync_success_rate",
+          "generated_[oss|cloud].metrics.[all|cloud|oss].sync_success_rate",
         );
         const usageRate = getFromPaths(
           registryEntry,
-          "generated.metrics.[all|cloud|oss].usage",
+          "generated_[oss|cloud].metrics.[all|cloud|oss].usage",
         );
-        const defaultDataWorkers =
-          getDefaultDataWorkersForSource(registryEntry);
         const lastUpdated = getFromPaths(
           registryEntry,
-          "generated.source_file_info.metadata_last_modified",
+          "generated_[oss|cloud].source_file_info.metadata_last_modified",
         );
 
-        const { version, isLatest, url } = parseCDKVersion(rawCDKVersion, null);
+        const { version, isLatest, url } = parseCDKVersion(
+          rawCDKVersion,
+          latestPythonCdkVersion,
+        );
 
         const attrDict = {
           isOss: registryEntry.is_oss,
           isCloud: registryEntry.is_cloud,
-          supportLevel: registryEntry.supportLevel,
-          dockerImageTag: registryEntry.dockerImageTag,
-          iconUrl: registryEntry.iconUrl,
+          supportLevel: registryEntry.supportLevel_oss,
+          dockerImageTag: registryEntry.dockerImageTag_oss,
+          iconUrl: registryEntry.iconUrl_oss,
           github_url: registryEntry.github_url,
           issue_url: registryEntry.issue_url,
           originalTitle,
           cdkVersion: version,
-          ...(isLatest !== undefined && {
-            isLatestCDKString: boolToBoolString(isLatest),
-          }),
+          isLatestCDKString: boolToBoolString(isLatest),
           cdkVersionUrl: url,
           syncSuccessRate,
           usageRate,
-          defaultDataWorkers,
           lastUpdated,
           definitionId: registryEntry.definitionId,
         };

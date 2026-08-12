@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 Airbyte, Inc., all rights reserved.
+ * Copyright (c) 2024 Airbyte, Inc., all rights reserved.
  */
 
 package io.airbyte.cdk.load.toolkits.iceberg.parquet
@@ -222,16 +222,12 @@ class IcebergTypesComparator {
                 // but for this function's purpose, we only check the existing fields.
                 true
             }
-            Type.TypeID.DECIMAL,
             Type.TypeID.BINARY,
+            Type.TypeID.DECIMAL,
             Type.TypeID.FIXED,
             Type.TypeID.UUID,
             Type.TypeID.MAP,
-            Type.TypeID.TIMESTAMP_NANO,
-            Type.TypeID.GEOMETRY,
-            Type.TypeID.GEOGRAPHY,
-            Type.TypeID.VARIANT,
-            Type.TypeID.UNKNOWN, -> {
+            Type.TypeID.TIMESTAMP_NANO -> {
                 throw IllegalArgumentException(
                     "Unsupported or unmapped Iceberg type: $typeId. Implement handling if needed."
                 )

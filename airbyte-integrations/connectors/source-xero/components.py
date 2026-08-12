@@ -3,9 +3,9 @@
 #
 
 import re
-from dataclasses import InitVar, dataclass, field
+from dataclasses import InitVar, dataclass
 from datetime import date, datetime, time, timedelta, timezone
-from typing import Any, Iterable, List, Mapping, Union
+from typing import Any, Dict, List, Mapping, Union
 
 import dpath.util
 import requests
@@ -76,27 +76,29 @@ class CustomExtractor(RecordExtractor):
     field_path: List[Union[InterpolatedString, str]]
     config: Config
     parameters: InitVar[Mapping[str, Any]]
-    decoder: Decoder = field(default_factory=lambda: JsonDecoder(parameters={}))
+    decoder: Decoder = JsonDecoder(parameters={})
 
     def __post_init__(self, parameters: Mapping[str, Any]):
         for path_index in range(len(self.field_path)):
             if isinstance(self.field_path[path_index], str):
                 self.field_path[path_index] = InterpolatedString.create(self.field_path[path_index], parameters=parameters)
 
-    def extract_records(self, response: requests.Response) -> Iterable[Mapping[str, Any]]:
-        for response_body in self.decoder.decode(response):
-            if len(self.field_path) == 0:
-                extracted = response_body
+    def extract_records(self, response: requests.Response) -> List[Mapping[str, Any]]:
+        response_body = self.decoder.decode(response)
+        if len(self.field_path) == 0:
+            extracted = response_body
+        else:
+            path = [path.eval(self.config) for path in self.field_path]
+            if "*" in path:
+                extracted = dpath.util.values(response_body, path)
             else:
-                path = [path.eval(self.config) for path in self.field_path]
-                if "*" in path:
-                    extracted = dpath.util.values(response_body, path)
-                else:
-                    extracted = dpath.util.get(response_body, path, default=[])
+                extracted = dpath.util.get(response_body, path, default=[])
 
-            ParseDates.convert_dates(extracted)
+        ParseDates.convert_dates(extracted)
 
-            if isinstance(extracted, list):
-                yield from extracted
-            elif extracted:
-                yield extracted
+        if isinstance(extracted, list):
+            return extracted
+        elif extracted:
+            return [extracted]
+        else:
+            return []

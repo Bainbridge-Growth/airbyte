@@ -6,25 +6,12 @@ acceptance_tests:
     tests:
       - spec_path: "manifest.yaml"
   connection:
-    tests:
-      - config_path: "secrets/config_oauth.json"
-        status: "succeed"
-      - config_path: "secrets/config.json"
-        status: "succeed"
-      - config_path: "integration_tests/invalid_config.json"
-        status: "failed"
+    bypass_reason: "This is a builder contribution, and we do not have secrets at this time"
   discovery:
-    tests:
-      - config_path: "secrets/config_oauth.json"
+    bypass_reason: "This is a builder contribution, and we do not have secrets at this time"
   basic_read:
-    tests:
-      - config_path: "secrets/config_oauth.json"
-        configured_catalog_path: "integration_tests/configured_catalog.json"
-        timeout_seconds: 1200
+    bypass_reason: "This is a builder contribution, and we do not have secrets at this time"
   incremental:
-    bypass_reason: "Connector doesn't support Incremental sync for any stream"
+    bypass_reason: "This is a builder contribution, and we do not have secrets at this time"
   full_refresh:
-    tests:
-      - config_path: "secrets/config_oauth.json"
-        configured_catalog_path: "integration_tests/configured_catalog.json"
-        timeout_seconds: 3600
+    bypass_reason: "This is a builder contribution, and we do not have secrets at this time"

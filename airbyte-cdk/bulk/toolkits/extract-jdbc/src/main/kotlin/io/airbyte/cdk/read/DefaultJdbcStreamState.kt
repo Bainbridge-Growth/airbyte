@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 Airbyte, Inc., all rights reserved.
+ * Copyright (c) 2024 Airbyte, Inc., all rights reserved.
  */
 
 package io.airbyte.cdk.read
@@ -29,16 +29,7 @@ class DefaultJdbcStreamState(
         get() = fetchSize ?: sharedState.constants.defaultFetchSize
 
     override val limit: Long
-        get() {
-            val fetchSize = fetchSizeOrDefault.toLong()
-            val current = transient.get().limitState.current
-
-            // Prevent overflow: use Math.multiplyExact which throws on overflow
-            val product =
-                runCatching { Math.multiplyExact(fetchSize, current) }.getOrElse { Long.MAX_VALUE }
-
-            return sharedState.constants.maxSequentialQueryLimit?.coerceAtMost(product) ?: product
-        }
+        get() = fetchSizeOrDefault * transient.get().limitState.current
 
     private val transient = AtomicReference(Transient.initial)
 

@@ -1,10 +1,9 @@
 /*
- * Copyright (c) 2026 Airbyte, Inc., all rights reserved.
+ * Copyright (c) 2024 Airbyte, Inc., all rights reserved.
  */
 
 package io.airbyte.cdk.load.message
 
-import io.airbyte.cdk.load.command.Append
 import io.airbyte.cdk.load.command.DestinationStream
 import io.airbyte.cdk.load.command.NamespaceMapper
 import io.airbyte.cdk.load.data.*
@@ -20,8 +19,6 @@ import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 
 class DestinationRecordRawTest {
-
-    private val coercer = AirbyteValueCoercer()
 
     // Create a schema with various field types for testing
     private val recordSchema =
@@ -44,29 +41,12 @@ class DestinationRecordRawTest {
         DestinationStream(
             unmappedNamespace = "test_namespace",
             unmappedName = "test_stream",
+            io.airbyte.cdk.load.command.Append,
+            recordSchema,
             generationId = 42L,
             minimumGenerationId = 0L,
             syncId = 123L,
-            namespaceMapper = NamespaceMapper(),
-            tableSchema =
-                io.airbyte.cdk.load.schema.model.StreamTableSchema(
-                    tableNames =
-                        io.airbyte.cdk.load.schema.model.TableNames(
-                            finalTableName =
-                                io.airbyte.cdk.load.schema.model.TableName(
-                                    "test_namespace",
-                                    "test_stream"
-                                )
-                        ),
-                    columnSchema =
-                        io.airbyte.cdk.load.schema.model.ColumnSchema(
-                            inputSchema = recordSchema.properties,
-                            inputToFinalColumnNames =
-                                recordSchema.properties.keys.associateWith { it },
-                            finalSchema = mapOf(),
-                        ),
-                    importType = Append,
-                )
+            namespaceMapper = NamespaceMapper()
         )
 
     @Test
@@ -100,7 +80,7 @@ class DestinationRecordRawTest {
                 airbyteRawId = UUID.randomUUID(),
             )
 
-        val enrichedRecord = rawRecord.asEnrichedDestinationRecordAirbyteValue(coercer)
+        val enrichedRecord = rawRecord.asEnrichedDestinationRecordAirbyteValue()
 
         // Verify declared fields are processed correctly
         assertEquals(2, enrichedRecord.declaredFields.size)
@@ -154,7 +134,7 @@ class DestinationRecordRawTest {
                 airbyteRawId = UUID.randomUUID(),
             )
 
-        val enrichedRecord = rawRecord.asEnrichedDestinationRecordAirbyteValue(coercer)
+        val enrichedRecord = rawRecord.asEnrichedDestinationRecordAirbyteValue()
 
         // Check coerced string field
         val stringField = enrichedRecord.declaredFields["string_field"]
@@ -208,7 +188,7 @@ class DestinationRecordRawTest {
                 airbyteRawId = UUID.randomUUID(),
             )
 
-        val enrichedRecord = rawRecord.asEnrichedDestinationRecordAirbyteValue(coercer)
+        val enrichedRecord = rawRecord.asEnrichedDestinationRecordAirbyteValue()
 
         // Check valid field is preserved
         val stringField = enrichedRecord.declaredFields["string_field"]
@@ -267,7 +247,7 @@ class DestinationRecordRawTest {
                 airbyteRawId = UUID.randomUUID(),
             )
 
-        val enrichedRecord = rawRecord.asEnrichedDestinationRecordAirbyteValue(coercer)
+        val enrichedRecord = rawRecord.asEnrichedDestinationRecordAirbyteValue()
 
         // Verify meta changes are preserved
         assertNotNull(enrichedRecord.sourceMeta)
@@ -285,32 +265,19 @@ class DestinationRecordRawTest {
 
     @Test
     fun `test handling empty fields in schema`() {
+        // Create an empty schema
+        val emptySchema = ObjectType(linkedMapOf())
+
         val streamWithEmptySchema =
             DestinationStream(
                 unmappedNamespace = "test_namespace",
                 unmappedName = "test_stream",
+                io.airbyte.cdk.load.command.Append,
+                emptySchema,
                 generationId = 42L,
                 minimumGenerationId = 0L,
                 syncId = 123L,
-                namespaceMapper = NamespaceMapper(),
-                tableSchema =
-                    io.airbyte.cdk.load.schema.model.StreamTableSchema(
-                        tableNames =
-                            io.airbyte.cdk.load.schema.model.TableNames(
-                                finalTableName =
-                                    io.airbyte.cdk.load.schema.model.TableName(
-                                        "test_namespace",
-                                        "test_stream"
-                                    )
-                            ),
-                        columnSchema =
-                            io.airbyte.cdk.load.schema.model.ColumnSchema(
-                                inputSchema = mapOf(),
-                                inputToFinalColumnNames = mapOf(),
-                                finalSchema = mapOf(),
-                            ),
-                        importType = Append,
-                    )
+                namespaceMapper = NamespaceMapper()
             )
 
         val jsonData = """{"field1": "value1", "field2": 123}"""
@@ -333,7 +300,7 @@ class DestinationRecordRawTest {
                 airbyteRawId = UUID.randomUUID(),
             )
 
-        val enrichedRecord = rawRecord.asEnrichedDestinationRecordAirbyteValue(coercer)
+        val enrichedRecord = rawRecord.asEnrichedDestinationRecordAirbyteValue()
 
         // Verify all fields are treated as undeclared
         assertEquals(0, enrichedRecord.declaredFields.size)
@@ -385,29 +352,12 @@ class DestinationRecordRawTest {
             DestinationStream(
                 unmappedNamespace = "test_namespace",
                 unmappedName = "test_stream",
+                io.airbyte.cdk.load.command.Append,
+                complexSchema,
                 generationId = 42L,
                 minimumGenerationId = 0L,
                 syncId = 123L,
-                namespaceMapper = NamespaceMapper(),
-                tableSchema =
-                    io.airbyte.cdk.load.schema.model.StreamTableSchema(
-                        tableNames =
-                            io.airbyte.cdk.load.schema.model.TableNames(
-                                finalTableName =
-                                    io.airbyte.cdk.load.schema.model.TableName(
-                                        "test_namespace",
-                                        "test_stream"
-                                    )
-                            ),
-                        columnSchema =
-                            io.airbyte.cdk.load.schema.model.ColumnSchema(
-                                inputSchema = complexSchema.properties,
-                                inputToFinalColumnNames =
-                                    complexSchema.properties.keys.associateWith { it },
-                                finalSchema = mapOf(),
-                            ),
-                        importType = Append,
-                    )
+                namespaceMapper = NamespaceMapper()
             )
 
         val jsonData =
@@ -443,7 +393,7 @@ class DestinationRecordRawTest {
                 airbyteRawId = UUID.randomUUID(),
             )
 
-        val enrichedRecord = rawRecord.asEnrichedDestinationRecordAirbyteValue(coercer)
+        val enrichedRecord = rawRecord.asEnrichedDestinationRecordAirbyteValue()
 
         // Verify complex fields are processed correctly
         assertEquals(2, enrichedRecord.declaredFields.size)
@@ -489,7 +439,7 @@ class DestinationRecordRawTest {
                 airbyteRawId = UUID.randomUUID(),
             )
 
-        val enrichedRecord = rawRecord.asEnrichedDestinationRecordAirbyteValue(coercer)
+        val enrichedRecord = rawRecord.asEnrichedDestinationRecordAirbyteValue()
 
         // Verify fields are processed correctly
         assertEquals(2, enrichedRecord.declaredFields.size)

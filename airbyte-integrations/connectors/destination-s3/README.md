@@ -1,1 +1,2 @@
-../_shared/README-java-destinations.md
+# S3 V2 (Bulk CDK) Destination
+

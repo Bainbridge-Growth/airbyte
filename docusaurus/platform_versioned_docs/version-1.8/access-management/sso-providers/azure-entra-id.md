@@ -62,10 +62,6 @@ Create client credentials so Airbyte can talk to your application.
 
 #### Configure SSO in Airbyte
 
-:::info
-Currently, this portion of the setup can only be done by an Airbyte employee. Contact Support to proceed.
-:::
-
 1. In Airbyte, click **Settings**.
 
 2. Under **Organization**, click **General**.
@@ -250,10 +246,9 @@ global:
   auth:
     identityProvider: 
       type: generic-oidc
-      genericOidc: 
+      generic-oidc: 
         clientId: YOUR_CLIENT_ID
         audience: YOUR_AUDIENCE
-        extraScopes: YOUR_EXTRA_SCOPES
         issuer: YOUR_ISSUER
         endpoints: 
           authorizationServerEndpoint: YOUR_AUTH_ENDPOINT
@@ -263,8 +258,6 @@ You collect these values from Microsoft in the locations shown below.
 - `clientId`: In Entra ID, on your application page, use the **Application (client) ID**.
 
 - `audience`: Same as `clientId`.
-
-- `extraScopes`: If you've defined extra scopes in your app registration, you can reference them here. Extra scopes are included in the authorization code flow and are sometimes required to provide web apps like Airbyte with valid JSON web tokens. In the Azure portal, **Entra ID** > **App registrations** > your app > **Expose an API**.  The format looks like `api://12345678-90ab-cdef-1234-567890abcdef/<SCOPE_NAME>`. Microsoft Graph API scopes and optional claims aren't supported.
 
 - `issuer`: In your well-known endpoint, use `issuer`.
 

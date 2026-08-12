@@ -47,16 +47,12 @@
     "listIds": {
       "description": "List of IDs of the lists targeted by the campaign",
       "type": ["null", "array"],
-      "items": {
-        "type": "integer"
-      }
+      "items": {}
     },
     "suppressionListIds": {
       "description": "List of IDs of suppression lists for the campaign",
       "type": ["null", "array"],
-      "items": {
-        "type": "integer"
-      }
+      "items": {}
     },
     "sendSize": {
       "description": "The size of the audience targeted by the campaign",
@@ -73,9 +69,7 @@
     "labels": {
       "description": "List of labels associated with the campaign",
       "type": ["null", "array"],
-      "items": {
-        "type": "string"
-      }
+      "items": {}
     },
     "type": {
       "description": "The type of campaign (e.g., one-time, recurring)",

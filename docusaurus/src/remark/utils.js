@@ -1,4 +1,4 @@
-const { fetchRegistry } = require("../scripts/fetch-registry");
+const { catalog } = require("../connector_registry");
 
 // the migration guide and troubleshooting guide are not connectors, but also not in a sub-folder, e.g. /integrations/sources/mssql-migrations
 const connectorPageAlternativeEndings = ["-migrations", "-troubleshooting"];
@@ -65,10 +65,10 @@ const getRegistryEntry = async (vfile) => {
     "",
   )}-${connectorName}`;
 
-  const registry = await fetchRegistry();
+  const registry = await catalog;
 
   let registryEntry = registry.find(
-    (r) => r.dockerRepository === dockerRepository,
+    (r) => r.dockerRepository_oss === dockerRepository,
   );
 
   if (!registryEntry) {
@@ -90,13 +90,13 @@ const buildArchivedRegistryEntry = (
   const dockerName = dockerRepository.split("/")[1];
   const registryEntry = {
     connectorName,
-    name: dockerName,
-    dockerRepository,
+    name_oss: dockerName,
+    dockerRepository_oss: dockerRepository,
     is_oss: false,
     is_cloud: false,
-    iconUrl: `https://connectors.airbyte.com/files/metadata/airbyte/${dockerName}/latest/icon.svg`,
-    supportLevel: "archived",
-    documentationUrl: `https://docs.airbyte.com/integrations/${connectorType}s/${connectorName}`,
+    iconUrl_oss: `https://connectors.airbyte.com/files/metadata/airbyte/${dockerName}/latest/icon.svg`,
+    supportLevel_oss: "archived",
+    documentationUrl_oss: `https://docs.airbyte.com/integrations/${connectorType}s/${connectorName}`,
   };
 
   return registryEntry;

@@ -1,11 +1,10 @@
 /*
- * Copyright (c) 2026 Airbyte, Inc., all rights reserved.
+ * Copyright (c) 2024 Airbyte, Inc., all rights reserved.
  */
 
 package io.airbyte.cdk.read
 
 import com.fasterxml.jackson.databind.JsonNode
-import io.airbyte.cdk.jdbc.JdbcConnectionFactory
 
 /**
  * Encapsulates database-specific transient state for a particular [stream].
@@ -44,9 +43,4 @@ interface JdbcStreamState<A : JdbcSharedState> {
 
     /** Resets the transient state to its initial setting. */
     fun reset()
-
-    fun validatePartition(
-        partition: JdbcPartition<*>,
-        jdbcConnectionFactory: JdbcConnectionFactory
-    ) {}
 }

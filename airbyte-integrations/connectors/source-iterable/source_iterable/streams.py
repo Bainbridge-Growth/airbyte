@@ -33,19 +33,13 @@ class IterableStream(HttpStream, ABC):
     # to prevent 429 error on other streams
     ignore_further_slices = False
 
+    url_base = "https://api.iterable.com/api/"
     primary_key = "id"
 
-    def __init__(self, authenticator, region: str = "US"):
+    def __init__(self, authenticator):
         self._cred = authenticator
         self._slice_retry = 0
-        self._region = region
         super().__init__(authenticator)
-
-    @property
-    def url_base(self) -> str:
-        if self._region == "EU":
-            return "https://api.eu.iterable.com/api/"
-        return "https://api.iterable.com/api/"
 
     @property
     def retry_factor(self) -> int:
@@ -159,11 +153,10 @@ class IterableExportStream(IterableStream, CheckpointMixin, ABC):
     def state(self, value: MutableMapping[str, Any]):
         self._state = value
 
-    def __init__(self, start_date=None, end_date=None, lookback_window: int = 5, **kwargs):
+    def __init__(self, start_date=None, end_date=None, **kwargs):
         super().__init__(**kwargs)
         self._start_date = pendulum.parse(start_date)
         self._end_date = end_date and pendulum.parse(end_date)
-        self._lookback_window = lookback_window
         self.stream_params = {"dataTypeName": self.data_field}
 
     def path(self, **kwargs) -> str:
@@ -180,25 +173,8 @@ class IterableExportStream(IterableStream, CheckpointMixin, ABC):
         return value
 
     def read_records(self, **kwargs) -> Iterable[Mapping[str, Any]]:
-        # On the first invocation within a sync, capture the cursor value
-        # from the loaded state.  Records at or before this cursor have
-        # already been synced and should be skipped to prevent duplicates.
-        # The Iterable export API uses an inclusive startDateTime boundary,
-        # so without this client-side filter the same records are returned
-        # across consecutive syncs.
-        #
-        # We must capture only once because self._state advances as
-        # records are processed, and this method is called per-slice by
-        # IterableExportStreamAdjustableRange.
-        if not hasattr(self, "_sync_start_cursor"):
-            initial_state = getattr(self, "_state", None) or {}
-            state_value = initial_state.get(self.cursor_field)
-            self._sync_start_cursor = self._field_to_datetime(state_value) if state_value else None
-
         for record in super().read_records(**kwargs):
             self.state = self._get_updated_state(self.state, record)
-            if self._sync_start_cursor is not None and record[self.cursor_field] <= self._sync_start_cursor:
-                continue
             yield record
 
     def _get_updated_state(
@@ -269,20 +245,6 @@ class IterableExportStream(IterableStream, CheckpointMixin, ABC):
             start_datetime = pendulum.parse(stream_state[self.cursor_field])
         return start_datetime
 
-    def _get_effective_end_date(self) -> DateTime:
-        """Compute the effective end date for the sync window.
-
-        When no explicit end_date is configured (production usage), the end
-        of the sync window is ``now() - lookback_window``.  The
-        buffer accounts for Iterable Export API eventual consistency —
-        recently created events may not yet be indexed by the export
-        pipeline.  Without this buffer the cursor would advance past those
-        events and they would be permanently lost.
-        """
-        if self._end_date:
-            return self._end_date
-        return pendulum.now("UTC") - pendulum.Duration(minutes=self._lookback_window)
-
     def stream_slices(
         self,
         sync_mode: SyncMode,
@@ -290,7 +252,7 @@ class IterableExportStream(IterableStream, CheckpointMixin, ABC):
         stream_state: Mapping[str, Any] = None,
     ) -> Iterable[Optional[StreamSlice]]:
         start_datetime = self.get_start_date(stream_state)
-        return [StreamSlice(start_datetime, self._get_effective_end_date())]
+        return [StreamSlice(start_datetime, self._end_date or pendulum.now("UTC"))]
 
 
 class IterableExportStreamRanged(IterableExportStream, ABC):
@@ -308,7 +270,7 @@ class IterableExportStreamRanged(IterableExportStream, ABC):
     ) -> Iterable[Optional[StreamSlice]]:
         start_datetime = self.get_start_date(stream_state)
 
-        return RangeSliceGenerator(start_datetime, self._get_effective_end_date())
+        return RangeSliceGenerator(start_datetime, self._end_date)
 
 
 class IterableExportStreamAdjustableRange(IterableExportStream, ABC):
@@ -341,7 +303,7 @@ class IterableExportStreamAdjustableRange(IterableExportStream, ABC):
         stream_state: Mapping[str, Any] = None,
     ) -> Iterable[Optional[StreamSlice]]:
         start_datetime = self.get_start_date(stream_state)
-        self._adjustable_generator = AdjustableSliceGenerator(start_datetime, self._get_effective_end_date())
+        self._adjustable_generator = AdjustableSliceGenerator(start_datetime, self._end_date)
         return self._adjustable_generator
 
     def read_records(
@@ -413,7 +375,7 @@ class CampaignsMetrics(IterableStream):
         return params
 
     def stream_slices(self, **kwargs) -> Iterable[Optional[Mapping[str, any]]]:
-        lists = Campaigns(authenticator=self._cred, region=self._region)
+        lists = Campaigns(authenticator=self._cred)
         campaign_ids = []
         for list_record in lists.read_records(sync_mode=kwargs.get("sync_mode", SyncMode.full_refresh)):
             campaign_ids.append(list_record["id"])

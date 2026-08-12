@@ -1,4 +1,4 @@
-const { toAttributes } = require("../helpers/objects");
+const { getFromPaths, toAttributes } = require("../helpers/objects");
 const { isDocsPage, getRegistryEntry } = require("./utils");
 const visit = require("unist-util-visit").visit;
 
@@ -18,7 +18,8 @@ const plugin = () => {
     if (!registryEntry) return;
 
     visit(ast, "root", (node) => {
-      const { title, description } = generateMetaTags(registryEntry.name);
+      const name = getFromPaths(registryEntry, "name_[oss|cloud]");
+      const { title, description } = generateMetaTags(name);
 
       const attributes = toAttributes({
         title,

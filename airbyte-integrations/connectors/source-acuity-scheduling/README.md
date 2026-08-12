@@ -1,1 +1,0 @@
-../_shared/README-declarative-sources.md

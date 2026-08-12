@@ -35,8 +35,4 @@ data:
   supportLevel: community
   tags:
     - language:java
-  externalDocumentationUrls:
-    - title: Teradata documentation
-      url: https://docs.teradata.com/
-      type: api_reference
 metadataSpecVersion: "1.0"

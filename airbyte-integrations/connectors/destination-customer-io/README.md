@@ -1,1 +1,1 @@
-../_shared/README-java-destinations.md
+# Customer IO Destination

@@ -114,10 +114,6 @@ The connector automatically handles pagination for all streams, using a page siz
 
 If you are upgrading from a previous version of the connector, please refer to the [migration guide](./xero-migrations.md) for important information about changes between versions.
 
-## IP allow list
-
-If you use Airbyte Cloud and your organization restricts access to specific IPs, add the [Airbyte Cloud IP addresses](https://docs.airbyte.com/platform/operating-airbyte/ip-allowlist) to your allow list.
-
 ## Changelog
 
 <details>
@@ -125,8 +121,6 @@ If you use Airbyte Cloud and your organization restricts access to specific IPs,
 
 | Version | Date       | Pull Request                                             | Subject                                                   |
 |:--------|:-----------|:---------------------------------------------------------|:----------------------------------------------------------|
-| 2.1.6 | 2026-06-30 | [79089](https://github.com/airbytehq/airbyte/pull/79089) | Update dependencies |
-| 2.1.5 | 2026-02-25 | [71340](https://github.com/airbytehq/airbyte/pull/71340) | Resolve the generator returned from JsonDecoder into dictionary |
 | 2.1.4 | 2025-03-01 | [55142](https://github.com/airbytehq/airbyte/pull/55142) | Update dependencies |
 | 2.1.3 | 2025-02-22 | [54526](https://github.com/airbytehq/airbyte/pull/54526) | Update dependencies |
 | 2.1.2 | 2025-02-15 | [54042](https://github.com/airbytehq/airbyte/pull/54042) | Update dependencies |

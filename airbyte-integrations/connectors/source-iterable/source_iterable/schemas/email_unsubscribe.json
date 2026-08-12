@@ -36,9 +36,7 @@
     "emailListIds": {
       "description": "The list of unique identifiers for multiple email lists associated with the email unsubscribe data.",
       "type": ["null", "array"],
-      "items": {
-        "type": "integer"
-      }
+      "items": {}
     },
     "workflowId": {
       "description": "The unique identifier for the workflow associated with the email unsubscribe data.",
@@ -55,9 +53,7 @@
     "channelIds": {
       "description": "The list of unique identifiers for multiple channels associated with the email unsubscribe data.",
       "type": ["null", "array"],
-      "items": {
-        "type": "integer"
-      }
+      "items": {}
     },
     "email": {
       "description": "The email address for which the user unsubscribed.",

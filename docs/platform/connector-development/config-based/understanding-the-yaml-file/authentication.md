@@ -287,8 +287,7 @@ authenticator:
 
 For more information see [JwtAuthenticator Reference](https://docs.airbyte.com/connector-development/config-based/understanding-the-yaml-file/reference#/definitions/JwtAuthenticator)
 
-## Related
+## More readings
 
-- *No-Code Connector Builder*: [Authentication](/platform/connector-development/connector-builder-ui/authentication)
 - [Requester](./requester.md)
 - [Request options](./request-options.md)

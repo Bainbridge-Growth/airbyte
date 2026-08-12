@@ -1,16 +1,16 @@
 /*
- * Copyright (c) 2026 Airbyte, Inc., all rights reserved.
+ * Copyright (c) 2024 Airbyte, Inc., all rights reserved.
  */
 
 package io.airbyte.cdk.read.cdc
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
-import io.airbyte.cdk.ConfigErrorException
 import io.airbyte.cdk.StreamIdentifier
 import io.airbyte.cdk.command.OpaqueStateValue
 import io.airbyte.cdk.output.DataChannelMedium.SOCKET
 import io.airbyte.cdk.output.DataChannelMedium.STDIO
 import io.airbyte.cdk.output.OutputMessageRouter
+import io.airbyte.cdk.output.sockets.NativeRecordPayload
 import io.airbyte.cdk.read.GlobalFeedBootstrap
 import io.airbyte.cdk.read.PartitionReadCheckpoint
 import io.airbyte.cdk.read.PartitionReader
@@ -21,24 +21,20 @@ import io.airbyte.cdk.read.ResourceType.RESOURCE_DB_CONNECTION
 import io.airbyte.cdk.read.ResourceType.RESOURCE_OUTPUT_SOCKET
 import io.airbyte.cdk.read.Stream
 import io.airbyte.cdk.read.UnlimitedTimePartitionReader
-import io.airbyte.cdk.read.cdc.DebeziumPropertiesBuilder.Companion.AIRBYTE_HEARTBEAT_TIMEOUT_SECONDS
 import io.airbyte.cdk.read.generatePartitionId
 import io.airbyte.protocol.models.v0.StreamDescriptor
 import io.debezium.engine.ChangeEvent
 import io.debezium.engine.DebeziumEngine
 import io.debezium.engine.format.Json
 import io.github.oshai.kotlinlogging.KotlinLogging
-import java.time.Duration
-import java.time.LocalDateTime
 import java.util.*
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.Consumer
-import kotlinx.coroutines.CoroutineScope
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -46,7 +42,7 @@ import org.apache.kafka.connect.source.SourceRecord
 
 /** [PartitionReader] implementation for CDC with Debezium. */
 @SuppressFBWarnings(value = ["NP_NONNULL_RETURN_VIOLATION"], justification = "Micronaut DI")
-class CdcPartitionReader<T : PartiallyOrdered<T>>(
+class CdcPartitionReader<T : Comparable<T>>(
     val resourceAcquirer: ResourceAcquirer,
     val readerOps: CdcPartitionReaderDebeziumOperations<T>,
     val upperBound: T,
@@ -58,7 +54,6 @@ class CdcPartitionReader<T : PartiallyOrdered<T>>(
 ) : UnlimitedTimePartitionReader {
     private val log = KotlinLogging.logger {}
     private val acquiredResources = AtomicReference<Map<ResourceType, AcquiredResource>>()
-    private val engineShuttingDown: AtomicBoolean = AtomicBoolean(false)
     private lateinit var stateFilesAccessor: DebeziumStateFilesAccessor
     private lateinit var decoratedProperties: Properties
     private lateinit var engine: DebeziumEngine<ChangeEvent<String?, String?>>
@@ -74,19 +69,14 @@ class CdcPartitionReader<T : PartiallyOrdered<T>>(
     internal val numSourceRecordsWithoutPosition = AtomicLong()
     internal val numEventValuesWithoutPosition = AtomicLong()
 
-    // Track last event time for watchdog timeout monitoring
-    private val lastEventTime = AtomicReference(LocalDateTime.now())
-    private var watchdogJob: Job? = null
-    @Volatile private var watchdogShouldStop = false
-
-    private var partitionId: String = generatePartitionId(4)
-
+    protected var partitionId: String = generatePartitionId(4)
+    private lateinit var acceptors: Map<StreamIdentifier, (NativeRecordPayload) -> Unit>
     interface AcquiredResource : AutoCloseable {
         val resource: Resource.Acquired?
     }
 
     override fun tryAcquireResources(): PartitionReader.TryAcquireResourcesStatus {
-        fun innerAcquireResources(
+        fun _tryAcquireResources(
             resourcesType: List<ResourceType>
         ): Map<ResourceType, AcquiredResource>? {
             val resources: Map<ResourceType, Resource.Acquired>? =
@@ -95,9 +85,9 @@ class CdcPartitionReader<T : PartiallyOrdered<T>>(
                 ?.map {
                     it.key to
                         object : AcquiredResource {
-                            override val resource: Resource.Acquired = it.value
+                            override val resource: Resource.Acquired? = it.value
                             override fun close() {
-                                resource.close()
+                                resource?.close()
                             }
                         }
                 }
@@ -110,7 +100,7 @@ class CdcPartitionReader<T : PartiallyOrdered<T>>(
                 STDIO -> listOf(RESOURCE_DB_CONNECTION)
             }
         val resources: Map<ResourceType, AcquiredResource> =
-            innerAcquireResources(resourceType)
+            _tryAcquireResources(resourceType)
                 ?: return PartitionReader.TryAcquireResourcesStatus.RETRY_LATER
 
         acquiredResources.set(resources)
@@ -157,7 +147,7 @@ class CdcPartitionReader<T : PartiallyOrdered<T>>(
                 .using(decoratedProperties)
                 .using(ConnectorCallback())
                 .using(CompletionCallback())
-                .notifying(EventConsumer())
+                .notifying(EventConsumer(coroutineContext))
                 .build()
         val debeziumVersion: String = DebeziumEngine::class.java.getPackage().implementationVersion
         log.info { "Running Debezium engine version $debeziumVersion." }
@@ -165,29 +155,12 @@ class CdcPartitionReader<T : PartiallyOrdered<T>>(
         val thread = Thread(engine, "debezium-engine")
         thread.setUncaughtExceptionHandler { _, e: Throwable -> engineException.set(e) }
         thread.start()
-
-        // Start watchdog coroutine if timeout is configured
-        val timeoutDuration =
-            debeziumProperties[AIRBYTE_HEARTBEAT_TIMEOUT_SECONDS]?.let {
-                Duration.ofSeconds(it.toLongOrNull() ?: 0L).takeIf { duration ->
-                    duration.seconds > 0
-                }
-            }
-        if (timeoutDuration != null) {
-            watchdogShouldStop = false
-            lastEventTime.set(LocalDateTime.now())
-            watchdogJob = CoroutineScope(Dispatchers.IO).launch { startWatchdog(timeoutDuration) }
-        }
-
         try {
             withContext(Dispatchers.IO) { thread.join() }
         } catch (e: Throwable) {
             // This catches any exceptions thrown by join()
             // but also by the kotlin coroutine dispatcher, like TimeoutCancellationException.
             engineException.compareAndSet(null, e)
-        } finally {
-            watchdogShouldStop = true
-            watchdogJob?.cancel()
         }
         // Print a nice log message and re-throw any exception.
         val exception: Throwable? = engineException.get()
@@ -211,18 +184,6 @@ class CdcPartitionReader<T : PartiallyOrdered<T>>(
     }
 
     override fun checkpoint(): PartitionReadCheckpoint {
-        // During the initial CDC snapshot (synthetic mode), Debezium reads the schema/structure
-        // of all CDC-enabled tables. If the watchdog times out during this phase, it means the
-        // database has too many tables or the timeout is configured too low.
-        // Throw ConfigErrorException to fail fast and prevent saving corrupted state
-        // (offset without schema history).
-        if (isInputStateSynthetic && closeReasonReference.get() == CloseReason.WATCHDOG_TIMEOUT) {
-            throw ConfigErrorException(
-                "Watchdog timeout during initial snapshot. " +
-                    "Please increase 'Initial Waiting Time' in the source configuration page. " +
-                    "Visit our Best Practices guide for more details: https://docs.airbyte.com/platform/understanding-airbyte/cdc-best-practices"
-            )
-        }
         val offset: DebeziumOffset = stateFilesAccessor.readUpdatedOffset(startingOffset)
         val schemaHistory: DebeziumSchemaHistory? =
             if (DebeziumPropertiesBuilder().with(decoratedProperties).expectsSchemaHistoryFile) {
@@ -241,61 +202,15 @@ class CdcPartitionReader<T : PartiallyOrdered<T>>(
         )
     }
 
-    /**
-     * Watchdog coroutine that monitors for timeout when no events are received from Debezium. This
-     * is necessary because Debezium may not emit any events (including heartbeats) when the
-     * database has no changes, causing the sync to hang indefinitely.
-     *
-     * The watchdog waits for exactly the timeout duration, then checks once. If any event is
-     * received during that time, the watchdog is cancelled by the event consumer.
-     */
-    private suspend fun startWatchdog(timeoutDuration: Duration) {
-        log.info { "Starting watchdog with timeout of ${timeoutDuration.seconds} seconds" }
-        delay(timeoutDuration.toMillis())
-
-        // If we reach here, no event was received within the timeout period
-        // Check if we should still proceed (engine might have closed for other reasons)
-        if (watchdogShouldStop || closeReasonReference.get() != null) {
-            log.info { "Watchdog woke up but engine already stopped" }
-            return
-        }
-
-        log.info {
-            "Watchdog timeout: no events received for ${timeoutDuration.toMinutes()} minutes. " +
-                "Records emitted: ${numEmittedRecords.get()}. Shutting down Debezium engine."
-        }
-
-        if (closeReasonReference.compareAndSet(null, CloseReason.WATCHDOG_TIMEOUT)) {
-            engineShuttingDown.set(true)
-            runBlocking { launch(Dispatchers.IO + Job()) { engine.close() } }
-        }
-    }
-
-    inner class EventConsumer() : Consumer<ChangeEvent<String?, String?>> {
-
-        private var lastHeartbeatPosition: T? = null
-        private var lastHeartbeatTime: LocalDateTime? = null
-        // Only enable heartbeat timeout if explicitly configured
-        private val heartbeatTimeoutDuration: Duration? =
-            debeziumProperties[AIRBYTE_HEARTBEAT_TIMEOUT_SECONDS]?.let {
-                Duration.ofSeconds(it.toLongOrNull() ?: 0L).takeIf { duration ->
-                    duration.seconds > 0
-                }
-            }
+    inner class EventConsumer(
+        private val coroutineContext: CoroutineContext,
+    ) : Consumer<ChangeEvent<String?, String?>> {
 
         override fun accept(changeEvent: ChangeEvent<String?, String?>) {
-            // Stop watchdog once we receive any event - connection is working
-            if (watchdogJob != null && !watchdogShouldStop) {
-                log.info { "Received first event from Debezium, stopping watchdog" }
-                watchdogShouldStop = true
-                watchdogJob?.cancel()
-            }
-
             val event = DebeziumEvent(changeEvent)
             val eventType: EventType = emitRecord(event)
-            if (!engineShuttingDown.get()) {
-                updateCounters(event, eventType)
-            }
+            // Update counters.
+            updateCounters(event, eventType)
             // Look for reasons to close down the engine.
             val closeReason: CloseReason = findCloseReason(event, eventType) ?: return
             // At this point, if we haven't returned already, we want to close down the engine.
@@ -306,7 +221,6 @@ class CdcPartitionReader<T : PartiallyOrdered<T>>(
             // At this point, if we haven't returned already, we need to close down the engine.
             log.info { "Shutting down Debezium engine: ${closeReason.message}." }
             // TODO : send close analytics message
-            engineShuttingDown.set(true)
             runBlocking() { launch(Dispatchers.IO + Job()) { engine.close() } }
         }
 
@@ -337,30 +251,17 @@ class CdcPartitionReader<T : PartiallyOrdered<T>>(
             val deserializedRecord: DeserializedRecord =
                 readerOps.deserializeRecord(event.key, event.value, stream)
                     ?: return EventType.RECORD_DISCARDED_BY_DESERIALIZE
-            val recordAcceptor =
-                outputMessageRouter.recordAcceptors[streamId]
-                    ?: run {
-                        log.warn {
-                            "No record acceptor found for stream $streamId, skipping record emission."
-                        }
-                        return EventType.RECORD_DISCARDED_BY_STREAM_ID
-                    }
-
             // Emit the record at the end of the happy path.
-            when (engineShuttingDown.get()) {
-                // While the engine is shutting down, we emit records in our thread to prevent
-                // debezium from unexpectedly killing the thread.
-                // As this may lead to corrupt hald records or to causing an unexpected socket
-                // closure.
-                true ->
-                    runBlocking(Dispatchers.IO) {
-                        recordAcceptor.invoke(deserializedRecord.data, deserializedRecord.changes)
-                        updateCounters(event, EventType.RECORD_EMITTED)
+            outputMessageRouter.recordAcceptors[streamId]?.invoke(
+                deserializedRecord.data,
+                deserializedRecord.changes
+            )
+                ?: run {
+                    log.warn {
+                        "No record acceptor found for stream $streamId, skipping record emission."
                     }
-                // While the engine is running normally, we can emit records synchronously for
-                // better performance.
-                false -> recordAcceptor.invoke(deserializedRecord.data, deserializedRecord.changes)
-            }
+                    return EventType.RECORD_DISCARDED_BY_STREAM_ID
+                }
             return EventType.RECORD_EMITTED
         }
 
@@ -401,55 +302,20 @@ class CdcPartitionReader<T : PartiallyOrdered<T>>(
             }
 
             val currentPosition: T? = position(event.sourceRecord) ?: position(event.value)
-
-            // Only check for heartbeat timeout if it's configured AND this is a heartbeat event
-            if (eventType == EventType.HEARTBEAT && heartbeatTimeoutDuration != null) {
-                val now = LocalDateTime.now()
-
-                // Check if heartbeat position is progressing (LSN should increase)
-                //  - If lastHeartbeatPosition is null (first heartbeat) → isProgressing = true
-                //  - If currentPosition is null → skip timeout check (return early)
-                //  - Otherwise → isProgressing = (currentPosition > lastHeartbeatPosition)
-                if (currentPosition == null) {
-                    return null
-                }
-                val isProgressing =
-                    lastHeartbeatPosition == null ||
-                        currentPosition.isGreater(lastHeartbeatPosition)
-                if (isProgressing) {
-                    lastHeartbeatPosition = currentPosition
-                    lastHeartbeatTime = now
-                    log.info { "Heartbeat progressing to position: $currentPosition" }
-                } else {
-                    val timeSinceLastProgress = Duration.between(lastHeartbeatTime!!, now)
-                    if (timeSinceLastProgress > heartbeatTimeoutDuration) {
-                        log.info {
-                            "Heartbeat timeout: no progress for ${timeSinceLastProgress.toMinutes()} minutes. " +
-                                "Last position: $lastHeartbeatPosition, current: $currentPosition"
-                        }
-                        return CloseReason.HEARTBEAT_NOT_PROGRESSING
-                    }
-                    log.info {
-                        "Heartbeat not progressing, time since last progress: ${timeSinceLastProgress.toSeconds()}s"
-                    }
-                }
+            if (currentPosition == null || currentPosition < upperBound) {
+                return null
             }
-
-            if (currentPosition.isGreaterOrEqual(upperBound)) {
-                // Close because the current event is at or past the sync upper bound.
-                return when (eventType) {
-                    EventType.TOMBSTONE,
-                    EventType.HEARTBEAT ->
-                        CloseReason.HEARTBEAT_OR_TOMBSTONE_REACHED_TARGET_POSITION
-                    EventType.KEY_JSON_INVALID,
-                    EventType.VALUE_JSON_INVALID,
-                    EventType.RECORD_EMITTED,
-                    EventType.RECORD_DISCARDED_BY_DESERIALIZE,
-                    EventType.RECORD_DISCARDED_BY_STREAM_ID ->
-                        CloseReason.RECORD_REACHED_TARGET_POSITION
-                }
+            // Close because the current event is past the sync upper bound.
+            return when (eventType) {
+                EventType.TOMBSTONE,
+                EventType.HEARTBEAT -> CloseReason.HEARTBEAT_OR_TOMBSTONE_REACHED_TARGET_POSITION
+                EventType.KEY_JSON_INVALID,
+                EventType.VALUE_JSON_INVALID,
+                EventType.RECORD_EMITTED,
+                EventType.RECORD_DISCARDED_BY_DESERIALIZE,
+                EventType.RECORD_DISCARDED_BY_STREAM_ID ->
+                    CloseReason.RECORD_REACHED_TARGET_POSITION
             }
-            return null // Keep processing.
         }
 
         private fun position(sourceRecord: SourceRecord?): T? {
@@ -520,12 +386,6 @@ class CdcPartitionReader<T : PartiallyOrdered<T>>(
         ),
         RECORD_REACHED_TARGET_POSITION(
             "record indicates that WAL consumption has reached the target position"
-        ),
-        HEARTBEAT_NOT_PROGRESSING(
-            "heartbeat position has not progressed for an extended period, indicating database is idle"
-        ),
-        WATCHDOG_TIMEOUT(
-            "no events received from Debezium within the configured timeout period, indicating database is idle or connection is stuck"
         ),
     }
 }

@@ -31,6 +31,10 @@
       "relations": {}
     },
     {
+      "name": "issue_field_configurations",
+      "relations": {}
+    },
+    {
       "name": "issue_link_types",
       "relations": {}
     },

@@ -2,16 +2,13 @@
 # Copyright (c) 2023 Airbyte, Inc., all rights reserved.
 #
 
-from datetime import timedelta
-
 import freezegun
+import pendulum
 import pytest
 from source_facebook_marketing.utils import DATA_RETENTION_PERIOD, validate_end_date, validate_start_date
 
-from airbyte_cdk.utils.datetime_helpers import AirbyteDateTime
 
-
-TODAY = AirbyteDateTime(2023, 3, 31)
+TODAY = pendulum.datetime(2023, 3, 31)
 
 
 @pytest.mark.parametrize(
@@ -19,25 +16,25 @@ TODAY = AirbyteDateTime(2023, 3, 31)
     [
         (
             "start_date",
-            TODAY - timedelta(days=(DATA_RETENTION_PERIOD - 1) * 30),
-            TODAY - timedelta(days=(DATA_RETENTION_PERIOD - 1) * 30),
+            TODAY.subtract(months=DATA_RETENTION_PERIOD - 1),
+            TODAY.subtract(months=DATA_RETENTION_PERIOD - 1),
             [],
         ),
         (
             "start_date",
-            AirbyteDateTime(2019, 1, 1),
-            AirbyteDateTime(2020, 3, 4),
-            [f"The start date cannot be beyond 37 months from the current date. " f"Set start date to {AirbyteDateTime(2020, 3, 4)}."],
+            pendulum.datetime(2019, 1, 1),
+            pendulum.datetime(2020, 3, 2),
+            [f"The start date cannot be beyond 37 months from the current date. " f"Set start date to {pendulum.datetime(2020, 3, 2)}."],
         ),
         (
             "start_date",
-            TODAY + timedelta(days=30),
+            TODAY + pendulum.duration(months=1),
             TODAY,
             [f"The start date cannot be in the future. Set start date to today's date - {TODAY}."],
         ),
         (
             "end_date",
-            TODAY - timedelta(days=DATA_RETENTION_PERIOD * 30),
+            TODAY.subtract(months=DATA_RETENTION_PERIOD),
             TODAY,
             [f"The end date must be after start date. Set end date to {TODAY}."],
         ),

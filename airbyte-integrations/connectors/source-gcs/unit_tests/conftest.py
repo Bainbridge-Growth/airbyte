@@ -3,11 +3,11 @@
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import MagicMock, Mock
+from unittest.mock import Mock
 
 import pytest
 from source_gcs import Cursor, SourceGCSStreamReader
-from source_gcs.helpers import GCSUploadableRemoteFile
+from source_gcs.helpers import GCSRemoteFile
 
 from airbyte_cdk.sources.file_based.config.file_based_stream_config import FileBasedStreamConfig
 
@@ -23,24 +23,22 @@ def _file_uri() -> str:
 
 @pytest.fixture
 def remote_file():
-    blob = MagicMock(size=100, id="test/file/id", time_created=datetime.now() - timedelta(hours=1), updated=datetime.now())
-    blob.name.return_value = "file.csv"
-    return GCSUploadableRemoteFile(uri=_file_uri(), last_modified=datetime.now(), mime_type="csv", blob=blob)
+    return GCSRemoteFile(uri=_file_uri(), last_modified=datetime.now(), mime_type="csv")
 
 
 @pytest.fixture
 def remote_file_older():
-    return GCSUploadableRemoteFile(uri=_file_uri(), last_modified=datetime.now() - timedelta(days=1), blob=MagicMock())
+    return GCSRemoteFile(uri=_file_uri(), last_modified=datetime.now() - timedelta(days=1))
 
 
 @pytest.fixture
 def remote_file_future():
-    return GCSUploadableRemoteFile(uri=_file_uri(), last_modified=datetime.now() + timedelta(days=1), blob=MagicMock())
+    return GCSRemoteFile(uri=_file_uri(), last_modified=datetime.now() + timedelta(days=1))
 
 
 @pytest.fixture
 def remote_file_b():
-    return GCSUploadableRemoteFile(uri=_file_uri().replace("a.csv", "b.csv"), last_modified=datetime.now(), blob=MagicMock())
+    return GCSRemoteFile(uri=_file_uri().replace("a.csv", "b.csv"), last_modified=datetime.now())
 
 
 @pytest.fixture
@@ -62,10 +60,10 @@ def mocked_reader():
 
 @pytest.fixture
 def zip_file():
-    return GCSUploadableRemoteFile(
+    return GCSRemoteFile(
         uri=str(Path(__file__).parent / "resource/files/test.csv.zip"),
-        blob=MagicMock(),
         last_modified=datetime.today(),
+        mime_type=".zip",
         displayed_uri="resource/files/test.csv.zip",
     )
 

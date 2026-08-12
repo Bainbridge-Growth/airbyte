@@ -1,12 +1,10 @@
-/* Copyright (c) 2026 Airbyte, Inc., all rights reserved. */
+/* Copyright (c) 2024 Airbyte, Inc., all rights reserved. */
 package io.airbyte.cdk.read
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.ObjectNode
 import io.airbyte.cdk.command.JdbcSourceConfiguration
 import io.airbyte.cdk.command.OpaqueStateValue
-import io.airbyte.cdk.output.DataChannelMedium.SOCKET
-import io.airbyte.cdk.output.DataChannelMedium.STDIO
 import io.airbyte.cdk.output.sockets.toJson
 import io.airbyte.cdk.util.Jsons
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -41,14 +39,7 @@ abstract class JdbcPartitionsCreator<
         override suspend fun run() {}
 
         override fun checkpoint(): PartitionReadCheckpoint =
-            PartitionReadCheckpoint(
-                partition.completeState,
-                0,
-                when (streamState.streamFeedBootstrap.dataChannelMedium) {
-                    SOCKET -> generatePartitionId(4)
-                    STDIO -> null
-                }
-            )
+            PartitionReadCheckpoint(partition.completeState, 0)
 
         override fun releaseResources() {}
     }
@@ -80,7 +71,6 @@ abstract class JdbcPartitionsCreator<
                 if (it.hasNext()) it.next().data.toJson() else null
             }
         if (record == null) {
-            log.warn { "Cursor upper bound query for '${stream.label}' returned no rows." }
             streamState.cursorUpperBound = Jsons.nullNode()
             return
         }
@@ -92,7 +82,6 @@ abstract class JdbcPartitionsCreator<
         }
         if (cursorUpperBound.isNull) {
             log.warn { "Maximum cursor column value in '${stream.label}' is NULL." }
-            streamState.cursorUpperBound = Jsons.nullNode()
             return
         }
         log.info { "Maximum cursor column value in '${stream.label}' is '$cursorUpperBound'." }
@@ -100,8 +89,8 @@ abstract class JdbcPartitionsCreator<
     }
 
     /** Collects a sample of rows in the unsplit partition. */
-    open fun <T> collectSample(
-        recordMapper: (SelectQuerier.ResultRow) -> T,
+    fun <T> collectSample(
+        recordMapper: (ObjectNode) -> T,
     ): Sample<T> {
         val values = mutableListOf<T>()
         var previousWeight = 0L
@@ -116,7 +105,7 @@ abstract class JdbcPartitionsCreator<
             val samplingQuery: SelectQuery = partition.samplingQuery(sampleRateInvPow2)
             selectQuerier.executeQuery(samplingQuery).use {
                 for (row in it) {
-                    values.add(recordMapper(row))
+                    values.add(recordMapper(row.data.toJson()))
                 }
             }
             if (values.size < sharedState.maxSampleSize) {
@@ -162,9 +151,8 @@ class JdbcSequentialPartitionsCreator<
         }
         if (streamState.fetchSize == null) {
             if (sharedState.withSampling) {
-                val rowByteSizeSample: Sample<Long> = collectSample {
-                    sharedState.rowByteSizeEstimator().apply(it.data.toJson())
-                }
+                val rowByteSizeSample: Sample<Long> =
+                    collectSample(sharedState.rowByteSizeEstimator()::apply)
                 val expectedTableByteSize: Long =
                     rowByteSizeSample.sampledValues.sum() * rowByteSizeSample.valueWeight
                 log.info { "Table memory size estimated at ${expectedTableByteSize shr 20} MiB." }
@@ -188,13 +176,13 @@ class JdbcSequentialPartitionsCreator<
             return listOf(JdbcNonResumablePartitionReader(partition))
         }
         // Happy path.
-        log.info { "Table will be read by sequential partition reader." }
+        log.info { "Table will be read by sequential partition reader(s)." }
         return listOf(JdbcResumablePartitionReader(partition))
     }
 }
 
 /** Concurrent JDBC implementation of [PartitionsCreator]. */
-open class JdbcConcurrentPartitionsCreator<
+class JdbcConcurrentPartitionsCreator<
     A : JdbcSharedState,
     S : JdbcStreamState<A>,
     P : JdbcPartition<S>,
@@ -224,14 +212,12 @@ open class JdbcConcurrentPartitionsCreator<
             return listOf(JdbcNonResumablePartitionReader(partition))
         }
         // Sample the table for partition split boundaries and for record byte sizes.
-        val sample: Sample<Pair<OpaqueStateValue?, Long>> =
-            collectSample { record: SelectQuerier.ResultRow ->
-                val boundary: OpaqueStateValue? =
-                    (partition as? JdbcSplittablePartition<*>)?.incompleteState(record)
-                val rowByteSize: Long =
-                    sharedState.rowByteSizeEstimator().apply(record.data.toJson())
-                boundary to rowByteSize
-            }
+        val sample: Sample<Pair<OpaqueStateValue?, Long>> = collectSample { record: ObjectNode ->
+            val boundary: OpaqueStateValue? =
+                (partition as? JdbcSplittablePartition<*>)?.incompleteState(record)
+            val rowByteSize: Long = sharedState.rowByteSizeEstimator().apply(record)
+            boundary to rowByteSize
+        }
         if (sample.kind == Sample.Kind.EMPTY) {
             log.info { "Sampling query found that the table was empty." }
             return listOf(CheckpointOnlyPartitionReader())
@@ -267,14 +253,6 @@ open class JdbcConcurrentPartitionsCreator<
                 .filter { random.nextDouble() < secondarySamplingRate }
                 .mapNotNull { (splitBoundary: OpaqueStateValue?, _) -> splitBoundary }
                 .distinct()
-
-        // Handle edge case with empty split boundaries when sampling rate is too low,
-        // causing random filtering to discard all sampled boundaries, which would
-        // lead to division by zero the in the split() function. Fall back to single partition.
-        if (splitBoundaries.isEmpty()) {
-            log.warn { "No split boundaries found, using single partition" }
-            return listOf(JdbcNonResumablePartitionReader(partition))
-        }
         val partitions: List<JdbcPartition<*>> = partitionFactory.split(partition, splitBoundaries)
         log.info { "Table will be read by ${partitions.size} concurrent partition reader(s)." }
         return partitions.map { JdbcNonResumablePartitionReader(it) }

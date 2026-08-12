@@ -752,10 +752,10 @@
                   "total_count": {
                     "type": "integer"
                   },
-                  "plus_one": {
+                  "+1": {
                     "type": "integer"
                   },
-                  "minus_one": {
+                  "-1": {
                     "type": "integer"
                   },
                   "laugh": {
@@ -788,10 +788,10 @@
                 "total_count": {
                   "type": "integer"
                 },
-                "plus_one": {
+                "+1": {
                   "type": "integer"
                 },
-                "minus_one": {
+                "-1": {
                   "type": "integer"
                 },
                 "laugh": {

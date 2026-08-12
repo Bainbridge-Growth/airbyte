@@ -1,13 +1,17 @@
 /*
- * Copyright (c) 2026 Airbyte, Inc., all rights reserved.
+ * Copyright (c) 2025 Airbyte, Inc., all rights reserved.
  */
 
 package io.airbyte.cdk.load.dataflow.stages
 
 import io.airbyte.cdk.load.dataflow.aggregate.AggregateStore
 import io.airbyte.cdk.load.dataflow.pipeline.DataFlowStageIO
+import jakarta.inject.Named
+import jakarta.inject.Singleton
 import kotlinx.coroutines.flow.FlowCollector
 
+@Named("aggregate")
+@Singleton
 class AggregateStage(
     val store: AggregateStore,
 ) {
@@ -26,9 +30,7 @@ class AggregateStage(
             outputFlow.emit(
                 DataFlowStageIO(
                     aggregate = next.value,
-                    partitionCountsHistogram = next.partitionCountsHistogram,
-                    partitionBytesHistogram = next.partitionBytesHistogram,
-                    mappedDesc = next.key,
+                    partitionHistogram = next.partitionHistogram,
                 )
             )
             next = store.removeNextComplete(rec.emittedAtMs)

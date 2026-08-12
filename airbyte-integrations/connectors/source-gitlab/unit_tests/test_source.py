@@ -7,8 +7,7 @@ import logging
 
 import pytest
 
-from airbyte_cdk.models import Status
-from airbyte_cdk.sources.streams.concurrent.default_stream import DefaultStream
+from airbyte_cdk.sources.declarative.declarative_stream import DeclarativeStream
 
 from .conftest import get_source
 
@@ -18,7 +17,7 @@ def test_streams(config):
     migrated_config = source.configure(config=config, temp_dir="/not/a/real/path")
     streams = source.streams(migrated_config)
     assert len(streams) == 23
-    assert all([isinstance(stream, DefaultStream) for stream in streams])
+    assert all([isinstance(stream, DeclarativeStream) for stream in streams])
 
 
 def test_connection_success(config, requests_mock):
@@ -26,8 +25,8 @@ def test_connection_success(config, requests_mock):
     requests_mock.get(url="/api/v4/groups/g1", json=[{"id": "g1", "projects": [{"id": "p1", "path_with_namespace": "p1"}]}])
     requests_mock.get(url="/api/v4/projects/p1", json={"id": "p1"})
     source = get_source(config=config)
-    connection_status = source.check(logging.getLogger(), config)
-    assert (connection_status.status, connection_status.message) == (Status.SUCCEEDED, None)
+    status, msg = source.check_connection(logging.getLogger(), config)
+    assert (status, msg) == (True, None)
 
 
 def test_connection_invalid_projects_and_projects(config_with_project_groups, requests_mock):
@@ -35,9 +34,9 @@ def test_connection_invalid_projects_and_projects(config_with_project_groups, re
     requests_mock.register_uri("GET", "https://gitlab.com/api/v4/groups/g1/descendant_groups?per_page=50", status_code=404)
     requests_mock.register_uri("GET", "https://gitlab.com/api/v4/projects/p1?per_page=50&statistics=1", status_code=404)
     source = get_source(config=config_with_project_groups)
-    connection_status = source.check(logging.getLogger(), config_with_project_groups)
-    assert connection_status.status == Status.FAILED
-    assert "Groups and/or projects that you provide are invalid or you don't have permission to view it." in connection_status.message
+    status, msg = source.check_connection(logging.getLogger(), config_with_project_groups)
+    assert status is False
+    assert "Groups and/or projects that you provide are invalid or you don't have permission to view it." in msg
 
 
 def test_connection_fail_due_to_api_error(config, mocker, requests_mock):
@@ -45,9 +44,9 @@ def test_connection_fail_due_to_api_error(config, mocker, requests_mock):
     error_code = 401
     requests_mock.get("/api/v4/groups", status_code=error_code)
     source = get_source(config=config)
-    connection_status = source.check(logging.getLogger(), config)
-    assert connection_status.status == Status.FAILED
-    assert "Unable to refresh the `access_token`" in connection_status.message
+    status, msg = source.check_connection(logging.getLogger(), config)
+    assert status is False
+    assert "Unable to refresh the `access_token`" in msg
 
 
 def test_connection_fail_due_to_api_error_oauth(oauth_config, mocker, requests_mock):
@@ -62,9 +61,9 @@ def test_connection_fail_due_to_api_error_oauth(oauth_config, mocker, requests_m
     requests_mock.post("https://gitlab.com/oauth/token", status_code=200, json=test_response)
     requests_mock.get("/api/v4/groups", status_code=401)
     source = get_source(config=oauth_config)
-    connection_status = source.check(logging.getLogger(), oauth_config)
-    assert connection_status.status == Status.FAILED
-    assert "Unable to refresh the `access_token`" in connection_status.message
+    status, msg = source.check_connection(logging.getLogger(), oauth_config)
+    assert status is False
+    assert "Unable to refresh the `access_token`" in msg
 
 
 @pytest.mark.parametrize(
@@ -86,6 +85,5 @@ def test_connection_fail_due_to_config_error(mocker, api_url, deployment_env, ex
         "credentials": {"auth_type": "access_token", "access_token": "token"},
     }
     source = get_source(config=config)
-    connection_status = source.check(logging.getLogger(), config)
-    assert connection_status.status == Status.FAILED
-    assert expected_message in connection_status.message
+    status, msg = source.check_connection(logging.getLogger(), config)
+    assert (status, msg) == (False, expected_message)

@@ -10,16 +10,6 @@ Read more about the [limitations](#limitations) of using Google Sheets below.
 
 :::
 
-## Supported sync modes
-
-| Sync mode | Supported? |
-| :--- | :--- |
-| [Full Refresh - Overwrite](https://docs.airbyte.com/platform/using-airbyte/core-concepts/sync-modes/full-refresh-overwrite) | Yes |
-| [Full Refresh - Append](https://docs.airbyte.com/platform/using-airbyte/core-concepts/sync-modes/full-refresh-append) | Yes |
-| [Full Refresh - Overwrite + Deduped](https://docs.airbyte.com/platform/using-airbyte/core-concepts/sync-modes/full-refresh-overwrite-deduped) | Yes |
-| [Incremental Sync - Append](https://docs.airbyte.com/platform/using-airbyte/core-concepts/sync-modes/incremental-append) | Yes |
-| [Incremental Sync - Append + Deduped](https://docs.airbyte.com/platform/using-airbyte/core-concepts/sync-modes/incremental-append-deduped) | Yes |
-
 ## Prerequisites
 
 - Google Account or GCP Service Account for authentication
@@ -177,9 +167,14 @@ EXAMPLE:
 | :--------------- | :----------- |
 | Any Type         | `string`     |
 
-## Namespace support
+### Features & Supported sync modes
 
-This destination does not support [namespaces](https://docs.airbyte.com/platform/using-airbyte/core-concepts/namespaces).
+| Feature                        | Supported?\(Yes/No\) |
+| :----------------------------- | :------------------- |
+| Ful-Refresh Overwrite          | Yes                  |
+| Ful-Refresh Append             | Yes                  |
+| Incremental Append             | Yes                  |
+| Incremental Append-Deduplicate | Yes                  |
 
 ## Changelog
 

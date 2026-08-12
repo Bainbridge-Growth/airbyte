@@ -1,29 +1,27 @@
 ---
 products: enterprise-flex
-sidebar_label: Deploy a data plane with Helm
 ---
 
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-# Deploy a data plane with Helm in Enterprise Flex
+# Multiple region deployments
 
 Airbyte Enterprise Flex customers can use Airbyte's public API to define regions and create independent data planes that operate in those regions. This ensures you're satisfying your data residency and governance requirements with a single Airbyte Cloud deployment, and it can help you reduce data egress costs with cloud providers.
 
 ![Stylized diagram showing a control plane above multiple data planes in different global regions](img/data-planes.png)
 
 ## How it works
-
 If you're not familiar with Kubernetes, think of the control plane as the brain and data planes as the muscles doing work the brain tells them to do.
 
 - The control plane is responsible for Airbyte's user interface, APIs, Terraform provider, and orchestrating work. Airbyte manages this for you in the cloud, reducing the time and resources it takes to start moving your data.
-- The data plane initiates jobs, syncs data, completes jobs, and reports its status back to the control plane. We offer [cloud regions](https://docs.airbyte.com/platform/cloud/managing-airbyte-cloud/manage-data-residency) equipped to do this for you, but you also have the flexibility to deploy your own to keep sensitive data protected or meet local data residency requirements.
+- The data plane initiates jobs, syncs data, completes jobs, and reports its status back to the control plane. We offer [cloud regions](https://docs.airbyte.com/platform/cloud/managing-airbyte-cloud/manage-data-residency) equipped to do this for you, but you also have the flexibility to deploy your own to keep sensitive data protected or meet local data residency requirements. 
 
 This separation of duties is what allows a single Airbyte deployment to ensure your data remains segregated and compliant.
 
 By default, Airbyte has a single data plane that any workspace in the organization can access, and it's automatically tied to the default workspace when Airbyte first starts. To configure additional data planes and regions, complete these steps.
 
-If you have not already, ensure you have the [required infrastructure](getting-started) to run your data plane.
+If you have not already, ensure you have the [required infrastructure](https://docs.airbyte.com/platform/enterprise-flex/getting-started) to run your data plane.
 
 1. [Create a region](#step-1).
 2. [Create a data plane](#step-2) in that region.
@@ -37,81 +35,10 @@ If you have not already, ensure you have the [required infrastructure](getting-s
 
 Before you begin, make sure you've completed the following:
 
-- You must be an Organization Administrator to manage regions and data planes.
-
+ - You must be an Organization Administrator to manage regions and data planes.
 - You need a Kubernetes cluster on which your data plane can run. For example, if you want your data plane to run on eu-west-1, create an EKS cluster on eu-west-1.
-
 - You need to use a [secrets manager](https://docs.airbyte.com/platform/deploying-airbyte/integrations/secrets) for the connections on your data plane. Modifying the configuration of connector secret storage will cause all existing connectors to fail, so we recommend only using newly created workspaces on the data plane.
-
 - If you haven't already, get access to Airbyte's API by creating an application and generating an access token. For help, see [Configuring API access](https://docs.airbyte.com/platform/using-airbyte/configuring-api-access).
-
-### Infrastructure prerequisites
-
-For a production-ready deployment of self-managed data planes, you require the following infrastructure components. Airbyte recommend deploying to Amazon EKS, Google Kubernetes Engine, or Azure Kubernetes Service.
-
-<Tabs>
-<TabItem value="Amazon" label="Amazon" default>
-
-| Component                | Recommendation                                                                                                                                                            |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Kubernetes Cluster       | Amazon EKS cluster running on EC2 instances in [2 or more availability zones](https://docs.aws.amazon.com/eks/latest/userguide/disaster-recovery-resiliency.html). |
-| External Secrets Manager | [Amazon Secrets Manager](/platform/operator-guides/configuring-airbyte#secrets) for storing connector secrets, using a dedicated Airbyte role using a [policy with all required permissions](/platform/operating-airbyte/external-secrets#step-1-configure-cloud-provider-permissions). |
-| Object Storage (Optional)| Amazon S3 bucket with a directory for log storage.                                                                         |
-
-</TabItem>
-<TabItem value="Azure" label="Azure" default>
-
-| Component                | Recommendation                                                                                                                                                            |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Kubernetes Cluster       | Azure Kubernetes Service cluster running in [2 or more availability zones](https://learn.microsoft.com/en-us/azure/aks/reliability-zone-resiliency-recommendations). |
-| External Secrets Manager | [Azure Key Vault](/platform/operator-guides/configuring-airbyte#secrets) for storing connector secrets, using a dedicated Airbyte role using a [policy with all required permissions](/platform/operating-airbyte/external-secrets#step-1-configure-cloud-provider-permissions). |
-| Object Storage (Optional)| Azure Blob Storage with a directory for log storage.                                                                         |
-
-</TabItem>
-</Tabs>
-
-A few notes on Kubernetes cluster provisioning for self-managed data planes and Airbyte Enterprise Flex:
-
-- We support Amazon Elastic Kubernetes Service (EKS) on EC2, Google Kubernetes Engine (GKE) on Google Compute Engine (GCE), or Azure Kubernetes Service (AKS) on Azure.
-- While we support GKE Autopilot, we do not support Amazon EKS on Fargate.
-
-We require you to install and configure the following Kubernetes tooling:
-
-1. Install `helm` by following [these instructions](https://helm.sh/docs/intro/install/)
-2. Install `kubectl` by following [these instructions](https://kubernetes.io/docs/tasks/tools/).
-3. Configure `kubectl` to connect to your cluster by using `kubectl use-context my-cluster-name`:
-
-<details>
-<summary>Configure kubectl to connect to your cluster</summary>
-
-<Tabs>
-<TabItem value="Amazon EKS" label="Amazon EKS" default>
-
-1. Configure your [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html) to connect to your project.
-2. Install [eksctl](https://eksctl.io/introduction/).
-3. Run `eksctl utils write-kubeconfig --cluster=$CLUSTER_NAME` to make the context available to kubectl.
-4. Use `kubectl config get-contexts` to show the available contexts.
-5. Run `kubectl config use-context $EKS_CONTEXT` to access the cluster with kubectl.
-
-</TabItem>
-
-<TabItem value="GKE" label="GKE">
-
-1. Configure `gcloud` with `gcloud auth login`.
-2. On the Google Cloud Console, the cluster page will have a "Connect" button, with a command to run locally: `gcloud container clusters get-credentials $CLUSTER_NAME --zone $ZONE_NAME --project $PROJECT_NAME`.
-3. Use `kubectl config get-contexts` to show the available contexts.
-4. Run `kubectl config use-context $EKS_CONTEXT` to access the cluster with kubectl.
-
-</TabItem>
-</Tabs>
-
-</details>
-
-We also require you to create a Kubernetes namespace for your Airbyte deployment:
-
-```
-kubectl create namespace airbyte
-```
 
 ## 1. Create a region {#step-1}
 
@@ -132,13 +59,12 @@ curl --request POST \
   "organizationId": "00000000-0000-0000-0000-000000000000"
 }'
 ```
-
 Include the following parameters in your request.
 
 | Body parameter   | Required? | Description                                                                                                                              |
 | ---------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `name`           | Required  | The name of your region in Airbyte. We recommend as best practice that you include the cloud provider  (if applicable), and actual region in the name. |
-| `organizationId` | Required  | Your Airbyte organization ID. To find this in the UI, navigate to **Organizaton settings** > **General**.                                             |
+| `name`           | Required  | The name of your region in Airbyte. We reccomend as best practice that you include the cloud provider  (if applicable), and actual region in the name. |
+| `organizationId` | Required  | Your Airbyte organization ID. To find this in the UI, navigate to `Settings` > `General`.                                             |
 | `enabled`        | Optional  | Defaults to true. Set this to `false` if you don't want this region enabled.                                                             |
 
 For additional request examples, see [the API reference](https://reference.airbyte.com/reference/regions#/).
@@ -210,14 +136,13 @@ json
 </details>
 
 
-## 3. Configure Kubernetes Secrets {#step-3}
+## 3. Configure Kubernetes Secrets {#step-4}
 
 Your data plane relies on Kubernetes secrets to identify itself with the control plane.
 
 In step 5, you create a values.yaml file that references this Kubernetes secret store and these secret keys. Configure all required secrets before deploying your data plane.
 
-
-You may apply your Kubernetes secrets by applying the example manifests below to your cluster, or using kubectl directly. Ensure that the secrets manager configurtion on your data plane matches the configuration on the control plane. At this time, only access key authentication is supported. 
+You may apply your Kubernetes secrets by applying the example manifests below to your cluster, or using kubectl directly. If your Kubernetes cluster already has permissions to make requests to an external entity via an instance profile, credentials aren't required. For example, if your Amazon EKS cluster has a sufficient AWS IAM role to make requests to AWS S3, you don't need to specify access keys.
 
 While you can set the name of the secret to whatever you prefer, you need to set that name in your values.yaml file. For this reason it's easiest to keep the name of airbyte-config-secrets unless you have a reason to change it.
 
@@ -225,7 +150,7 @@ While you can set the name of the secret to whatever you prefer, you need to set
 <summary>airbyte-config-secrets</summary>
 
 <Tabs>
-<TabItem value="AWS" label="AWS" default>
+<TabItem value="S3" label="S3" default>
 
 ```yaml
 apiVersion: v1
@@ -233,10 +158,10 @@ kind: Secret
 metadata:
   name: airbyte-config-secrets
 type: Opaque
-stringData:
+data:
   # Insert the data plane credentials received in step 2
   DATA_PLANE_CLIENT_ID: your-data-plane-client-id
-  DATA_PLANE_CLIENT_SECRET: your-data-plane-client-secret
+  DATA_PLANE_CLIENT_SECRET: your-data-plane-client-id
   
   # Only set these values if they are also set on your control plane
   AWS_SECRET_MANAGER_ACCESS_KEY_ID: your-aws-secret-manager-access-key
@@ -251,58 +176,71 @@ You can also use `kubectl` to create the secret directly from the command-line t
 
 ```bash
 kubectl create secret generic airbyte-config-secrets \
-  --from-literal=DATA_PLANE_CLIENT_ID='' \
-  --from-literal=DATA_PLANE_CLIENT_SECRET='' \
-  --from-literal=S3_ACCESS_KEY_ID='' \
-  --from-literal=S3_SECRET_ACCESS_KEY='' \
-  --from-literal=AWS_SECRET_MANAGER_ACCESS_KEY_ID='' \
-  --from-literal=AWS_SECRET_MANAGER_SECRET_ACCESS_KEY='' \
+  --from-literal=license-key='' \
+  --from-literal=data_plane_client_id='' \
+  --from-literal=data_plane_client_secret='' \
+  --from-literal=s3-access-key-id='' \
+  --from-literal=s3-secret-access-key='' \
+  --from-literal=aws-secret-manager-access-key-id='' \
+  --from-literal=aws-secret-manager-secret-access-key='' \
   --namespace airbyte
 ```
 
 </TabItem>
+<TabItem value="GCS" label="GCS">
 
-<TabItem value="Azure" label="Azure" default>
+First, create a new file `gcp.json` containing the credentials JSON blob for the service account you are looking to assume.
 
-```yaml title="values.yaml"
-airbyteUrl: https://cloud.airbyte.com # Base URL for the control plane so Airbyte knows where to authenticate
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: airbyte-config-secrets
+type: Opaque
+stringData:
+  # Insert the data plane credentials received in step 2
+  DATA_PLANE_CLIENT_ID: your-data-plane-client-id
+  DATA_PLANE_CLIENT_SECRET: your-data-plane-client-id
+  
+  # Only set these values if they are also set on your control plane
+  AWS_SECRET_MANAGER_ACCESS_KEY_ID: your-aws-secret-manager-access-key
+  AWS_SECRET_MANAGER_SECRET_ACCESS_KEY: your-aws-secret-manager-secret-key
+  S3_ACCESS_KEY_ID: your-s3-access-key
+  S3_SECRET_ACCESS_KEY: your-s3-secret-key
 
-dataPlane:
-  # Used to render the data plane creds secret into the Helm chart.
-  secretName: airbyte-config-secrets
-  id: "preview-data-plane"
+  # GCP Secrets
+  gcp.json: <CREDENTIALS_JSON_BLOB>
+```
 
-  # Describe secret name and key where each of the client ID and secret are stored
-  clientIdSecretName: airbyte-config-secrets
-  clientIdSecretKey: DATA_PLANE_CLIENT_ID
-  clientSecretSecretName: airbyte-config-secrets
-  clientSecretSecretKey: DATA_PLANE_CLIENT_SECRET
+Apply your secrets manifest in your command-line tool with `kubectl`: `kubectl apply -f <file>.yaml -n <namespace>`.
 
-# Secret manager secrets/config
-# Must be set to the same secrets manager as the control plane
-secretsManager:
-  secretName: airbyte-config-secrets
-  type: AZURE_KEY_VAULT
-  azureKeyVault:
-      vaultUrl: ## https://my-vault.vault.azure.net/
-      tenantId: ## 3fc863e9-4740-4871-bdd4-456903a04d4e
-      clientId: ""
-      clientIdSecretKey: ""
-      clientSecret: ""
-      clientSecretSecretKey: ""
+You can also use `kubectl` to create the secret directly from the command-line tool:
+
+```bash
+kubectl create secret generic airbyte-config-secrets \
+  --from-literal=license-key='' \
+  --from-literal=data_plane_client_id='' \
+  --from-literal=data_plane_client_secret='' \
+  --from-literal=s3-access-key-id='' \
+  --from-literal=s3-secret-access-key='' \
+  --from-literal=aws-secret-manager-access-key-id='' \
+  --from-literal=aws-secret-manager-secret-access-key='' \
+  --from-file=gcp.json
+  --namespace airbyte
 ```
 
 </TabItem>
-
 </Tabs>
 </details>
 
-## 4. Create your deployment values {#step-4}
+## 5. Create your deployment values {#step-5}
 
 Add the following overrides to a new `values.yaml` file.
 
 ```yaml title="values.yaml"
-airbyteUrl: https://cloud.airbyte.com # Base URL for the control plane so Airbyte knows where to authenticate
+airbyteUrl: https://airbyte.com # Base URL for the control plane so Airbyte knows where to authenticate
+# Logging:
+#  level: DEBUG
 
 dataPlane:
   # Used to render the data plane creds secret into the Helm chart.
@@ -311,9 +249,9 @@ dataPlane:
 
   # Describe secret name and key where each of the client ID and secret are stored
   clientIdSecretName: airbyte-config-secrets
-  clientIdSecretKey: DATA_PLANE_CLIENT_ID
+  clientIdSecretKey: "DATA_PLANE_CLIENT_ID"
   clientSecretSecretName: airbyte-config-secrets
-  clientSecretSecretKey: DATA_PLANE_CLIENT_SECRET
+  clientSecretSecretKey: "DATA_PLANE_CLIENT_SECRET"
 
 
 # S3 bucket secrets/config
@@ -332,7 +270,6 @@ storage:
     secretAccessKeySecretKey: S3_SECRET_ACCESS_KEY
 
 # Secret manager secrets/config
-# Must be set to the same secrets manager as the control plane
 secretsManager:
   secretName: airbyte-config-secrets
   type: AWS_SECRET_MANAGER
@@ -343,16 +280,16 @@ secretsManager:
     secretAccessKeySecretKey: AWS_SECRET_MANAGER_SECRET_ACCESS_KEY
 ```
 
-## 5. Deploy your data plane {#step-5}
+## 6. Deploy your data plane {#step-6}
 
 In your command-line tool, deploy the data plane using `helm upgrade`. The examples here may not reflect your actual Airbyte version and namespace conventions, so make sure you use the settings that are appropriate for your environment.
 
 ```bash title="Example using the default namespace in your cluster"
-helm upgrade --install airbyte-enterprise airbyte/airbyte-data-plane --version 2.0.1 --values values.yaml
+helm upgrade --install airbyte-enterprise airbyte/airbyte-data-plane --version 1.8.1 --values values.yaml
 ```
 
 ```bash title="Example using or creating a namespace called 'airbyte-dataplane'"
-helm upgrade --install airbyte-enterprise airbyte/airbyte-data-plane --version 2.0.1 -n airbyte-dataplane --create-namespace --values values.yaml
+helm upgrade --install airbyte-enterprise airbyte/airbyte-data-plane --version 1.8.1 -n airbyte-dataplane --create-namespace --values values.yaml
 ```
 
 ## 6. Associate a region to a workspace {#step-6}
@@ -368,11 +305,13 @@ You can only associate each workspace with one region.
 
 Follow these steps to associate your region to your current workspace using Airbyte's user interface.
 
-1. In the navigation panel, click **Workspace settings** > **General**.
+1. In the navigation panel, click **Settings**.
 
-2. Under **Region**, select your region.
+2. Under **Workspace**, click **General**.
 
-3. Click **Save changes**. Now, run any sync. You will see the workloads spin up in the new data plane you've configured.
+3. Under **Region**, select your region.
+
+4. Click **Save changes**. Now, run any sync. You will see the workloads spin up in the new data plane you've configured.
 
   </TabItem>
   <TabItem value="workspace-association-api" label="API">
@@ -469,6 +408,7 @@ For additional request examples, see [the API reference](https://reference.airby
   </TabItem>
 </Tabs>
 
+
 ## Check which region your workspaces use
 
 <Tabs>
@@ -476,7 +416,11 @@ For additional request examples, see [the API reference](https://reference.airby
 
 You can see a list of your workspaces and the region associated to each from Airbyte's organization settings.
 
-1. In Airbyte's user interface, click **Workspace settings** > **General**. Airbyte displays your workspaces and each workspace region under **Regions**.
+1. In Airbyte's user interface, click **Settings**.
+
+2. Under **Organization**, click **General**.
+
+Airbyte displays your workspaces and each workspace region under **Regions**.
 
 ![Multiple regions displayed in Airbyte's General Organization settings](img/multiple-regions-in-airbyte.png)
 

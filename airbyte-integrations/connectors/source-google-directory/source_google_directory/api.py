@@ -132,13 +132,5 @@ class GroupMembersAPI(StreamAPI):
     def list(self, fields: Sequence[str] = None) -> Iterator[dict]:
         groups = GroupsAPI(self._api)
         for group in groups.list():
-            group_email = group.get("email")
-            group_id = group.get("id")
-            params = {"groupKey": group_id}
-
-            # Get members for this group and enrich with group context
-            for member in self.read(partial(self._api_get, resource="members"), params=params):
-                # Enrich member with group context
-                member["group_email"] = group_email
-                member["group_id"] = group_id
-                yield member
+            params = {"groupKey": group["id"]}
+            yield from self.read(partial(self._api_get, resource="members"), params=params)

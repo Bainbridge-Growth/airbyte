@@ -1,36 +1,40 @@
 /*
- * Copyright (c) 2026 Airbyte, Inc., all rights reserved.
+ * Copyright (c) 2025 Airbyte, Inc., all rights reserved.
  */
 
 package io.airbyte.cdk.load.dataflow.aggregate
 
 import com.google.common.annotations.VisibleForTesting
 import io.airbyte.cdk.load.command.DestinationStream
-import io.airbyte.cdk.load.dataflow.config.model.AggregatePublishingConfig
+import io.airbyte.cdk.load.dataflow.config.MemoryAndParallelismConfig
 import io.airbyte.cdk.load.dataflow.state.PartitionHistogram
 import io.airbyte.cdk.load.dataflow.transform.RecordDTO
 import io.github.oshai.kotlinlogging.KotlinLogging
+import jakarta.inject.Singleton
 import java.util.concurrent.ConcurrentHashMap
 
 typealias StoreKey = DestinationStream.Descriptor
 
+@Singleton
 class AggregateStore(
     private val aggFactory: AggregateFactory,
-    private val config: AggregatePublishingConfig,
+    private val memoryAndParallelismConfig: MemoryAndParallelismConfig,
 ) {
     private val log = KotlinLogging.logger {}
 
+    private val maxConcurrentAggregates = memoryAndParallelismConfig.maxOpenAggregates
+    private val stalenessDeadlinePerAggMs =
+        memoryAndParallelismConfig.stalenessDeadlinePerAgg.inWholeMilliseconds
+    private val maxRecordsPerAgg = memoryAndParallelismConfig.maxRecordsPerAgg
+    private val maxEstBytesPerAgg = memoryAndParallelismConfig.maxEstBytesPerAgg
+
     private val aggregates = ConcurrentHashMap<StoreKey, AggregateEntry>()
 
-    private val stalenessDeadlinePerAggMs = config.stalenessDeadlinePerAgg.inWholeMilliseconds
-    private val maxOpenAggregatesSoft = config.maxEstBytesAllAggregates / config.maxEstBytesPerAgg
-
     fun acceptFor(key: StoreKey, record: RecordDTO) {
-        val (_, agg, counts, bytes, timeTrigger, countTrigger, bytesTrigger) = getOrCreate(key)
+        val (agg, histogram, timeTrigger, countTrigger, bytesTrigger) = getOrCreate(key)
 
         agg.accept(record)
-        counts.increment(record.partitionKey, 1.0)
-        bytes.increment(record.partitionKey, record.sizeBytes.toDouble())
+        histogram.increment(record.partitionKey)
         countTrigger.increment(1)
         bytesTrigger.increment(record.sizeBytes)
         timeTrigger.update(record.emittedAtMs)
@@ -48,18 +52,11 @@ class AggregateStore(
                 return remove(key)
             }
         }
-        // only sum bytes if we have a high cardinality of active aggregates (in practice this is
-        // the number of interleaved streams)
-        if (aggregates.size > maxOpenAggregatesSoft) {
-            val activeBytes = aggregates.map { it.value.estimatedBytesTrigger.watermark() }.sum()
-
-            if (activeBytes > config.maxEstBytesAllAggregates) {
-                // evict largest in case of heavy cardinality
-                log.info { "PUBLISH — Reason: Cardinality" }
-                val largest =
-                    aggregates.entries.maxBy { it.value.estimatedBytesTrigger.watermark() }
-                return remove(largest.key)
-            }
+        // evict largest in case of concurrency
+        if (aggregates.size > maxConcurrentAggregates) {
+            log.info { "PUBLISH — Reason: Cardinality" }
+            val largest = aggregates.entries.maxBy { it.value.estimatedBytesTrigger.watermark() }
+            return remove(largest.key)
         }
         return null
     }
@@ -73,13 +70,11 @@ class AggregateStore(
         val entry =
             aggregates.computeIfAbsent(key) {
                 AggregateEntry(
-                    key = key,
                     value = aggFactory.create(it),
-                    partitionCountsHistogram = PartitionHistogram(),
-                    partitionBytesHistogram = PartitionHistogram(),
+                    partitionHistogram = PartitionHistogram(),
                     stalenessTrigger = TimeTrigger(stalenessDeadlinePerAggMs),
-                    recordCountTrigger = SizeTrigger(config.maxRecordsPerAgg),
-                    estimatedBytesTrigger = SizeTrigger(config.maxEstBytesPerAgg),
+                    recordCountTrigger = SizeTrigger(maxRecordsPerAgg),
+                    estimatedBytesTrigger = SizeTrigger(maxEstBytesPerAgg),
                 )
             }
 
@@ -93,10 +88,8 @@ class AggregateStore(
 }
 
 data class AggregateEntry(
-    val key: StoreKey,
     val value: Aggregate,
-    val partitionCountsHistogram: PartitionHistogram,
-    val partitionBytesHistogram: PartitionHistogram,
+    val partitionHistogram: PartitionHistogram,
     val stalenessTrigger: TimeTrigger,
     val recordCountTrigger: SizeTrigger,
     val estimatedBytesTrigger: SizeTrigger,
@@ -108,12 +101,4 @@ data class AggregateEntry(
     fun isStale(ts: Long): Boolean {
         return stalenessTrigger.isComplete(ts)
     }
-}
-
-/* For testing purposes so we can mock. */
-class AggregateStoreFactory(
-    private val aggFactory: AggregateFactory,
-    private val aggregatePublishingConfig: AggregatePublishingConfig,
-) {
-    fun make() = AggregateStore(aggFactory, aggregatePublishingConfig)
 }

@@ -1,14 +1,11 @@
 /*
- * Copyright (c) 2026 Airbyte, Inc., all rights reserved.
+ * Copyright (c) 2025 Airbyte, Inc., all rights reserved.
  */
 
 package io.airbyte.cdk.load.command
 
 import io.airbyte.cdk.load.config.NamespaceDefinitionType
-import io.airbyte.cdk.load.schema.model.ColumnSchema
-import io.airbyte.cdk.load.schema.model.StreamTableSchema
-import io.airbyte.cdk.load.schema.model.TableName
-import io.airbyte.cdk.load.schema.model.TableNames
+import io.mockk.mockk
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 
@@ -21,22 +18,12 @@ class NamespaceMapperTest {
         return DestinationStream(
             unmappedNamespace = unmappedNamespace,
             unmappedName = unmappedName,
+            importType = Append,
             generationId = 1,
             minimumGenerationId = 0,
             syncId = 1,
-            namespaceMapper = namespaceMapper,
-            tableSchema =
-                StreamTableSchema(
-                    tableNames =
-                        TableNames(finalTableName = TableName(unmappedNamespace, unmappedName)),
-                    columnSchema =
-                        ColumnSchema(
-                            inputSchema = mapOf(),
-                            inputToFinalColumnNames = mapOf(),
-                            finalSchema = mapOf(),
-                        ),
-                    importType = Append,
-                )
+            schema = mockk(relaxed = true),
+            namespaceMapper = namespaceMapper
         )
     }
 

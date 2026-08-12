@@ -14,15 +14,14 @@ With append mode, you have to create the collection first and can use [pre-defin
 
 Each stream will be output into its own collection in Typesense. If an id column is not provided, it will be generated.
 
-## Supported sync modes
+#### Features
 
-| Sync mode | Supported? |
-| :--- | :--- |
-| [Full Refresh - Overwrite](https://docs.airbyte.com/platform/using-airbyte/core-concepts/sync-modes/full-refresh-overwrite) | Yes |
-| [Full Refresh - Append](https://docs.airbyte.com/platform/using-airbyte/core-concepts/sync-modes/full-refresh-append) | Yes |
-| [Full Refresh - Overwrite + Deduped](https://docs.airbyte.com/platform/using-airbyte/core-concepts/sync-modes/full-refresh-overwrite-deduped) | No |
-| [Incremental Sync - Append](https://docs.airbyte.com/platform/using-airbyte/core-concepts/sync-modes/incremental-append) | Yes |
-| [Incremental Sync - Append + Deduped](https://docs.airbyte.com/platform/using-airbyte/core-concepts/sync-modes/incremental-append-deduped) | No |
+| Feature                        | Supported?\(Yes/No\) | Notes |
+| :----------------------------- | :------------------- | :---- |
+| Full Refresh Sync              | Yes                  |       |
+| Incremental - Append Sync      | Yes                  |       |
+| Incremental - Append + Deduped | No                   |       |
+| Namespaces                     | No                   |       |
 
 ## Getting started
 
@@ -37,10 +36,6 @@ The setup only requires two fields. First is the `host` which is the address at 
 ### Typesense with High Availability
 
 To connect a Typesense with HA, you can type multiple hosts on the host field using a comma separator.
-
-## Namespace support
-
-This destination does not support [namespaces](https://docs.airbyte.com/platform/using-airbyte/core-concepts/namespaces).
 
 ## Changelog
 

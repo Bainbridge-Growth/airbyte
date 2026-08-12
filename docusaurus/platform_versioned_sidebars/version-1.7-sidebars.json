@@ -423,6 +423,7 @@
           "items": [
             "using-airbyte/configuring-api-access",
             "operator-guides/using-the-airflow-airbyte-operator",
+            "operator-guides/using-prefect-task",
             "operator-guides/using-dagster-integration",
             "operator-guides/using-kestra-plugin",
             "operator-guides/using-orchestra-task"
@@ -515,11 +516,7 @@
               "label": "Resources",
               "items": [
                 "contributing-to-airbyte/resources/pull-requests-handbook",
-                {
-                  "type": "link",
-                  "label": "QA checks",
-                  "href": "/community/contributing-to-airbyte/resources/qa-checks"
-                }
+                "contributing-to-airbyte/resources/qa-checks"
               ]
             }
           ]

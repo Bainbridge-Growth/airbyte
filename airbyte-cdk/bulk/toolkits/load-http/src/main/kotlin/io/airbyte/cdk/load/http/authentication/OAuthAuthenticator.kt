@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 Airbyte, Inc., all rights reserved.
+ * Copyright (c) 2025 Airbyte, Inc., all rights reserved.
  */
 
 package io.airbyte.cdk.load.http.authentication
@@ -14,8 +14,6 @@ import io.airbyte.cdk.load.http.decoder.JsonDecoder
 import io.airbyte.cdk.load.http.okhttp.AirbyteOkHttpClient
 import io.micronaut.http.HttpHeaders
 import java.lang.IllegalStateException
-import java.time.Clock
-import java.time.Instant
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Response as OkHttpResponse
@@ -25,8 +23,7 @@ class OAuthAuthenticator(
     private val clientId: String,
     private val clientSecret: String,
     private val refreshToken: String,
-    private val httpClient: HttpClient = AirbyteOkHttpClient(OkHttpClient.Builder().build()),
-    private val clock: Clock = Clock.systemUTC()
+    private val httpClient: HttpClient = AirbyteOkHttpClient(OkHttpClient.Builder().build())
 ) : Interceptor {
     object Constants {
         const val CLIENT_ID_FIELD_NAME: String = "client_id"
@@ -34,12 +31,10 @@ class OAuthAuthenticator(
         const val GRANT_TYPE_FIELD_NAME: String = "grant_type"
         const val GRANT_TYPE: String = "refresh_token"
         const val REFRESH_TOKEN_FIELD_NAME: String = "refresh_token"
-        const val EXPIRY_BUFFER_SECONDS: Long = 60
     }
 
     private val decoder: JsonDecoder = JsonDecoder()
     private var accessToken: String? = null
-    private var tokenExpiresAt: Instant? = null
 
     override fun intercept(chain: Interceptor.Chain): OkHttpResponse {
         if (needToQueryAccessToken()) {
@@ -60,8 +55,8 @@ class OAuthAuthenticator(
     }
 
     private fun isTokenExpired(): Boolean {
-        val expiresAt = tokenExpiresAt ?: return false
-        return Instant.now(clock).isAfter(expiresAt.minusSeconds(Constants.EXPIRY_BUFFER_SECONDS))
+        return false // TODO as we only supports Salesforce today, the token is keep active until
+        // there is no activity for a while which should not happen in our context
     }
 
     /**
@@ -97,11 +92,6 @@ class OAuthAuthenticator(
     }
 
     private fun refreshAccessToken() {
-        val tokenResponse = queryForAccessToken()
-        accessToken = tokenResponse.get("access_token").asText()
-        val expiresInNode = tokenResponse.get("expires_in")
-        if (expiresInNode != null && expiresInNode.isNumber) {
-            tokenExpiresAt = Instant.now(clock).plusSeconds(expiresInNode.asLong())
-        }
+        accessToken = queryForAccessToken().get("access_token").asText()
     }
 }

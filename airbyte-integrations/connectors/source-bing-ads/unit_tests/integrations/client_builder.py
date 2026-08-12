@@ -17,7 +17,8 @@ def build_request(config: Dict[str, Any]) -> HttpRequest:
         f"&client_secret={config['client_secret']}"
         "&grant_type=refresh_token"
         f"&refresh_token={config['refresh_token']}"
-        "&scope=https%3A%2F%2Fads.microsoft.com%2Fmsads.manage+offline_access"
+        "&environment=production&scope=https%3A%2F%2Fads.microsoft.com%2Fmsads.manage+offline_access&oauth_scope=msads.manage"
+        f"&tenant={config['tenant_id']}"
     )
 
     return HttpRequest(
@@ -41,7 +42,10 @@ def build_request_2(config: Dict[str, Any]) -> HttpRequest:
         f"&client_id={config['client_id']}"
         f"&client_secret={config['client_secret']}"
         f"&refresh_token={config['refresh_token']}"
+        "&environment=production"
+        "&oauth_scope=msads.manage"
         "&scope=https%3A%2F%2Fads.microsoft.com%2Fmsads.manage+offline_access"
+        f"&tenant={config['tenant_id']}"
     )
 
     return HttpRequest(

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 Airbyte, Inc., all rights reserved.
+ * Copyright (c) 2024 Airbyte, Inc., all rights reserved.
  */
 
 package io.airbyte.cdk.read
@@ -135,7 +135,6 @@ class DefaultJdbcPartitionFactoryTest {
                         stream.namespace,
                         sampleRateInvPow2 = 8,
                         DefaultJdbcConstants.TABLE_SAMPLE_SIZE,
-                        NoWhere,
                     ),
                     NoWhere,
                     OrderBy(id),
@@ -206,7 +205,6 @@ class DefaultJdbcPartitionFactoryTest {
                         stream.namespace,
                         sampleRateInvPow2 = 8,
                         DefaultJdbcConstants.TABLE_SAMPLE_SIZE,
-                        NoWhere,
                     ),
                     NoWhere,
                     OrderBy(id)
@@ -313,9 +311,8 @@ class DefaultJdbcPartitionFactoryTest {
                         stream.namespace,
                         sampleRateInvPow2 = 8,
                         DefaultJdbcConstants.TABLE_SAMPLE_SIZE,
-                        Where(Greater(id, IntCodec.encode(22))),
                     ),
-                    NoWhere,
+                    Where(Greater(id, IntCodec.encode(22))),
                     OrderBy(id),
                 )
             )
@@ -372,9 +369,8 @@ class DefaultJdbcPartitionFactoryTest {
                         stream.namespace,
                         sampleRateInvPow2 = 8,
                         DefaultJdbcConstants.TABLE_SAMPLE_SIZE,
-                        Where(Greater(id, IntCodec.encode(22))),
                     ),
-                    NoWhere,
+                    Where(Greater(id, IntCodec.encode(22))),
                     OrderBy(id)
                 )
             )
@@ -386,8 +382,8 @@ class DefaultJdbcPartitionFactoryTest {
         // Check snapshot termination criteria and transition to cursor-based incremental
         val finalResult = factory.create(stream.bootstrap(opaqueStateValue(cursor = cursorValue)))
         factory.assertFailures()
-        Assertions.assertTrue(finalResult is DefaultUnsplittableJdbcCursorIncrementalPartition)
-        val finalPartition = finalResult as DefaultUnsplittableJdbcCursorIncrementalPartition
+        Assertions.assertTrue(finalResult is DefaultJdbcCursorIncrementalPartition)
+        val finalPartition = finalResult as DefaultJdbcCursorIncrementalPartition
         sanityCheck(stream, factory, finalPartition)
         Assertions.assertEquals(ts, finalPartition.cursor)
         Assertions.assertEquals(LocalDateCodec.encode(cursorValue), finalPartition.cursorLowerBound)
@@ -399,8 +395,8 @@ class DefaultJdbcPartitionFactoryTest {
         val factory = sharedState().factory()
         val result = factory.create(stream.bootstrap(opaqueStateValue(cursor = cursorValue)))
         factory.assertFailures()
-        Assertions.assertTrue(result is DefaultUnsplittableJdbcCursorIncrementalPartition)
-        val partition = result as DefaultUnsplittableJdbcCursorIncrementalPartition
+        Assertions.assertTrue(result is DefaultJdbcCursorIncrementalPartition)
+        val partition = result as DefaultJdbcCursorIncrementalPartition
         val cursorUpperBound = cursorValue.plusMonths(1)
         partition.streamState.cursorUpperBound = LocalDateCodec.encode(cursorUpperBound)
         // Check partition properties
@@ -429,6 +425,22 @@ class DefaultJdbcPartitionFactoryTest {
             )
         )
         partition
+            .resumableQuery(limit = 10L)
+            .assertQueryEquals(
+                SelectQuerySpec(
+                    SelectColumns(id, ts, msg),
+                    From(stream.name, stream.namespace),
+                    Where(
+                        And(
+                            GreaterOrEqual(ts, LocalDateCodec.encode(cursorValue)),
+                            LesserOrEqual(ts, LocalDateCodec.encode(cursorUpperBound))
+                        ),
+                    ),
+                    OrderBy(ts),
+                    Limit(10L)
+                )
+            )
+        partition
             .samplingQuery(sampleRateInvPow2 = 8)
             .assertQueryEquals(
                 SelectQuerySpec(
@@ -438,25 +450,27 @@ class DefaultJdbcPartitionFactoryTest {
                         stream.namespace,
                         sampleRateInvPow2 = 8,
                         DefaultJdbcConstants.TABLE_SAMPLE_SIZE,
-                        Where(
-                            And(
-                                GreaterOrEqual(ts, LocalDateCodec.encode(cursorValue)),
-                                LesserOrEqual(ts, LocalDateCodec.encode(cursorUpperBound))
-                            )
+                    ),
+                    Where(
+                        And(
+                            GreaterOrEqual(ts, LocalDateCodec.encode(cursorValue)),
+                            LesserOrEqual(ts, LocalDateCodec.encode(cursorUpperBound))
                         ),
                     ),
-                    NoWhere,
                     OrderBy(ts)
                 )
             )
         // Check state generation
         partition.completeState.assertJsonEquals(opaqueStateValue(cursor = cursorUpperBound))
+        partition
+            .incompleteState(record(cursor = cursorValue.plusDays(1)))
+            .assertJsonEquals(opaqueStateValue(cursor = cursorValue.plusDays(1)))
         // Check that subsequent non-terminal partition includes the lower bound
         val nextResult =
             factory.create(stream.bootstrap(opaqueStateValue(cursor = cursorValue.plusDays(1))))
         factory.assertFailures()
-        Assertions.assertTrue(nextResult is DefaultUnsplittableJdbcCursorIncrementalPartition)
-        val nextPartition = nextResult as DefaultUnsplittableJdbcCursorIncrementalPartition
+        Assertions.assertTrue(nextResult is DefaultJdbcCursorIncrementalPartition)
+        val nextPartition = nextResult as DefaultJdbcCursorIncrementalPartition
         sanityCheck(stream, factory, nextPartition)
         Assertions.assertTrue(nextPartition.isLowerBoundIncluded)
         // Check termination criteria
@@ -472,13 +486,23 @@ class DefaultJdbcPartitionFactoryTest {
                 partition,
                 listOf(opaqueStateValue(cursor = boundary1), opaqueStateValue(cursor = boundary2)),
             )
-        Assertions.assertEquals(1, rawSplits.size)
-        val split = rawSplits[0] as DefaultUnsplittableJdbcCursorIncrementalPartition
-        sanityCheck(stream, factory, split)
-        Assertions.assertEquals(ts, split.cursor)
-        Assertions.assertEquals(LocalDateCodec.encode(cursorValue), split.cursorLowerBound)
-        Assertions.assertTrue(split.isLowerBoundIncluded)
-        Assertions.assertEquals(LocalDateCodec.encode(cursorUpperBound), split.cursorUpperBound)
+        val splits: List<DefaultJdbcCursorIncrementalPartition> =
+            rawSplits.filterIsInstance<DefaultJdbcCursorIncrementalPartition>()
+        Assertions.assertIterableEquals(rawSplits, splits)
+        splits.forEach {
+            sanityCheck(stream, factory, it)
+            Assertions.assertEquals(ts, it.cursor)
+        }
+        Assertions.assertEquals(3, splits.size)
+        Assertions.assertEquals(LocalDateCodec.encode(cursorValue), splits[0].cursorLowerBound)
+        Assertions.assertTrue(splits[0].isLowerBoundIncluded)
+        Assertions.assertEquals(LocalDateCodec.encode(boundary1), splits[0].cursorUpperBound)
+        Assertions.assertEquals(LocalDateCodec.encode(boundary1), splits[1].cursorLowerBound)
+        Assertions.assertFalse(splits[1].isLowerBoundIncluded)
+        Assertions.assertEquals(LocalDateCodec.encode(boundary2), splits[1].cursorUpperBound)
+        Assertions.assertEquals(LocalDateCodec.encode(boundary2), splits[2].cursorLowerBound)
+        Assertions.assertFalse(splits[2].isLowerBoundIncluded)
+        Assertions.assertEquals(LocalDateCodec.encode(cursorUpperBound), splits[2].cursorUpperBound)
     }
 
     fun sanityCheck(

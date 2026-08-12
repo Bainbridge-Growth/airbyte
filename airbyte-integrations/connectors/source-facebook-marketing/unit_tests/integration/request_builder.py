@@ -7,18 +7,16 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Mapping, Optional, Union
 
-from facebook_business.api import FacebookAdsApi
-
 from airbyte_cdk.test.mock_http.request import HttpRequest
 
 from .config import ACCESS_TOKEN, ACCOUNT_ID
 
 
-API_VERSION = FacebookAdsApi.API_VERSION
+API_VERSION = "v23.0"
 
 
 def get_account_request(account_id: Optional[str] = ACCOUNT_ID) -> RequestBuilder:
-    return RequestBuilder.get_account_endpoint(access_token=ACCESS_TOKEN, account_id=account_id).with_fields(["timezone_name"])
+    return RequestBuilder.get_account_endpoint(access_token=ACCESS_TOKEN, account_id=account_id)
 
 
 def get_ads_request(account_id: Optional[str] = ACCOUNT_ID) -> RequestBuilder:

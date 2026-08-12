@@ -1,6 +1,5 @@
 ---
 title: AI Assistant
-products: cloud
 ---
 # AI Assistant for the Connector Builder (Beta)
 

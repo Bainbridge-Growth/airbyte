@@ -1,8 +1,6 @@
 /*
- * Copyright (c) 2026 Airbyte, Inc., all rights reserved.
+ * Copyright (c) 2024 Airbyte, Inc., all rights reserved.
  */
-
-@file:Suppress("DEPRECATION")
 
 package io.airbyte.cdk.test.fixtures.legacy
 
@@ -28,9 +26,12 @@ constructor(
     @Volatile private lateinit var process: Process
 
     @Throws(TestHarnessException::class)
-    override fun run(inputType: StandardDiscoverCatalogInput, jobRoot: Path): ConnectorJobOutput {
+    override fun run(
+        discoverSchemaInput: StandardDiscoverCatalogInput,
+        jobRoot: Path
+    ): ConnectorJobOutput {
         try {
-            val inputConfig = inputType.connectionConfiguration!!
+            val inputConfig = discoverSchemaInput.connectionConfiguration!!
             process =
                 integrationLauncher.discover(
                     jobRoot,
@@ -42,7 +43,7 @@ constructor(
                 ConnectorJobOutput()
                     .withOutputType(ConnectorJobOutput.OutputType.DISCOVER_CATALOG_ID)
 
-            LineGobbler.gobble(process.errorStream, { msg: String -> LOGGER.error { msg } })
+            LineGobbler.gobble(process.errorStream, { msg: String -> LOGGER.error(msg) })
 
             val messagesByType = TestHarnessUtils.getMessagesByType(process, streamFactory, 30)
 
@@ -62,7 +63,7 @@ constructor(
                     )
             ) {
                 connectorConfigUpdater.updateSource(
-                    UUID.fromString(inputType.sourceId),
+                    UUID.fromString(discoverSchemaInput.sourceId),
                     optionalConfigMsg.get().config
                 )
                 jobOutput.connectorConfigurationUpdated = true
@@ -77,7 +78,7 @@ constructor(
 
             val exitCode = process.exitValue()
             if (exitCode != 0) {
-                LOGGER.warn { "Discover job subprocess finished with exit codee $exitCode" }
+                LOGGER.warn("Discover job subprocess finished with exit codee {}", exitCode)
             }
 
             if (catalog != null) {
@@ -85,7 +86,10 @@ constructor(
                     AirbyteApiClient.retryWithJitter(
                         {
                             airbyteApiClient.sourceApi.writeDiscoverCatalogResult(
-                                buildSourceDiscoverSchemaWriteRequestBody(inputType, catalog)
+                                buildSourceDiscoverSchemaWriteRequestBody(
+                                    discoverSchemaInput,
+                                    catalog
+                                )
                             )
                         },
                         WRITE_DISCOVER_CATALOG_LOGS_TAG

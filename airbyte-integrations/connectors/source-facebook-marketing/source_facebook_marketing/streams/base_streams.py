@@ -8,6 +8,7 @@ from datetime import datetime
 from functools import cache
 from typing import TYPE_CHECKING, Any, Iterable, List, Mapping, MutableMapping, Optional
 
+import pendulum
 from facebook_business.adobjects.abstractobject import AbstractObject
 from facebook_business.exceptions import FacebookRequestError
 
@@ -15,7 +16,6 @@ from airbyte_cdk.models import SyncMode
 from airbyte_cdk.sources.streams import Stream
 from airbyte_cdk.sources.streams.availability_strategy import AvailabilityStrategy
 from airbyte_cdk.sources.utils.transform import TransformConfig, TypeTransformer
-from airbyte_cdk.utils.datetime_helpers import AirbyteDateTime, ab_datetime_parse
 from source_facebook_marketing.streams.common import traced_exception
 
 from .common import deep_merge
@@ -64,8 +64,7 @@ class FBMarketingStream(Stream, ABC):
     @cache
     def fields(self, **kwargs) -> List[str]:
         """
-        List of fields that we want to query, if no json_schema from configured catalog then will get all properties from stream's schema.
-        Fields listed in fields_exceptions are excluded to avoid 'Too much data was requested in batch' errors.
+        List of fields that we want to query, if no json_schema from configured catalog then will get all properties from stream's schema
         """
         if self._fields:
             return self._fields
@@ -74,9 +73,7 @@ class FBMarketingStream(Stream, ABC):
             if self.configured_json_schema and self.configured_json_schema.get("properties")
             else self.get_json_schema()
         )
-        all_fields = list(json_schema.get("properties", {}).keys())
-        # Exclude fields that are known to cause issues (e.g., 'Too much data was requested in batch' errors)
-        self._saved_fields = [field for field in all_fields if field not in self.fields_exceptions]
+        self._saved_fields = list(json_schema.get("properties", {}).keys())
         return self._saved_fields
 
     @classmethod
@@ -253,8 +250,8 @@ class FBMarketingIncrementalStream(FBMarketingStream, CheckpointMixin, ABC):
 
     def __init__(self, start_date: Optional[datetime], end_date: Optional[datetime], **kwargs):
         super().__init__(**kwargs)
-        self._start_date = AirbyteDateTime.from_datetime(start_date) if start_date else None
-        self._end_date = AirbyteDateTime.from_datetime(end_date) if end_date else None
+        self._start_date = pendulum.instance(start_date) if start_date else None
+        self._end_date = pendulum.instance(end_date) if end_date else None
         self._state = {}
 
     @property
@@ -281,7 +278,7 @@ class FBMarketingIncrementalStream(FBMarketingStream, CheckpointMixin, ABC):
         )
         record_value = latest_record[self.cursor_field]
         state_value = account_state.get(self.cursor_field) or record_value
-        max_cursor = max(ab_datetime_parse(state_value), ab_datetime_parse(record_value))
+        max_cursor = max(pendulum.parse(state_value), pendulum.parse(record_value))
         if potentially_new_records_in_the_past:
             max_cursor = record_value
 
@@ -301,7 +298,7 @@ class FBMarketingIncrementalStream(FBMarketingStream, CheckpointMixin, ABC):
 
         state_value = stream_state.get(self.cursor_field)
         if stream_state and state_value:
-            filter_value = ab_datetime_parse(state_value)
+            filter_value = pendulum.parse(state_value)
         elif self._start_date:
             filter_value = self._start_date
         else:
@@ -323,7 +320,7 @@ class FBMarketingIncrementalStream(FBMarketingStream, CheckpointMixin, ABC):
                 {
                     "field": f"{self.entity_prefix}.{self.cursor_field}",
                     "operator": "GREATER_THAN",
-                    "value": int(filter_value.timestamp()),
+                    "value": filter_value.int_timestamp,
                 },
             ],
         }

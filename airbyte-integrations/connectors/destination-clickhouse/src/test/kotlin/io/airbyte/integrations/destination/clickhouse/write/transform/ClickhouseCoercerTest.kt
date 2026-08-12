@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 Airbyte, Inc., all rights reserved.
+ * Copyright (c) 2025 Airbyte, Inc., all rights reserved.
  */
 
 package io.airbyte.integrations.destination.clickhouse.write.transform
@@ -19,8 +19,6 @@ import io.airbyte.cdk.load.data.TimeWithTimezoneValue
 import io.airbyte.cdk.load.data.TimeWithoutTimezoneValue
 import io.airbyte.cdk.load.data.TimestampWithTimezoneValue
 import io.airbyte.cdk.load.data.TimestampWithoutTimezoneValue
-import io.airbyte.cdk.load.data.UnionType
-import io.airbyte.cdk.load.dataflow.transform.ValidationResult
 import io.airbyte.integrations.destination.clickhouse.write.transform.ClickhouseCoercer.Constants.DATE32_MAX
 import io.airbyte.integrations.destination.clickhouse.write.transform.ClickhouseCoercer.Constants.DATE32_MIN
 import io.airbyte.integrations.destination.clickhouse.write.transform.ClickhouseCoercer.Constants.DECIMAL128_MAX
@@ -42,8 +40,8 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.OffsetTime
 import java.time.ZoneOffset
+import kotlin.test.Test
 import kotlin.test.assertEquals
-import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
@@ -61,7 +59,9 @@ class ClickhouseCoercerTest {
 
         val result = coercer.validate(input)
 
-        assertEquals(ValidationResult.Valid, result)
+        assertEquals(input, result)
+        assertEquals(input.abValue, result.abValue)
+        assertEquals(mutableListOf(), result.changes)
     }
 
     @ParameterizedTest
@@ -71,10 +71,10 @@ class ClickhouseCoercerTest {
 
         val result = coercer.validate(input)
 
-        assertEquals(ValidationResult.ShouldNullify::class, result::class)
+        assertEquals(NullValue, result.abValue)
         assertEquals(
             AirbyteRecordMessageMetaChange.Reason.DESTINATION_FIELD_SIZE_LIMITATION,
-            (result as ValidationResult.ShouldNullify).reason
+            result.changes[0].reason
         )
     }
 
@@ -85,7 +85,9 @@ class ClickhouseCoercerTest {
 
         val result = coercer.validate(input)
 
-        assertEquals(ValidationResult.Valid, result)
+        assertEquals(input, result)
+        assertEquals(input.abValue, result.abValue)
+        assertEquals(mutableListOf(), result.changes)
     }
 
     @ParameterizedTest
@@ -95,10 +97,10 @@ class ClickhouseCoercerTest {
 
         val result = coercer.validate(input)
 
-        assertEquals(ValidationResult.ShouldNullify::class, result::class)
+        assertEquals(NullValue, result.abValue)
         assertEquals(
             AirbyteRecordMessageMetaChange.Reason.DESTINATION_FIELD_SIZE_LIMITATION,
-            (result as ValidationResult.ShouldNullify).reason
+            result.changes[0].reason
         )
     }
 
@@ -110,7 +112,9 @@ class ClickhouseCoercerTest {
 
         val result = coercer.validate(input)
 
-        assertEquals(ValidationResult.Valid, result)
+        assertEquals(input, result)
+        assertEquals(input.abValue, result.abValue)
+        assertEquals(mutableListOf(), result.changes)
     }
 
     @ParameterizedTest
@@ -121,10 +125,10 @@ class ClickhouseCoercerTest {
 
         val result = coercer.validate(input)
 
-        assertEquals(ValidationResult.ShouldNullify::class, result::class)
+        assertEquals(NullValue, result.abValue)
         assertEquals(
             AirbyteRecordMessageMetaChange.Reason.DESTINATION_FIELD_SIZE_LIMITATION,
-            (result as ValidationResult.ShouldNullify).reason
+            result.changes[0].reason
         )
     }
 
@@ -138,7 +142,9 @@ class ClickhouseCoercerTest {
 
         val result = coercer.validate(input)
 
-        assertEquals(ValidationResult.Valid, result)
+        assertEquals(input, result)
+        assertEquals(input.abValue, result.abValue)
+        assertEquals(mutableListOf(), result.changes)
     }
 
     @ParameterizedTest
@@ -149,10 +155,10 @@ class ClickhouseCoercerTest {
 
         val result = coercer.validate(input)
 
-        assertEquals(ValidationResult.ShouldNullify::class, result::class)
+        assertEquals(NullValue, result.abValue)
         assertEquals(
             AirbyteRecordMessageMetaChange.Reason.DESTINATION_FIELD_SIZE_LIMITATION,
-            (result as ValidationResult.ShouldNullify).reason
+            result.changes[0].reason
         )
     }
 
@@ -166,7 +172,9 @@ class ClickhouseCoercerTest {
 
         val result = coercer.validate(input)
 
-        assertEquals(ValidationResult.Valid, result)
+        assertEquals(input, result)
+        assertEquals(input.abValue, result.abValue)
+        assertEquals(mutableListOf(), result.changes)
     }
 
     @ParameterizedTest
@@ -179,41 +187,30 @@ class ClickhouseCoercerTest {
 
         val result = coercer.validate(input)
 
-        assertEquals(ValidationResult.ShouldNullify::class, result::class)
+        assertEquals(NullValue, result.abValue)
         assertEquals(
             AirbyteRecordMessageMetaChange.Reason.DESTINATION_FIELD_SIZE_LIMITATION,
-            (result as ValidationResult.ShouldNullify).reason
+            result.changes[0].reason
         )
     }
 
     @ParameterizedTest
     @MethodSource("nonNullValues")
-    fun `map passes through non-union values unchanged`(value: AirbyteValue) {
+    fun `toJsonString turns non-null values into a string`(value: AirbyteValue) {
         val input = Fixtures.mockCoercedValue(value)
 
-        val result = coercer.map(input)
+        val result = coercer.toJsonStringValue(input)
 
-        assertEquals(input.abValue, result.abValue)
+        assert(result.abValue is StringValue)
     }
 
     @Test
-    fun `map passes through null values unchanged`() {
+    fun `toJsonString passes through null values`() {
         val input = Fixtures.mockCoercedValue(NullValue)
 
-        val result = coercer.map(input)
+        val result = coercer.toJsonStringValue(input)
 
         assertEquals(NullValue, result.abValue)
-    }
-
-    @ParameterizedTest
-    @MethodSource("nonNullValues")
-    fun `map converts union type values to JSON strings`(value: AirbyteValue) {
-        val input = Fixtures.mockCoercedUnionValue(value)
-
-        val result = coercer.map(input)
-
-        assert(result.abValue is StringValue)
-        assertEquals(input.abValue.toString(), result.abValue.toString())
     }
 
     companion object {
@@ -241,7 +238,6 @@ class ClickhouseCoercerTest {
                 Arguments.of("100000000000000000000000000000000000001"),
                 Arguments.of("999999999999999999999999999999999999999.9"),
                 Arguments.of("-999999999999999999999999999999999999999.12"),
-                Arguments.of("3.4028234663852886E+37"),
             )
 
         @JvmStatic
@@ -336,15 +332,6 @@ class ClickhouseCoercerTest {
                 abValue = value,
                 // the below fields are not under test
                 type = StringType,
-                name = "fixture",
-                airbyteMetaField = null,
-            )
-
-        fun mockCoercedUnionValue(value: AirbyteValue) =
-            EnrichedAirbyteValue(
-                abValue = value,
-                // Use UnionType to trigger the JSON string conversion
-                type = UnionType(setOf(), false),
                 name = "fixture",
                 airbyteMetaField = null,
             )

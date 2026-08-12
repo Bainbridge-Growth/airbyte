@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 Airbyte, Inc., all rights reserved.
+ * Copyright (c) 2025 Airbyte, Inc., all rights reserved.
  */
 
 package io.airbyte.integrations.destination.bigquery.write.typing_deduping.direct_load_tables
@@ -76,11 +76,10 @@ class BigqueryDirectLoadSqlGenerator(
             } else {
                 emptyList()
             }
-        val createPrefix = if (replace) "CREATE TABLE" else "CREATE TABLE IF NOT EXISTS"
         val createTableStatement =
             listOf(
                 """
-                $createPrefix `$projectId`.$finalTableId (
+                CREATE TABLE `$projectId`.$finalTableId (
                   _airbyte_raw_id STRING NOT NULL,
                   _airbyte_extracted_at TIMESTAMP NOT NULL,
                   _airbyte_meta JSON NOT NULL,

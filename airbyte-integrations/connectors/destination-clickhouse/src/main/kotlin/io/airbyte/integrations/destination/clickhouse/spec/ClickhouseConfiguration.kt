@@ -1,12 +1,11 @@
 /*
- * Copyright (c) 2026 Airbyte, Inc., all rights reserved.
+ * Copyright (c) 2025 Airbyte, Inc., all rights reserved.
  */
 
 package io.airbyte.integrations.destination.clickhouse.spec
 
 import io.airbyte.cdk.load.command.DestinationConfiguration
 import io.airbyte.cdk.load.command.DestinationConfigurationFactory
-import io.airbyte.cdk.ssh.SshNoTunnelMethod
 import io.airbyte.cdk.ssh.SshTunnelMethodConfiguration
 import jakarta.inject.Singleton
 
@@ -18,7 +17,7 @@ data class ClickhouseConfiguration(
     val username: String,
     val password: String,
     val enableJson: Boolean,
-    val tunnelConfig: SshTunnelMethodConfiguration,
+    val tunnelConfig: SshTunnelMethodConfiguration?,
     val recordWindowSize: Long?,
 ) : DestinationConfiguration() {
     val endpoint = "$protocol://$hostname:$port"
@@ -51,7 +50,7 @@ class ClickhouseConfigurationFactory :
             username = pojo.username,
             password = pojo.password,
             enableJson = pojo.enableJson ?: false,
-            tunnelConfig = pojo.getTunnelMethodValue() ?: SshNoTunnelMethod,
+            tunnelConfig = pojo.getTunnelMethodValue(),
             recordWindowSize = pojo.recordWindowSize,
         )
     }
@@ -75,7 +74,7 @@ class ClickhouseConfigurationFactory :
             username = overrides.getOrDefault("username", spec.username),
             enableJson =
                 overrides.getOrDefault("enable_json", spec.enableJson.toString()).toBoolean(),
-            tunnelConfig = spec.getTunnelMethodValue() ?: SshNoTunnelMethod,
+            tunnelConfig = spec.getTunnelMethodValue(),
             recordWindowSize = spec.recordWindowSize,
         )
     }

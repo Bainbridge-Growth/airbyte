@@ -1,9 +1,6 @@
 /*
- * Copyright (c) 2026 Airbyte, Inc., all rights reserved.
+ * Copyright (c) 2023 Airbyte, Inc., all rights reserved.
  */
-
-@file:Suppress("DEPRECATION")
-
 package io.airbyte.cdk.test.fixtures.legacy
 
 import com.fasterxml.jackson.databind.JsonNode

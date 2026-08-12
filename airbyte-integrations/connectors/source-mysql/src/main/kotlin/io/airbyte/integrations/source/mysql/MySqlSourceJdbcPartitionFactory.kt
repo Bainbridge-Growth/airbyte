@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 Airbyte, Inc., all rights reserved.
+ * Copyright (c) 2024 Airbyte, Inc., all rights reserved.
  */
 
 package io.airbyte.integrations.source.mysql
@@ -12,7 +12,7 @@ import io.airbyte.cdk.command.OpaqueStateValue
 import io.airbyte.cdk.data.LeafAirbyteSchemaType
 import io.airbyte.cdk.data.LocalDateTimeCodec
 import io.airbyte.cdk.data.OffsetDateTimeCodec
-import io.airbyte.cdk.discover.EmittedField
+import io.airbyte.cdk.discover.Field
 import io.airbyte.cdk.jdbc.JdbcConnectionFactory
 import io.airbyte.cdk.jdbc.JdbcFieldType
 import io.airbyte.cdk.jdbc.LosslessJdbcFieldType
@@ -26,12 +26,10 @@ import io.airbyte.cdk.read.SelectQuerySpec
 import io.airbyte.cdk.read.Stream
 import io.airbyte.cdk.read.StreamFeedBootstrap
 import io.airbyte.cdk.util.Jsons
-import io.debezium.annotation.VisibleForTesting
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.micronaut.context.annotation.Primary
 import jakarta.inject.Singleton
-import java.math.BigDecimal
-import java.math.RoundingMode
+import java.math.BigInteger
 import java.time.Duration
 import java.time.LocalDateTime
 import java.time.OffsetDateTime
@@ -64,10 +62,7 @@ class MySqlSourceJdbcPartitionFactory(
             DefaultJdbcStreamState(sharedState, streamFeedBootstrap)
         }
 
-    private fun findPkUpperBound(
-        stream: Stream,
-        pkChosenFromCatalog: List<EmittedField>
-    ): JsonNode {
+    private fun findPkUpperBound(stream: Stream, pkChosenFromCatalog: List<Field>): JsonNode {
         // find upper bound using maxPk query
         val jdbcConnectionFactory = JdbcConnectionFactory(config)
         val from = From(stream.name, stream.namespace)
@@ -88,10 +83,7 @@ class MySqlSourceJdbcPartitionFactory(
         }
     }
 
-    private fun findPkLowerBound(
-        stream: Stream,
-        pkChosenFromCatalog: List<EmittedField>
-    ): JsonNode {
+    private fun findPkLowerBound(stream: Stream, pkChosenFromCatalog: List<Field>): JsonNode {
         val jdbcConnectionFactory = JdbcConnectionFactory(config)
         val from = From(stream.name, stream.namespace)
         jdbcConnectionFactory.get().use { connection ->
@@ -115,7 +107,7 @@ class MySqlSourceJdbcPartitionFactory(
 
     private fun coldStart(streamState: DefaultJdbcStreamState): MySqlSourceJdbcPartition {
         val stream: Stream = streamState.stream
-        val pkChosenFromCatalog: List<EmittedField> = stream.configuredPrimaryKey ?: listOf()
+        val pkChosenFromCatalog: List<Field> = stream.configuredPrimaryKey ?: listOf()
 
         if (stream.configuredSyncMode == ConfiguredSyncMode.FULL_REFRESH) {
             if (pkChosenFromCatalog.isEmpty()) {
@@ -154,8 +146,8 @@ class MySqlSourceJdbcPartitionFactory(
             )
         }
 
-        val cursorChosenFromCatalog: EmittedField =
-            stream.configuredCursor as? EmittedField ?: throw ConfigErrorException("no cursor")
+        val cursorChosenFromCatalog: Field =
+            stream.configuredCursor as? Field ?: throw ConfigErrorException("no cursor")
 
         if (pkChosenFromCatalog.isEmpty()) {
             return MySqlSourceJdbcNonResumableSnapshotWithCursorPartition(
@@ -214,7 +206,7 @@ class MySqlSourceJdbcPartitionFactory(
 
         val isCursorBased: Boolean = !sharedState.configuration.global
 
-        val pkChosenFromCatalog: List<EmittedField> = stream.configuredPrimaryKey ?: listOf()
+        val pkChosenFromCatalog: List<Field> = stream.configuredPrimaryKey ?: listOf()
 
         if (
             pkChosenFromCatalog.isEmpty() &&
@@ -313,9 +305,8 @@ class MySqlSourceJdbcPartitionFactory(
                 val pkField = pkChosenFromCatalog.first()
                 val pkLowerBound: JsonNode = stateValueToJsonNode(pkField, sv.pkValue)
 
-                val cursorChosenFromCatalog: EmittedField =
-                    stream.configuredCursor as? EmittedField
-                        ?: throw ConfigErrorException("no cursor")
+                val cursorChosenFromCatalog: Field =
+                    stream.configuredCursor as? Field ?: throw ConfigErrorException("no cursor")
 
                 // in a state where it's still in primary_key read part.
                 return MySqlSourceJdbcSnapshotWithCursorPartition(
@@ -328,8 +319,7 @@ class MySqlSourceJdbcPartitionFactory(
                 )
             }
             // resume back to cursor based increment.
-            val cursor: EmittedField =
-                stream.fields.find { it.id == sv.cursorField.first() } as EmittedField
+            val cursor: Field = stream.fields.find { it.id == sv.cursorField.first() } as Field
             val cursorCheckpoint: JsonNode = stateValueToJsonNode(cursor, sv.cursors)
 
             // Compose a jsonnode of cursor label to cursor value to fit in
@@ -354,7 +344,7 @@ class MySqlSourceJdbcPartitionFactory(
     }
 
     // visible for testing
-    fun stateValueToJsonNode(field: EmittedField, stateValue: String?): JsonNode {
+    fun stateValueToJsonNode(field: Field, stateValue: String?): JsonNode {
         when (field.type.airbyteSchemaType) {
             is LeafAirbyteSchemaType ->
                 return when (field.type.airbyteSchemaType as LeafAirbyteSchemaType) {
@@ -437,39 +427,40 @@ class MySqlSourceJdbcPartitionFactory(
     ): List<MySqlSourceJdbcPartition> {
 
         val stream: Stream = unsplitPartition.stream
-        val pkChosenFromCatalog: List<EmittedField> = stream.configuredPrimaryKey ?: emptyList()
+        val pkChosenFromCatalog: List<Field> = stream.configuredPrimaryKey ?: emptyList()
 
         if (pkChosenFromCatalog.isEmpty()) {
             return listOf(unsplitPartition)
         }
 
-        val pkType = pkChosenFromCatalog[0].type as LosslessJdbcFieldType<*, *>
         val upperBound = findPkUpperBound(stream, pkChosenFromCatalog)
-        val upperBoundVal = pkType.jsonDecoder.decode(upperBound)
+        val upperType = pkChosenFromCatalog[0].type as LosslessJdbcFieldType<*, *>
+        val upperBoundVal = upperType.jsonDecoder.decode(upperBound)
         log.info { "Found primary key upper bound: $upperBoundVal" }
 
         val lowerBound = findPkLowerBound(stream, pkChosenFromCatalog)
-        val lowerBoundVal = pkType.jsonDecoder.decode(lowerBound)
+        val lowerType = pkChosenFromCatalog[0].type as LosslessJdbcFieldType<*, *>
+        val lowerBoundVal = lowerType.jsonDecoder.decode(lowerBound)
         log.info { "Found primary key lower bound: $lowerBoundVal" }
 
         return when (unsplitPartition) {
             is MySqlSourceJdbcSnapshotWithCursorPartition ->
-                unsplitPartition.split(opaqueStateValues, upperBoundVal, lowerBoundVal)
+                unsplitPartition.split(opaqueStateValues.size, upperBoundVal, lowerBoundVal)
             is MySqlSourceJdbcRfrSnapshotPartition ->
-                unsplitPartition.split(opaqueStateValues, upperBoundVal, lowerBoundVal)
+                unsplitPartition.split(opaqueStateValues.size, upperBoundVal, lowerBoundVal)
             is MySqlSourceJdbcCdcSnapshotPartition ->
-                unsplitPartition.split(opaqueStateValues, upperBoundVal, lowerBoundVal)
+                unsplitPartition.split(opaqueStateValues.size, upperBoundVal, lowerBoundVal)
             is MySqlSourceJdbcCdcRfrSnapshotPartition ->
-                unsplitPartition.split(opaqueStateValues, upperBoundVal, lowerBoundVal)
+                unsplitPartition.split(opaqueStateValues.size, upperBoundVal, lowerBoundVal)
             else -> null
         }
             ?: listOf(unsplitPartition)
     }
 
     private fun MySqlSourceJdbcSnapshotWithCursorPartition.split(
-        opaqueStateValues: List<OpaqueStateValue>,
+        num: Int,
         upperBound: Any?,
-        effectiveLowerBound: Any?,
+        effectiveLowerBound: Any?
     ): List<MySqlSourceJdbcResumablePartition>? {
         val type = checkpointColumns[0].type as LosslessJdbcFieldType<*, *>
         val lowerBound =
@@ -477,27 +468,24 @@ class MySqlSourceJdbcPartitionFactory(
                 true -> effectiveLowerBound
                 false -> type.jsonDecoder.decode(lowerBound[0])
             }
-        return calculateBoundaries(opaqueStateValues, lowerBound, upperBound)
-            ?.entries
-            ?.mapIndexed { index, (l, u) ->
-                MySqlSourceJdbcSplittableSnapshotWithCursorPartition(
-                    selectQueryGenerator,
-                    streamState,
-                    checkpointColumns,
-                    listOf(stateValueToJsonNode(checkpointColumns[0], l.toString())),
-                    u?.let { listOf(stateValueToJsonNode(checkpointColumns[0], u.toString())) },
-                    cursor,
-                    cursorUpperBound,
-                    // The first partition includes the lower bound
-                    index == 0
-                )
-            }
+        return calculateBoundaries(num, lowerBound, upperBound)?.map { (l, u) ->
+            MySqlSourceJdbcSplittableSnapshotWithCursorPartition(
+                selectQueryGenerator,
+                streamState,
+                checkpointColumns,
+                listOf(stateValueToJsonNode(checkpointColumns[0], l.toString())),
+                u?.let { listOf(stateValueToJsonNode(checkpointColumns[0], u.toString())) },
+                //                listOf(stateValueToJsonNode(checkpointColumns[0], u.toString())),
+                cursor,
+                cursorUpperBound
+            )
+        }
     }
 
     private fun MySqlSourceJdbcRfrSnapshotPartition.split(
-        opaqueStateValues: List<OpaqueStateValue>,
+        num: Int,
         upperBound: Any?,
-        effectiveLowerBound: Any?,
+        effectiveLowerBound: Any?
     ): List<MySqlSourceJdbcResumablePartition>? {
         val type = checkpointColumns[0].type as LosslessJdbcFieldType<*, *>
         val lowerBound =
@@ -506,7 +494,7 @@ class MySqlSourceJdbcPartitionFactory(
                 false -> type.jsonDecoder.decode(lowerBound[0])
             }
 
-        return calculateBoundaries(opaqueStateValues, lowerBound, upperBound)?.map { (l, u) ->
+        return calculateBoundaries(num, lowerBound, upperBound)?.map { (l, u) ->
             MySqlSourceJdbcSplittableRfrSnapshotPartition(
                 selectQueryGenerator,
                 streamState,
@@ -518,9 +506,9 @@ class MySqlSourceJdbcPartitionFactory(
     }
 
     private fun MySqlSourceJdbcCdcRfrSnapshotPartition.split(
-        opaqueStateValues: List<OpaqueStateValue>,
+        num: Int,
         upperBound: Any?,
-        effectiveLowerBound: Any?,
+        effectiveLowerBound: Any?
     ): List<MySqlSourceJdbcResumablePartition>? {
         val type = checkpointColumns[0].type as LosslessJdbcFieldType<*, *>
         val lowerBound =
@@ -529,7 +517,7 @@ class MySqlSourceJdbcPartitionFactory(
                 false -> type.jsonDecoder.decode(lowerBound[0])
             }
 
-        return calculateBoundaries(opaqueStateValues, lowerBound, upperBound)?.map { (l, u) ->
+        return calculateBoundaries(num, lowerBound, upperBound)?.map { (l, u) ->
             MySqlSourceJdbcSplittableRfrSnapshotPartition(
                 selectQueryGenerator,
                 streamState,
@@ -541,9 +529,9 @@ class MySqlSourceJdbcPartitionFactory(
     }
 
     private fun MySqlSourceJdbcCdcSnapshotPartition.split(
-        opaqueStateValues: List<OpaqueStateValue>,
+        num: Int,
         upperBound: Any?,
-        effectiveLowerBound: Any?,
+        effectiveLowerBound: Any?
     ): List<MySqlSourceJdbcResumablePartition>? {
         val type = checkpointColumns[0].type as LosslessJdbcFieldType<*, *>
         val lowerBound =
@@ -552,53 +540,37 @@ class MySqlSourceJdbcPartitionFactory(
                 false -> type.jsonDecoder.decode(lowerBound[0])
             }
 
-        return calculateBoundaries(opaqueStateValues, lowerBound, upperBound)
-            ?.entries
-            ?.mapIndexed { index, (l, u) ->
-                MySqlSourceJdbcSplittableCdcRfrSnapshotPartition(
-                    selectQueryGenerator,
-                    streamState,
-                    checkpointColumns,
-                    listOf(stateValueToJsonNode(checkpointColumns[0], l.toString())),
-                    u?.let { listOf(stateValueToJsonNode(checkpointColumns[0], u.toString())) },
-                    // The first partition includes the lower bound
-                    index == 0
-                )
-            }
+        return calculateBoundaries(num, lowerBound, upperBound)?.map { (l, u) ->
+            MySqlSourceJdbcSplittableCdcRfrSnapshotPartition(
+                selectQueryGenerator,
+                streamState,
+                checkpointColumns,
+                listOf(stateValueToJsonNode(checkpointColumns[0], l.toString())),
+                u?.let { listOf(stateValueToJsonNode(checkpointColumns[0], u.toString())) },
+            )
+        }
     }
 
-    @VisibleForTesting
-    internal fun <T> calculateBoundaries(
-        opaqueStateValues: List<OpaqueStateValue>,
-        lowerBound: T?,
-        upperBound: T
-    ): Map<*, *>? =
+    private fun <T> calculateBoundaries(num: Int, lowerBound: T?, upperBound: T): Map<*, *>? =
         when {
             lowerBound is Long? && upperBound is Long ->
-                internalCalculateBoundaries(opaqueStateValues, lowerBound, upperBound)
+                internalCalculateBoundaries(num, lowerBound, upperBound)
             lowerBound is Int? && upperBound is Int ->
-                internalCalculateBoundaries(
-                    opaqueStateValues,
-                    lowerBound?.toLong(),
-                    upperBound.toLong()
-                )
+                internalCalculateBoundaries(num, lowerBound?.toLong(), upperBound.toLong())
             lowerBound is String? && upperBound is String ->
-                internalCalculateBoundaries(opaqueStateValues, lowerBound, upperBound)
+                internalCalculateBoundaries(num, lowerBound, upperBound)
             lowerBound is Double? && upperBound is Double ->
-                internalCalculateBoundaries(opaqueStateValues, lowerBound, upperBound)
-            lowerBound is BigDecimal? && upperBound is BigDecimal ->
-                internalCalculateBoundaries(opaqueStateValues, lowerBound, upperBound)
+                internalCalculateBoundaries(num, lowerBound, upperBound)
             lowerBound is OffsetDateTime? && upperBound is OffsetDateTime ->
-                internalCalculateBoundaries(opaqueStateValues, lowerBound, upperBound)
+                internalCalculateBoundaries(num, lowerBound, upperBound)
             else -> null
         }
 
     private fun internalCalculateBoundaries(
-        opaqueStateValues: List<OpaqueStateValue>,
+        num: Int,
         lowerBound: OffsetDateTime?,
         upperBound: OffsetDateTime
     ): Map<OffsetDateTime, OffsetDateTime?> {
-        val num = opaqueStateValues.size
         val queryPlan: MutableList<OffsetDateTime> = mutableListOf()
         val effectiveLowerBound = lowerBound ?: OffsetDateTime.MIN
         val eachStep: Duration =
@@ -613,11 +585,10 @@ class MySqlSourceJdbcPartitionFactory(
     }
 
     private fun internalCalculateBoundaries(
-        opaqueStateValues: List<OpaqueStateValue>,
+        num: Int,
         lowerBound: Long?,
         upperBound: Long
     ): Map<Long, Long?> {
-        val num = opaqueStateValues.size
         val queryPlan: MutableList<Long> = mutableListOf()
         val effectiveLowerBound = lowerBound ?: Long.MIN_VALUE
         val eachStep: Long = (upperBound - effectiveLowerBound) / num
@@ -632,11 +603,10 @@ class MySqlSourceJdbcPartitionFactory(
     }
 
     private fun internalCalculateBoundaries(
-        opaqueStateValues: List<OpaqueStateValue>,
+        num: Int,
         lowerBound: Double?,
         upperBound: Double
     ): Map<Double, Double?> {
-        val num = opaqueStateValues.size
         val queryPlan: MutableList<Double> = mutableListOf()
         val effectiveLowerBound = lowerBound ?: Double.MIN_VALUE
         val eachStep: Double = (upperBound - effectiveLowerBound) / num
@@ -648,60 +618,79 @@ class MySqlSourceJdbcPartitionFactory(
         return lbs.zip(ubs).toMap()
     }
 
-    @VisibleForTesting
-    internal fun internalCalculateBoundaries(
-        opaqueStateValues: List<OpaqueStateValue>,
-        lowerBound: BigDecimal?,
-        upperBound: BigDecimal,
-    ): Map<BigDecimal, BigDecimal?> {
-        val num = opaqueStateValues.size
-        val queryPlan: MutableList<BigDecimal> = mutableListOf()
-        val effectiveLowerBound = lowerBound ?: Long.MIN_VALUE.toBigDecimal()
-        val eachStep: BigDecimal =
-            upperBound.subtract(effectiveLowerBound).divide(num.toBigDecimal(), RoundingMode.DOWN)
-        for (i in 1..(num - 1)) {
-            queryPlan.add(effectiveLowerBound.add(eachStep.multiply(i.toBigDecimal())))
-        }
-        val lbs: List<BigDecimal> = listOf(effectiveLowerBound) + queryPlan
-        val ubs: List<BigDecimal?> = queryPlan + null
-        log.info { "partitions: ${lbs.zip(ubs)}" }
+    private fun internalCalculateBoundaries(
+        num: Int,
+        lowerBound: String?,
+        upperBound: String
+    ): Map<String, String?> {
+        val effectiveLowerBound = lowerBound ?: String()
+        val queryPlan: List<String> =
+            unicodeInterpolatedStrings(effectiveLowerBound, upperBound, num)
+        val lbs: List<String> = listOf(effectiveLowerBound) + queryPlan
+        val ubs: List<String?> = queryPlan + null
         return lbs.zip(ubs).toMap()
     }
 
-    @VisibleForTesting
-    internal fun internalCalculateBoundaries(
-        opaqueStateValues: List<OpaqueStateValue>,
-        lowerBound: String?,
-        upperBound: String,
-    ): Map<String, String?> {
-        val num = opaqueStateValues.size
-        val effectiveLowerBound = lowerBound ?: String()
-        log.info { "calculating boundaries: [$effectiveLowerBound], [$upperBound]" }
-        val guidPattern =
-            "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$".toRegex()
-        // If all sample values match GUID pattern, we calculate boundaries over GUID character set
-        val isGuidPk =
-        // Prevent the comparison of 0 == 0 which can happen when no samples contain a pk_val.
-        opaqueStateValues.isNotEmpty() &&
-                opaqueStateValues.count {
-                    it["pk_val"] != null &&
-                        it["pk_val"].isTextual &&
-                        guidPattern.matches(it["pk_val"].asText())
-                } == opaqueStateValues.count() &&
-                // Lower bound can be empty if it's the first partition.
-                (effectiveLowerBound.isEmpty() || guidPattern.matches(effectiveLowerBound)) &&
-                // Fixes issues when the largest value is a sentinel/marker and it's not a GUID.
-                guidPattern.matches(upperBound)
-
-        val queryPlan: List<String> =
-            when (isGuidPk) {
-                false -> unicodeInterpolatedStrings(effectiveLowerBound, upperBound, num)
-                true -> guidInterpolatedStrings(effectiveLowerBound, upperBound, num)
+    fun unicodeInterpolatedStrings(start: String, end: String, steps: Int): List<String> {
+        fun toCodePoints(s: String): List<Int> {
+            val codePoints = mutableListOf<Int>()
+            var i = 0
+            while (i < s.length) {
+                val cp = s.codePointAt(i)
+                codePoints.add(cp)
+                i += Character.charCount(cp)
             }
+            return codePoints
+        }
 
-        log.info { "boundaries: $queryPlan" }
-        val lbs: List<String> = queryPlan
-        val ubs: List<String?> = queryPlan.drop(1) + null
-        return lbs.zip(ubs).toMap()
+        fun fromCodePoints(codePoints: List<Int>): String {
+            val sb = StringBuilder()
+            for (cp in codePoints) {
+                sb.append(Character.toChars(cp))
+            }
+            return sb.toString()
+        }
+
+        fun codePointsToBigInt(cps: List<Int>, base: BigInteger): BigInteger {
+            var result = BigInteger.ZERO
+            for (cp in cps) {
+                result = result.multiply(base).add(BigInteger.valueOf(cp.toLong()))
+            }
+            return result
+        }
+
+        fun bigIntToCodePoints(num: BigInteger, length: Int, base: BigInteger): List<Int> {
+            var n = num
+            val result = MutableList(length) { 0 }
+            for (i in (length - 1) downTo 0) {
+                val rem = n.mod(base).toInt()
+                result[i] = rem
+                n = n.divide(base)
+            }
+            return result
+        }
+
+        val base = BigInteger.valueOf(0x110000L) // Max Unicode code point + 1
+        val a = toCodePoints(start)
+        val b = toCodePoints(end)
+        val maxLen = maxOf(a.size, b.size)
+        val aPadded = a + List(maxLen - a.size) { 0 }
+        val bPadded = b + List(maxLen - b.size) { 0 }
+
+        val aNum = codePointsToBigInt(aPadded, base)
+        val bNum = codePointsToBigInt(bPadded, base)
+
+        val result = mutableListOf<String>()
+        for (i in 0..steps) {
+            val fraction =
+                BigInteger.valueOf(i.toLong())
+                    .multiply(bNum - aNum)
+                    .divide(BigInteger.valueOf(steps.toLong()))
+            val mid = aNum + fraction
+            val cps = bigIntToCodePoints(mid, maxLen, base)
+            result.add(fromCodePoints(cps))
+        }
+
+        return result
     }
 }

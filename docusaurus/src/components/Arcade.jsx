@@ -11,6 +11,7 @@ export const Arcade = (props) => {
       <iframe
         src={`https://demo.arcade.software/${props.id}?embed`}
         title={props.title}
+        frameborder="0"
         loading="lazy"
         allowFullScreen
         style={{
