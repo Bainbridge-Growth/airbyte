@@ -17,6 +17,9 @@ logger = logging.getLogger("airbyte")
 # QuickBooks API error codes
 RESULT_SET_BIG_ERROR_CODE = "10100"
 
+# Months re-synced before the saved cursor on incremental syncs, to pick up back-dated edits
+DEFAULT_INCREMENTAL_LOOKBACK_MONTHS = 3
+
 
 class ResultSetBigError(Exception):
     """Raised when QuickBooks returns error 10100 (Result Set Big Error)"""
@@ -170,7 +173,11 @@ class QuickbooksReportMonthlyBase(HttpStream):
     Reference: https://developer.intuit.com/app/developer/qbo/docs/api/accounting/all-entities
     """
 
-    primary_key = ["_Account_id", "Class", "StartPeriod"]
+    # Dimension1 (second_dimension item) must be part of the key, otherwise dedup would
+    # collapse the per-item rows of the same account/class/period into one
+    primary_key = ["_Account_id", "Class", "Dimension1", "StartPeriod"]
+    cursor_field = "StartPeriod"
+    source_defined_cursor = True
     url_base = "https://quickbooks.api.intuit.com/v3/"
     # Disable automatic HTTP error raising so we can handle 400 errors with ResultSetBigError
     raise_on_http_errors = False
@@ -185,6 +192,7 @@ class QuickbooksReportMonthlyBase(HttpStream):
             end_date: str = None,
             authenticator = None,
             dimension_cache: Optional[DimensionItemsCache] = None,
+            incremental_lookback_months: Optional[int] = None,
             **kwargs
     ):
         self.realm_id = realm_id
@@ -203,7 +211,51 @@ class QuickbooksReportMonthlyBase(HttpStream):
         self._fallback_mode_first_dimension_items = None  # Cache of dimension items for fallback mode
         self._first_dimension_total_only = False  # When True, fetch the plain report (no dimension) and emit it as a DRIVEPOINT_CLASS_TOTAL row
         self._cached_second_dim_pairs = None  # Cache of distinct id->name pairs for second_dimension
+        self.incremental_lookback_months = (
+            DEFAULT_INCREMENTAL_LOOKBACK_MONTHS if incremental_lookback_months is None else int(incremental_lookback_months)
+        )
+        self._cursor_value = None  # First day of the latest fully synced month, e.g. "2024-06-01T00:00:00Z"
         super().__init__(authenticator=authenticator, **kwargs)
+
+    @property
+    def state(self) -> MutableMapping[str, Any]:
+        return {self.cursor_field: self._cursor_value} if self._cursor_value else {}
+
+    @state.setter
+    def state(self, value: MutableMapping[str, Any]) -> None:
+        self._cursor_value = (value or {}).get(self.cursor_field)
+
+    @property
+    def _has_second_dimension(self) -> bool:
+        return bool(self.second_dimension) and self.second_dimension != "None"
+
+    def _advance_cursor(self, stream_slice: Optional[Mapping[str, Any]]) -> None:
+        """Move the cursor to the month containing the end of a fully read slice.
+
+        Called only after all records of the slice were yielded, so an interrupted slice
+        is re-read on the next attempt. The month (not the slice start) is stored so that
+        yearly slices in Mode 1 don't pull the cursor back to January.
+        """
+        if not stream_slice or not stream_slice.get("end_date"):
+            return
+        month_start = pendulum.parse(stream_slice["end_date"]).start_of("month")
+        new_value = format_date(month_start.format("YYYY-MM-DD"))
+        if not self._cursor_value or new_value > self._cursor_value:
+            self._cursor_value = new_value
+
+    def _incremental_start(self, start, stream_state: Optional[Mapping[str, Any]]):
+        """Start of an incremental sync: the saved cursor month minus the lookback window,
+        but never earlier than the configured start_date."""
+        cursor_value = (stream_state or {}).get(self.cursor_field) or self._cursor_value
+        if not cursor_value:
+            return start
+        lookback_start = pendulum.parse(cursor_value).start_of("month").subtract(months=self.incremental_lookback_months)
+        lookback_start = pendulum.datetime(lookback_start.year, lookback_start.month, 1)
+        self.logger.info(
+            f"Incremental sync: cursor={cursor_value}, lookback={self.incremental_lookback_months} months, "
+            f"re-syncing from {max(start, lookback_start).format('YYYY-MM-DD')}"
+        )
+        return max(start, lookback_start)
 
     @property
     def _uses_monthly_columns(self) -> bool:
@@ -358,6 +410,9 @@ class QuickbooksReportMonthlyBase(HttpStream):
         """
         Create date-range chunks from start_date to end_date (or today).
 
+        On incremental syncs with saved state, chunks start at the saved cursor month
+        minus `incremental_lookback_months` instead of start_date.
+
         When `_uses_monthly_columns` is True, slices are yearly because the API
         request will set summarize_column_by=Month, returning month columns
         within a single response. Otherwise slices are monthly (one slice per
@@ -393,9 +448,15 @@ class QuickbooksReportMonthlyBase(HttpStream):
         start = pendulum.datetime(start_dt.year, start_dt.month, start_dt.day)
         end = pendulum.datetime(end_dt.year, end_dt.month, end_dt.day)
 
-        if self._uses_monthly_columns:
-            return self._yearly_slices(start, end)
-        return self._monthly_slices(start, end)
+        if getattr(sync_mode, "value", sync_mode) == SyncMode.incremental.value:
+            start = self._incremental_start(start, stream_state)
+
+        slices = self._yearly_slices(start, end) if self._uses_monthly_columns else self._monthly_slices(start, end)
+        self.logger.info(
+            f"{self.name}: sync_mode={getattr(sync_mode, 'value', sync_mode)}, incoming state={stream_state}, "
+            f"{len(slices)} slices from {start.format('YYYY-MM-DD')} to {end.format('YYYY-MM-DD')}"
+        )
+        return slices
 
     def _monthly_slices(self, start, end) -> List[Mapping[str, Any]]:
         slices = []
@@ -631,99 +692,96 @@ class QuickbooksReportMonthlyBase(HttpStream):
             self._first_dimension_total_only = False
 
     def read_records(self, sync_mode, cursor_field=None, stream_slice=None, stream_state=None):
-        # When second_dimension is set AND we haven't fetched dimension items yet,
-        # we fetch dimension items and manage slicing ourselves.
-        # We detect the initial call by checking if current_dimension_id is None.
-        # Once we set current_dimension_id and call super().read_records(), subsequent
-        # nested calls will have current_dimension_id set and will use normal flow.
-        if self.second_dimension and self.second_dimension != "None" and self.current_dimension_id is None:
-            # When second_dimension is provided, we need to handle slicing ourselves
-            # This is the initial call - we haven't started processing dimensions yet
-
-            # Get all stream slices for the entire period (monthly slices in Mode 3)
-            all_slices = list(self.stream_slices(sync_mode, cursor_field, stream_state))
-
-            # Fetch the dimension items once for the entire period (sync-scoped cache
-            # via DimensionItemsCache so multiple report streams share the lookup)
-            if self._cached_second_dim_pairs is None:
-                second_dimension_items = self._get_dimension_items(self.second_dimension)
-                if second_dimension_items is None:
-                    return
-                self._cached_second_dim_pairs = self._extract_distinct_dimension_pairs(
-                    second_dimension_items, self.second_dimension
-                )
-
-            distinct_items = self._cached_second_dim_pairs
-
-            # Get the parameter name for this dimension type (class/department/customer/vendor)
-            param_name = get_dimension_query_param_name(self.second_dimension)
-
-            # For each time slice, first fetch the total (without dimension filter)
-            # then fetch data for each dimension item
-            for time_slice in all_slices:
-                # First, fetch report without second_dimension filter to get totals
-                self.logger.info(f"Fetching DRIVEPOINT_CLASS_TOTAL report (no {param_name} filter) for period {time_slice['start_date']} to {time_slice['end_date']}")
-
-                # Set dimension info to indicate this is the total
-                self.current_dimension_id = None  # No filter applied
-                self.current_dimension_name = "DRIVEPOINT_CLASS_TOTAL"
-
-                # Fetch records without dimension filter
-                yield from super().read_records(sync_mode, cursor_field, time_slice, stream_state)
-
-                # Track which dimension IDs we've processed for this time slice to detect duplicates
-                processed_ids = set()
-
-                # Now fetch for each distinct Id->Name pair with dimension filter
-                for item_id, item_name in distinct_items.items():
-                    if item_id in processed_ids:
-                        self.logger.error(f"DUPLICATE PROCESSING DETECTED: {param_name}={item_id} (Name: {item_name}) for period {time_slice['start_date']} to {time_slice['end_date']} - SKIPPING!")
-                        continue
-
-                    processed_ids.add(item_id)
-                    self.logger.info(f"Fetching report for {param_name}={item_id} (Name: {item_name}) for period {time_slice['start_date']} to {time_slice['end_date']}")
-
-                    # Set current dimension info for use in request_params and _create_account_records
-                    self.current_dimension_id = item_id
-                    self.current_dimension_name = item_name
-
-                    # Fetch records for this time slice with this dimension filter
-                    yield from super().read_records(sync_mode, cursor_field, time_slice, stream_state)
+        if self._has_second_dimension:
+            # The CDK calls read_records() once per slice. Direct callers (check_connection,
+            # tests) pass no slice, in which case we walk all slices ourselves.
+            time_slices = [stream_slice] if stream_slice else self.stream_slices(sync_mode, cursor_field, stream_state)
+            for time_slice in time_slices:
+                yield from self._read_slice_with_second_dimension(sync_mode, cursor_field, time_slice, stream_state)
+                self._advance_cursor(time_slice)
         else:
-            # Normal flow: no second_dimension OR we're in a nested call with current_dimension_id already set.
-            # Always attempt normal mode first for each period — fallback is per-period, not sticky.
-            # This ensures "Not Specified" records are captured whenever QBO can handle the full report.
-            self._first_dimension_fallback_mode = False
+            yield from self._read_slice(sync_mode, cursor_field, stream_slice, stream_state)
+            self._advance_cursor(stream_slice)
 
-            if not self.second_dimension or self.second_dimension == "None":
-                # Only clear dimension info if second_dimension is not configured
-                self.current_dimension_id = None
-                self.current_dimension_name = None
+    def _read_slice_with_second_dimension(self, sync_mode, cursor_field, time_slice, stream_state):
+        """Fetch one time slice: a DRIVEPOINT_CLASS_TOTAL report without the second_dimension
+        filter, then one report per second_dimension item."""
+        # Fetch the dimension items once per sync (sync-scoped cache via DimensionItemsCache
+        # so multiple report streams share the lookup)
+        if self._cached_second_dim_pairs is None:
+            second_dimension_items = self._get_dimension_items(self.second_dimension)
+            if second_dimension_items is None:
+                return
+            self._cached_second_dim_pairs = self._extract_distinct_dimension_pairs(
+                second_dimension_items, self.second_dimension
+            )
 
-            try:
-                records = []
-                for record in super().read_records(sync_mode, cursor_field, stream_slice, stream_state):
-                    records.append(record)
+        distinct_items = self._cached_second_dim_pairs
 
-                # Normal read succeeded — yield all records (includes "Not Specified" column naturally)
-                yield from records
-            except ResultSetBigError as e:
-                # Report too large for this period, fall back to per-dimension batching
-                self.logger.warning(f"ResultSetBigError for period {stream_slice}, switching to fallback mode: {e}")
+        # Get the parameter name for this dimension type (class/department/customer/vendor)
+        param_name = get_dimension_query_param_name(self.second_dimension)
+        period = f"{time_slice.get('start_date')} to {time_slice.get('end_date')}"
+
+        try:
+            # First, fetch report without second_dimension filter to get totals
+            self.logger.info(f"Fetching DRIVEPOINT_CLASS_TOTAL report (no {param_name} filter) for period {period}")
+            self.current_dimension_id = None  # No filter applied
+            self.current_dimension_name = "DRIVEPOINT_CLASS_TOTAL"
+            yield from super().read_records(sync_mode, cursor_field, time_slice, stream_state)
+
+            # Track which dimension IDs we've processed for this time slice to detect duplicates
+            processed_ids = set()
+
+            # Now fetch for each distinct Id->Name pair with dimension filter
+            for item_id, item_name in distinct_items.items():
+                if item_id in processed_ids:
+                    self.logger.error(f"DUPLICATE PROCESSING DETECTED: {param_name}={item_id} (Name: {item_name}) for period {period} - SKIPPING!")
+                    continue
+
+                processed_ids.add(item_id)
+                self.logger.info(f"Fetching report for {param_name}={item_id} (Name: {item_name}) for period {period}")
+
+                # Set current dimension info for use in request_params and _create_account_records
+                self.current_dimension_id = item_id
+                self.current_dimension_name = item_name
+                yield from super().read_records(sync_mode, cursor_field, time_slice, stream_state)
+        finally:
+            self.current_dimension_id = None
+            self.current_dimension_name = None
+
+    def _read_slice(self, sync_mode, cursor_field, stream_slice, stream_state):
+        """Fetch one time slice without second_dimension, falling back to batched
+        first_dimension requests on ResultSetBigError."""
+        # Always attempt normal mode first for each period — fallback is per-period, not sticky.
+        # This ensures "Not Specified" records are captured whenever QBO can handle the full report.
+        self._first_dimension_fallback_mode = False
+        self.current_dimension_id = None
+        self.current_dimension_name = None
+
+        try:
+            records = []
+            for record in super().read_records(sync_mode, cursor_field, stream_slice, stream_state):
+                records.append(record)
+
+            # Normal read succeeded — yield all records (includes "Not Specified" column naturally)
+            yield from records
+        except ResultSetBigError as e:
+            # Report too large for this period, fall back to per-dimension batching
+            self.logger.warning(f"ResultSetBigError for period {stream_slice}, switching to fallback mode: {e}")
+            self._first_dimension_fallback_mode = True
+            yield from self._read_records_with_first_dimension_fallback(sync_mode, cursor_field, stream_slice, stream_state)
+        except Exception as e:
+            # Check if this is a CDK exception wrapping a 10100 error
+            error_str = str(e)
+            if f"'{RESULT_SET_BIG_ERROR_CODE}'" in error_str or f'"{RESULT_SET_BIG_ERROR_CODE}"' in error_str or f"code': '{RESULT_SET_BIG_ERROR_CODE}'" in error_str:
+                self.logger.warning(f"ResultSetBigError (CDK-wrapped) for period {stream_slice}, switching to fallback mode: {e}")
                 self._first_dimension_fallback_mode = True
                 yield from self._read_records_with_first_dimension_fallback(sync_mode, cursor_field, stream_slice, stream_state)
-            except Exception as e:
-                # Check if this is a CDK exception wrapping a 10100 error
-                error_str = str(e)
-                if f"'{RESULT_SET_BIG_ERROR_CODE}'" in error_str or f'"{RESULT_SET_BIG_ERROR_CODE}"' in error_str or f"code': '{RESULT_SET_BIG_ERROR_CODE}'" in error_str:
-                    self.logger.warning(f"ResultSetBigError (CDK-wrapped) for period {stream_slice}, switching to fallback mode: {e}")
-                    self._first_dimension_fallback_mode = True
-                    yield from self._read_records_with_first_dimension_fallback(sync_mode, cursor_field, stream_slice, stream_state)
-                else:
-                    raise
-            finally:
-                # Reset fallback flag after each period so the next period tries normal mode first
-                self._first_dimension_fallback_mode = False
+            else:
+                raise
+        finally:
+            # Reset fallback flag after each period so the next period tries normal mode first
+            self._first_dimension_fallback_mode = False
 
     def request_headers(
             self,
@@ -1144,6 +1202,19 @@ class TransactionListReportMonthly(QuickbooksReportMonthlyBase):
 
     Reference: https://developer.intuit.com/app/developer/qbo/docs/api/accounting/report-entities/transactionlist
     """
+
+    # Full refresh only: the inherited report primary key / StartPeriod cursor don't apply to transaction rows
+    cursor_field = []
+    source_defined_cursor = False
+
+    @property
+    def state(self) -> MutableMapping[str, Any]:
+        return {}
+
+    @state.setter
+    def state(self, value: MutableMapping[str, Any]) -> None:
+        # The CDK assigns state to every stream, even full refresh ones; there is no cursor to track
+        pass
 
     # Maps QBO TransactionList column ColType → (value field, optional id field)
     # in our schemas/transaction_list.json. ColTypes that carry no QBO id use None.

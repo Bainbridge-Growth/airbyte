@@ -228,6 +228,12 @@ poetry run source-quickbooks-drivepoint read --config secrets/config.json --cata
 3. **Flat record structure:** Avoids nested JSON for easier querying
 4. **API rate limits:** QuickBooks has rate limits, connector logs all requests
 5. **Pagination:** Query streams use STARTPOSITION/MAXRESULTS (1000 records per page)
+6. **Incremental sync:** BalanceSheet and ProfitAndLoss support incremental sync (cursor `StartPeriod`,
+   primary key `_Account_id, Class, Dimension1, StartPeriod`, use with Append + Deduped). State holds the
+   first day of the latest fully synced month and is checkpointed after each slice. Each incremental sync
+   re-fetches from `state - incremental_lookback_months` (default 3, never before `start_date`), so
+   back-dated edits older than the window need a full refresh / stream reset. Full refresh ignores state.
+   TransactionList is full refresh only.
 
 ## Code Style & Patterns
 
@@ -242,11 +248,10 @@ poetry run source-quickbooks-drivepoint read --config secrets/config.json --cata
 ## Critical Code Sections
 
 ### `read_records()` in QuickbooksReportMonthlyBase
-- Handles second dimension logic
-- Fetches dimension items once
-- Processes TOTAL report first, then filtered reports
-- Tracks processed IDs to prevent duplicates
-- Catches `ResultSetBigError` and activates first dimension fallback mode
+- The CDK calls it once per slice; it reads that slice and then advances the incremental cursor
+- With second_dimension: `_read_slice_with_second_dimension()` fetches the TOTAL report, then one
+  filtered report per item, for that slice only (direct callers passing no slice get all slices)
+- Without second_dimension: `_read_slice()` catches `ResultSetBigError` and activates first dimension fallback mode
 
 ### `_read_records_with_first_dimension_fallback()` in QuickbooksReportMonthlyBase
 - Activated when QuickBooks returns error 10100 (ResultSetBigError)

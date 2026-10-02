@@ -333,6 +333,16 @@
         "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
         "format": "date-time",
         "group": "date_settings"
+      },
+      "incremental_lookback_months": {
+        "order": 8,
+        "type": "integer",
+        "title": "Incremental Lookback (months)",
+        "description": "Used by incremental syncs of the Balance Sheet and Profit & Loss reports. Each sync re-fetches this many months before the last synced month, to pick up back-dated changes. Older months are only refreshed by a full refresh / stream reset. Defaults to 3.",
+        "default": 3,
+        "minimum": 0,
+        "examples": [3, 6, 12],
+        "group": "date_settings"
       }
     },
     "groups": [

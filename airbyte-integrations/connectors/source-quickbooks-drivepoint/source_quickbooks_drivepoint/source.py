@@ -113,6 +113,9 @@ class SourceQuickbooksDrivepoint(AbstractSource):
         # both BalanceSheet and ProfitAndLoss only hits the API once.
         dimension_cache = DimensionItemsCache()
 
+        # Only used by incremental syncs of BalanceSheet / ProfitAndLoss
+        incremental_lookback_months = config.get("incremental_lookback_months")
+
         streams.extend([
             BalanceSheetReportMonthly(
                 realm_id=realm_id,
@@ -123,6 +126,7 @@ class SourceQuickbooksDrivepoint(AbstractSource):
                 end_date=config.get("end_date"),
                 authenticator=authenticator,
                 dimension_cache=dimension_cache,
+                incremental_lookback_months=incremental_lookback_months,
             ),
             ProfitLossReportMonthly(
                 realm_id=realm_id,
@@ -133,6 +137,7 @@ class SourceQuickbooksDrivepoint(AbstractSource):
                 end_date=config.get("end_date"),
                 authenticator=authenticator,
                 dimension_cache=dimension_cache,
+                incremental_lookback_months=incremental_lookback_months,
             ),
             TransactionListReportMonthly(
                 realm_id=realm_id,

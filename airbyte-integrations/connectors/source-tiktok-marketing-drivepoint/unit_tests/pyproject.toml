@@ -1,0 +1,27 @@
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+[tool.poetry]
+name = "source-tiktok-marketing"
+version = "0.0.0"
+description = "Unit tests for source-tiktok-marketing"
+authors = ["Airbyte <contact@airbyte.io>"]
+[tool.poetry.dependencies]
+python = "^3.10,<3.13"
+airbyte-cdk = "^7.4.1"
+pytest = "^8"
+freezegun = "^1.4.0"
+pytest-mock = "^3.6.1"
+requests-mock = "^1.12.1"
+mock = "^5.1.0"
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore:This class is experimental*"
+]
+markers = [
+    "sandbox_live: makes real network calls against TikTok's sandbox API; excluded by default, run with -m sandbox_live",
+]
+# Exclude sandbox_live tests from the default run (they hit a real, rate-limited
+# sandbox account - see unit_tests/integration/test_gmv_max_sandbox_live.py).
+# An explicit `-m sandbox_live` on the command line overrides this.
+addopts = "-m 'not sandbox_live'"

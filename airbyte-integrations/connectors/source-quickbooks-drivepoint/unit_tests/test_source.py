@@ -722,3 +722,159 @@ def test_result_set_big_error_fallback(requests_mock, mock_firebase_client):
     assert "DRIVEPOINT_CLASS_TOTAL" in class_values, "Should have a DRIVEPOINT_CLASS_TOTAL row"
 
 
+# ---------------------------------------------------------------------------
+# Incremental sync
+# ---------------------------------------------------------------------------
+
+from airbyte_cdk.models import SyncMode
+from airbyte_cdk.test.catalog_builder import CatalogBuilder
+from airbyte_cdk.test.entrypoint_wrapper import discover, read
+from airbyte_cdk.test.state_builder import StateBuilder
+
+_PANL_STREAM = "profit_loss_report_monthly"
+_PANL_URL = "https://quickbooks.api.intuit.com/v3/company/123456789/reports/ProfitAndLoss"
+
+
+def _second_dimension_config(**overrides):
+    # Must be valid against spec.json since it goes through the CDK entrypoint
+    config = {
+        "realm_id": "123456789",
+        "company_id": "test_company",
+        "client_id": "test_client_id",
+        "client_secret": "test_client_secret",
+        "start_date": "2024-01-01T00:00:00Z",
+        "end_date": "2024-03-31T00:00:00Z",
+        "accounting_method": {"selected_method": "Accrual"},
+        "profit_loss_settings": {
+            "summarize_column": {"selected_first_dimension": "Classes"},
+            "second_dimension": {"selected_second_dimension": "Departments"}
+        }
+    }
+    config.update(overrides)
+    return {k: v for k, v in config.items() if v is not None}
+
+
+def _mock_second_dimension_api(requests_mock):
+    """Mock token, Departments query and P&L; returns the list of (start_date, department) P&L calls."""
+    requests_mock.post(
+        "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer",
+        json={"access_token": "fake-token", "expires_in": 3600, "token_type": "Bearer"}
+    )
+    requests_mock.get(
+        "https://quickbooks.api.intuit.com/v3/company/123456789/query",
+        json=load_test_data("api_responses/departments_query.json")
+    )
+
+    calls = []
+
+    def report_callback(request, context):
+        calls.append((request.qs["start_date"][0], request.qs.get("department", [None])[0]))
+        context.status_code = 200
+        return load_test_data("api_responses/pandl_with_classes_second_dimension_TOTAL.json")
+
+    requests_mock.get(_PANL_URL, json=report_callback)
+    return calls
+
+
+def _panl_catalog(sync_mode):
+    return CatalogBuilder().with_stream(_PANL_STREAM, sync_mode).build()
+
+
+def _state_dict(stream_state):
+    return {k: v for k, v in stream_state.__dict__.items()}
+
+
+def test_report_streams_primary_key_and_incremental_support(requests_mock, mock_firebase_client):
+    output = discover(SourceQuickbooksDrivepoint(), _second_dimension_config())
+    streams = {s.name: s for s in output.catalog.catalog.streams}
+
+    for name in ("profit_loss_report_monthly", "balance_sheet_report_monthly"):
+        assert streams[name].source_defined_primary_key == [["_Account_id"], ["Class"], ["Dimension1"], ["StartPeriod"]]
+        assert SyncMode.incremental in streams[name].supported_sync_modes
+        assert streams[name].default_cursor_field == ["StartPeriod"]
+
+    assert streams["transaction_list_report_monthly"].supported_sync_modes == [SyncMode.full_refresh]
+
+
+@freezegun.freeze_time(_NOW.isoformat())
+def test_incremental_first_sync_second_dimension_calls_each_report_once(requests_mock, mock_firebase_client):
+    """Through the real CDK read path (one read_records call per slice), every
+    (month, department) report is requested exactly once and state ends on the last month."""
+    calls = _mock_second_dimension_api(requests_mock)
+
+    output = read(SourceQuickbooksDrivepoint(), _second_dimension_config(), _panl_catalog(SyncMode.incremental))
+
+    expected_calls = [(month, dept) for month in ("2024-01-01", "2024-02-01", "2024-03-01") for dept in (None, "1", "2")]
+    assert calls == expected_calls
+    # 3 months x 3 reports (TOTAL + 2 departments) x 5 accounts x 3 classes
+    assert len(output.records) == 135
+    assert _state_dict(output.most_recent_state.stream_state) == {"StartPeriod": "2024-03-01T00:00:00Z"}
+    # State is checkpointed after each month
+    checkpoints = [_state_dict(m.state.stream.stream_state).get("StartPeriod") for m in output.state_messages]
+    assert checkpoints[:3] == ["2024-01-01T00:00:00Z", "2024-02-01T00:00:00Z", "2024-03-01T00:00:00Z"]
+
+
+@freezegun.freeze_time(_NOW.isoformat())
+def test_incremental_sync_with_state_only_rereads_lookback_window(requests_mock, mock_firebase_client):
+    calls = _mock_second_dimension_api(requests_mock)
+    config = _second_dimension_config(end_date=None, incremental_lookback_months=1)
+    state = StateBuilder().with_stream_state(_PANL_STREAM, {"StartPeriod": "2024-05-01T00:00:00Z"}).build()
+
+    output = read(SourceQuickbooksDrivepoint(), config, _panl_catalog(SyncMode.incremental), state)
+
+    # Cursor month (May) minus 1 month of lookback, up to today (2024-06-15)
+    assert sorted({month for month, _ in calls}) == ["2024-04-01", "2024-05-01", "2024-06-01"]
+    assert len(calls) == 9
+    assert _state_dict(output.most_recent_state.stream_state) == {"StartPeriod": "2024-06-01T00:00:00Z"}
+
+
+@freezegun.freeze_time(_NOW.isoformat())
+def test_full_refresh_ignores_state(requests_mock, mock_firebase_client):
+    calls = _mock_second_dimension_api(requests_mock)
+    state = StateBuilder().with_stream_state(_PANL_STREAM, {"StartPeriod": "2024-03-01T00:00:00Z"}).build()
+
+    read(SourceQuickbooksDrivepoint(), _second_dimension_config(), _panl_catalog(SyncMode.full_refresh), state)
+
+    assert sorted({month for month, _ in calls}) == ["2024-01-01", "2024-02-01", "2024-03-01"]
+    assert len(calls) == 9
+
+
+@freezegun.freeze_time(_NOW.isoformat())
+def test_incremental_slices_respect_start_date_and_monthly_columns(mock_firebase_client):
+    config = {**_CONFIG, "start_date": "2024-03-01", "end_date": None, "incremental_lookback_months": 6}
+    pandl = {type(s).__name__: s for s in SourceQuickbooksDrivepoint().streams(config)}["ProfitLossReportMonthly"]
+
+    # Mode 1 (no dimensions) uses yearly slices; the lookback never goes before start_date
+    slices = pandl.stream_slices(sync_mode=SyncMode.incremental, stream_state={"StartPeriod": "2024-05-01T00:00:00Z"})
+    assert slices == [{"start_date": "2024-03-01", "end_date": "2024-06-15"}]
+
+    # A yearly slice advances the cursor to its last month, not to January
+    pandl.state = {}
+    pandl._advance_cursor({"start_date": "2024-01-01", "end_date": "2024-06-15"})
+    assert pandl.state == {"StartPeriod": "2024-06-01T00:00:00Z"}
+
+    # Lookback crossing a year boundary
+    config = {**_CONFIG, "start_date": "2020-01-01", "end_date": None, "incremental_lookback_months": 6}
+    pandl = {type(s).__name__: s for s in SourceQuickbooksDrivepoint().streams(config)}["ProfitLossReportMonthly"]
+    slices = pandl.stream_slices(sync_mode=SyncMode.incremental, stream_state={"StartPeriod": "2024-03-01T00:00:00Z"})
+    assert slices == [
+        {"start_date": "2023-09-01", "end_date": "2023-12-31"},
+        {"start_date": "2024-01-01", "end_date": "2024-06-15"},
+    ]
+
+
+@freezegun.freeze_time(_NOW.isoformat())
+def test_transaction_list_reads_through_cdk_entrypoint(requests_mock, mock_firebase_client):
+    """The CDK assigns stream.state before reading every stream; TransactionList has no
+    cursor and must accept that (regression: TypeError unhashable type 'list')."""
+    _mock_second_dimension_api(requests_mock)
+    requests_mock.get(
+        "https://quickbooks.api.intuit.com/v3/company/123456789/reports/TransactionList",
+        json=load_test_data("api_responses/transaction_list_simple.json")
+    )
+    catalog = CatalogBuilder().with_stream("transaction_list_report_monthly", SyncMode.full_refresh).build()
+
+    output = read(SourceQuickbooksDrivepoint(), _second_dimension_config(), catalog)
+
+    assert not output.errors, [e.trace.error.message for e in output.errors]
+    assert len(output.records) == len(load_test_data("expected_results/transaction_list_simple.json"))
