@@ -863,6 +863,21 @@ def test_incremental_slices_respect_start_date_and_monthly_columns(mock_firebase
     ]
 
 
+@pytest.mark.parametrize("lookback, valid", [(0, False), (1, True), (24, True), (25, False), (-3, False)])
+def test_incremental_lookback_months_limits(mock_firebase_client, lookback, valid):
+    config = {**_CONFIG, "incremental_lookback_months": lookback}
+    spec = SourceQuickbooksDrivepoint().spec(MagicMock()).connectionSpecification["properties"]["incremental_lookback_months"]
+    assert (spec["minimum"], spec["maximum"]) == (1, 24)
+
+    if valid:
+        streams = {type(s).__name__: s for s in SourceQuickbooksDrivepoint().streams(config)}
+        assert streams["BalanceSheetReportMonthly"].incremental_lookback_months == lookback
+        assert streams["ProfitLossReportMonthly"].incremental_lookback_months == lookback
+    else:
+        with pytest.raises(ValueError, match="incremental_lookback_months must be between 1 and 24"):
+            SourceQuickbooksDrivepoint().streams(config)
+
+
 @freezegun.freeze_time(_NOW.isoformat())
 def test_transaction_list_reads_through_cdk_entrypoint(requests_mock, mock_firebase_client):
     """The CDK assigns stream.state before reading every stream; TransactionList has no

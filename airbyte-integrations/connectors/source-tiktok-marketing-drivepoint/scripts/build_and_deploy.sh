@@ -14,15 +14,63 @@
 
 set -e
 
+usage() {
+  local name
+  name="$(basename "$0")"
+  cat <<EOF
+Usage: $name <major|minor|patch> <staging|production>
+       $name -h|--help
+
+Builds the source-tiktok-marketing-drivepoint docker image, bumps the connector version
+(metadata.yaml dockerImageTag), pushes the image to Artifact Registry and loads it into
+the Airbyte kind cluster on the target gcloud VM.
+
+Arguments:
+  bump_type     Version part to bump: major, minor or patch (default: patch)
+  environment   Target environment:
+                  staging     -> VM airbyte-qbo-staging
+                  production  -> VM airbyte-quickbooks
+
+Options:
+  -h, --help    Show this help and exit
+
+Examples:
+  $name patch staging
+  $name minor production
+EOF
+}
+
+if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+  usage
+  exit 0
+fi
+
 # Parse arguments
 BUMP_TYPE=${1:-patch}
 if [[ "$BUMP_TYPE" != "major" && "$BUMP_TYPE" != "minor" && "$BUMP_TYPE" != "patch" ]]; then
   echo "Invalid bump type: $BUMP_TYPE. Must be 'major', 'minor', or 'patch'."
+  echo
+  usage
   exit 1
 fi
 
+ENVIRONMENT=${2}
+case "$ENVIRONMENT" in
+  staging)
+    VM_INSTANCE_NAME="airbyte-qbo-staging"
+    ;;
+  production)
+    VM_INSTANCE_NAME="airbyte-quickbooks"
+    ;;
+  *)
+    echo "Must provide target environment name as a second argument ('staging' or 'production')."
+    echo
+    usage
+    exit 1
+    ;;
+esac
+
 GCP_PROJECT="data-infrastructure-324613"
-VM_INSTANCE_NAME="airbyte-quickbooks"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONNECTOR_DIR="$(dirname "$SCRIPT_DIR")"
 METADATA="$CONNECTOR_DIR/metadata.yaml"

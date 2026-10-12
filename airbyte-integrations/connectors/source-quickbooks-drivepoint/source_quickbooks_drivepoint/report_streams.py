@@ -19,6 +19,8 @@ RESULT_SET_BIG_ERROR_CODE = "10100"
 
 # Months re-synced before the saved cursor on incremental syncs, to pick up back-dated edits
 DEFAULT_INCREMENTAL_LOOKBACK_MONTHS = 3
+MIN_INCREMENTAL_LOOKBACK_MONTHS = 1
+MAX_INCREMENTAL_LOOKBACK_MONTHS = 24
 
 
 class ResultSetBigError(Exception):
@@ -214,6 +216,11 @@ class QuickbooksReportMonthlyBase(HttpStream):
         self.incremental_lookback_months = (
             DEFAULT_INCREMENTAL_LOOKBACK_MONTHS if incremental_lookback_months is None else int(incremental_lookback_months)
         )
+        if not MIN_INCREMENTAL_LOOKBACK_MONTHS <= self.incremental_lookback_months <= MAX_INCREMENTAL_LOOKBACK_MONTHS:
+            raise ValueError(
+                f"incremental_lookback_months must be between {MIN_INCREMENTAL_LOOKBACK_MONTHS} and "
+                f"{MAX_INCREMENTAL_LOOKBACK_MONTHS}, got {self.incremental_lookback_months}"
+            )
         self._cursor_value = None  # First day of the latest fully synced month, e.g. "2024-06-01T00:00:00Z"
         super().__init__(authenticator=authenticator, **kwargs)
 

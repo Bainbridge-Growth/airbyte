@@ -231,7 +231,7 @@ poetry run source-quickbooks-drivepoint read --config secrets/config.json --cata
 6. **Incremental sync:** BalanceSheet and ProfitAndLoss support incremental sync (cursor `StartPeriod`,
    primary key `_Account_id, Class, Dimension1, StartPeriod`, use with Append + Deduped). State holds the
    first day of the latest fully synced month and is checkpointed after each slice. Each incremental sync
-   re-fetches from `state - incremental_lookback_months` (default 3, never before `start_date`), so
+   re-fetches from `state - incremental_lookback_months` (default 3, allowed 1-24, never before `start_date`), so
    back-dated edits older than the window need a full refresh / stream reset. Full refresh ignores state.
    TransactionList is full refresh only.
 
