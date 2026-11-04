@@ -3403,8 +3403,12 @@ definitions:
     lookback_window: P{{ config.get('look_back_window', 3) }}D
     start_datetime:
       type: MinMaxDatetime
-      datetime: "{{ config.get('start_date', (today_utc() - duration('P1D')).strftime('%Y-%m-%d')) }}"
-      # Amazon Ads Sponsored Brands reports have a 60-day data retention limit.
+      # Default to the retention floor, not yesterday. The cursor computes
+      # max(start_datetime, state_cursor - lookback_window). A default of
+      # yesterday is at or after the cursor, so it clamps lookback to zero and
+      # a failed daily sync is never retried.
+      datetime: "{{ config.get('start_date', (today_utc() - duration('P60D')).strftime('%Y-%m-%d')) }}"
+      # Amazon Ads reports have a 60-day data retention limit.
       # https://advertising.amazon.com/API/docs/en-us/guides/reporting/v3/report-types
       min_datetime: "{{ today_utc() - duration('P60D') }}"
       datetime_format: "%Y-%m-%d"

@@ -511,6 +511,21 @@ _ALL_DAILY_STREAMS = [
 ]
 
 
+def test_default_start_datetime_does_not_clamp_lookback() -> None:
+    """An unset start_date must not default to yesterday.
+
+    DatetimeBasedCursor uses max(start_datetime, cursor - lookback). Yesterday is
+    at or after the saved cursor, which discards look_back_window and leaves a
+    failed day missing forever.
+    """
+    manifest = yaml.safe_load(_MANIFEST_PATH.read_text())
+    cursor = manifest["definitions"]["incremental_sync_report_datetime_cursor"]
+    default_start = cursor["start_datetime"]["datetime"]
+    assert "P60D" in default_start
+    assert "P1D" not in default_start
+    assert "P{{ config.get('look_back_window', 3) }}D" == cursor["lookback_window"]
+
+
 @pytest.mark.parametrize("stream_name", _ALL_DAILY_STREAMS)
 def test_daily_stream_schema_has_date_in_properties(stream_name: str) -> None:
     """Verify that the `date` field used as PK/cursor is inside `properties`."""
