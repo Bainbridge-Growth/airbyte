@@ -369,3 +369,87 @@ class Vendors(QueryStreamBase):
     @property
     def entity_name(self) -> str:
         return "Vendor"
+
+
+class TransactionQueryStreamBase(QueryStreamBase):
+    """
+    Transaction entities have no Active field, so the Active filter must be omitted
+    """
+
+    def api_query(self, start_time, end_time, start_position) -> str:
+        return f"""SELECT * FROM {self.entity_name}
+                WHERE Metadata.LastUpdatedTime > '{start_time}'
+                AND Metadata.LastUpdatedTime <= '{end_time}'
+                ORDER BY Metadata.LastUpdatedTime ASC
+                STARTPOSITION {start_position}
+                MAXRESULTS {MAX_RESULTS_PER_PAGE}"""
+
+
+class BillPayments(TransactionQueryStreamBase):
+    @property
+    def name(self) -> str:
+        return "bill_payments"
+
+    @property
+    def entity_name(self) -> str:
+        return "BillPayment"
+
+
+class CreditMemos(TransactionQueryStreamBase):
+    @property
+    def name(self) -> str:
+        return "credit_memos"
+
+    @property
+    def entity_name(self) -> str:
+        return "CreditMemo"
+
+
+class Deposits(TransactionQueryStreamBase):
+    @property
+    def name(self) -> str:
+        return self.__class__.__name__.lower()
+
+    @property
+    def entity_name(self) -> str:
+        return "Deposit"
+
+
+class RefundReceipts(TransactionQueryStreamBase):
+    @property
+    def name(self) -> str:
+        return "refund_receipts"
+
+    @property
+    def entity_name(self) -> str:
+        return "RefundReceipt"
+
+
+class SalesReceipts(TransactionQueryStreamBase):
+    @property
+    def name(self) -> str:
+        return "sales_receipts"
+
+    @property
+    def entity_name(self) -> str:
+        return "SalesReceipt"
+
+
+class Transfers(TransactionQueryStreamBase):
+    @property
+    def name(self) -> str:
+        return self.__class__.__name__.lower()
+
+    @property
+    def entity_name(self) -> str:
+        return "Transfer"
+
+
+class VendorCredits(TransactionQueryStreamBase):
+    @property
+    def name(self) -> str:
+        return "vendor_credits"
+
+    @property
+    def entity_name(self) -> str:
+        return "VendorCredit"

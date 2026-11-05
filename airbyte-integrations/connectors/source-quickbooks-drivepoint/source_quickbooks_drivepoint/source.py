@@ -11,7 +11,28 @@ from source_quickbooks_drivepoint.report_streams import (
     ProfitLossReportMonthly,
     TransactionListReportMonthly,
 )
-from source_quickbooks_drivepoint.query_streams import Accounts, Bills, Classes, Customers, Departments, Employees, Items, JournalEntries, Invoices, Payments, PurchaseOrders, Purchases, Vendors
+from source_quickbooks_drivepoint.query_streams import (
+    Accounts,
+    BillPayments,
+    Bills,
+    Classes,
+    CreditMemos,
+    Customers,
+    Departments,
+    Deposits,
+    Employees,
+    Items,
+    JournalEntries,
+    Invoices,
+    Payments,
+    PurchaseOrders,
+    Purchases,
+    RefundReceipts,
+    SalesReceipts,
+    Transfers,
+    VendorCredits,
+    Vendors,
+)
 
 logger = logging.getLogger("airbyte")
 
@@ -72,10 +93,13 @@ class SourceQuickbooksDrivepoint(AbstractSource):
 
         streams = [
             Accounts(realm_id=realm_id, authenticator=authenticator),
+            BillPayments(realm_id=realm_id, authenticator=authenticator),
             Bills(realm_id=realm_id, authenticator=authenticator),
             Classes(realm_id=realm_id, authenticator=authenticator),
+            CreditMemos(realm_id=realm_id, authenticator=authenticator),
             Customers(realm_id=realm_id, authenticator=authenticator),
             Departments(realm_id=realm_id, authenticator=authenticator),
+            Deposits(realm_id=realm_id, authenticator=authenticator),
             Employees(realm_id=realm_id, authenticator=authenticator),
             Items(realm_id=realm_id, authenticator=authenticator),
             JournalEntries(realm_id=realm_id, authenticator=authenticator),
@@ -83,6 +107,10 @@ class SourceQuickbooksDrivepoint(AbstractSource):
             Payments(realm_id=realm_id, authenticator=authenticator),
             PurchaseOrders(realm_id=realm_id, authenticator=authenticator),
             Purchases(realm_id=realm_id, authenticator=authenticator),
+            RefundReceipts(realm_id=realm_id, authenticator=authenticator),
+            SalesReceipts(realm_id=realm_id, authenticator=authenticator),
+            Transfers(realm_id=realm_id, authenticator=authenticator),
+            VendorCredits(realm_id=realm_id, authenticator=authenticator),
             Vendors(realm_id=realm_id, authenticator=authenticator)
         ]
 
