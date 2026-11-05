@@ -920,6 +920,9 @@ def test_transaction_entity_streams_are_discoverable(requests_mock, mock_firebas
         assert "TxnDate" in streams[stream_name].json_schema["properties"]
         assert "_airbyte_emitted_at" in streams[stream_name].json_schema["properties"]
 
+    for stream_name in ("sales_receipts", "refund_receipts", "credit_memos"):
+        assert {"ClassRef", "DepartmentRef"} <= set(streams[stream_name].json_schema["properties"])
+
 
 @pytest.mark.parametrize("stream_name, entity_name", _TRANSACTION_ENTITY_STREAMS)
 def test_transaction_entity_stream_reads_records(requests_mock, mock_firebase_client, stream_name, entity_name):

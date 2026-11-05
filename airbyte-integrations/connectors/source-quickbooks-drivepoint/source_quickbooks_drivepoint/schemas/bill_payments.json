@@ -265,6 +265,18 @@
         "number"
       ]
     },
+    "PrivateNote": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "ProcessBillPayment": {
+      "type": [
+        "null",
+        "boolean"
+      ]
+    },
     "sparse": {
       "type": [
         "null",
