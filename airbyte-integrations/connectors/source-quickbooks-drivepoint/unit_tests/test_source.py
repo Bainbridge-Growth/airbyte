@@ -893,3 +893,80 @@ def test_transaction_list_reads_through_cdk_entrypoint(requests_mock, mock_fireb
 
     assert not output.errors, [e.trace.error.message for e in output.errors]
     assert len(output.records) == len(load_test_data("expected_results/transaction_list_simple.json"))
+
+
+# ---------------------------------------------------------------------------
+# Transaction entity query streams
+# ---------------------------------------------------------------------------
+
+_TRANSACTION_ENTITY_STREAMS = [
+    ("bill_payments", "BillPayment"),
+    ("credit_memos", "CreditMemo"),
+    ("deposits", "Deposit"),
+    ("refund_receipts", "RefundReceipt"),
+    ("sales_receipts", "SalesReceipt"),
+    ("transfers", "Transfer"),
+    ("vendor_credits", "VendorCredit"),
+]
+
+
+def test_transaction_entity_streams_are_discoverable(requests_mock, mock_firebase_client):
+    output = discover(SourceQuickbooksDrivepoint(), _second_dimension_config())
+    streams = {s.name: s for s in output.catalog.catalog.streams}
+
+    for stream_name, _ in _TRANSACTION_ENTITY_STREAMS:
+        assert stream_name in streams
+        assert streams[stream_name].source_defined_primary_key == [["Id"]]
+        assert "TxnDate" in streams[stream_name].json_schema["properties"]
+        assert "_airbyte_emitted_at" in streams[stream_name].json_schema["properties"]
+
+    for stream_name in ("sales_receipts", "refund_receipts", "credit_memos"):
+        assert {"ClassRef", "DepartmentRef"} <= set(streams[stream_name].json_schema["properties"])
+
+
+def _integer_fields(schema, path=""):
+    found = []
+    if "integer" in schema.get("type", []):
+        found.append(path)
+    for key, child in schema.get("properties", {}).items():
+        found += _integer_fields(child, f"{path}.{key}")
+    if isinstance(schema.get("items"), dict):
+        found += _integer_fields(schema["items"], f"{path}[]")
+    return found
+
+
+@pytest.mark.parametrize("stream_name", [name for name, _ in _TRANSACTION_ENTITY_STREAMS])
+def test_transaction_entity_schema_amounts_are_not_integers(requests_mock, mock_firebase_client, stream_name):
+    output = discover(SourceQuickbooksDrivepoint(), _second_dimension_config())
+    schema = {s.name: s for s in output.catalog.catalog.streams}[stream_name].json_schema
+
+    assert all(path.endswith(".LineNum") for path in _integer_fields(schema)), _integer_fields(schema)
+
+
+@pytest.mark.parametrize("stream_name, entity_name", _TRANSACTION_ENTITY_STREAMS)
+def test_transaction_entity_stream_reads_records(requests_mock, mock_firebase_client, stream_name, entity_name):
+    requests_mock.post(
+        "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer",
+        json={"access_token": "fake-token", "expires_in": 3600, "token_type": "Bearer"}
+    )
+    queries = []
+
+    def query_callback(request, context):
+        queries.append(request.qs["query"][0])
+        context.status_code = 200
+        return {"QueryResponse": {entity_name: [
+            {"Id": "1", "TxnDate": "2024-01-15", "TotalAmt": 100.0, "MetaData": {"LastUpdatedTime": "2024-01-16T10:00:00-08:00"}},
+            {"Id": "2", "TxnDate": "2024-02-15", "TotalAmt": 50.5, "MetaData": {"LastUpdatedTime": "2024-02-16T10:00:00-08:00"}},
+        ]}}
+
+    requests_mock.get("https://quickbooks.api.intuit.com/v3/company/123456789/query", json=query_callback)
+    catalog = CatalogBuilder().with_stream(stream_name, SyncMode.full_refresh).build()
+
+    output = read(SourceQuickbooksDrivepoint(), _second_dimension_config(), catalog)
+
+    assert not output.errors, [e.trace.error.message for e in output.errors]
+    assert [r.record.data["Id"] for r in output.records] == ["1", "2"]
+    assert all(r.record.stream == stream_name for r in output.records)
+    assert len(queries) == 1
+    assert f"select * from {entity_name.lower()}" in queries[0]
+    assert "active" not in queries[0]
