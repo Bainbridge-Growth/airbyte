@@ -11,7 +11,7 @@ data:
   connectorSubtype: api
   connectorType: source
   definitionId: 3a1103ad-4e5a-4620-b579-5672f2c8e534
-  dockerImageTag: 0.2.0
+  dockerImageTag: 0.2.2
   dockerRepository: airbyte/source-tiktok-marketing-drivepoint
   documentationUrl: https://docs.airbyte.com/integrations/sources/tiktok-marketing
   externalDocumentationUrls:
