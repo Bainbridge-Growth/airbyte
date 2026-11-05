@@ -924,6 +924,25 @@ def test_transaction_entity_streams_are_discoverable(requests_mock, mock_firebas
         assert {"ClassRef", "DepartmentRef"} <= set(streams[stream_name].json_schema["properties"])
 
 
+def _integer_fields(schema, path=""):
+    found = []
+    if "integer" in schema.get("type", []):
+        found.append(path)
+    for key, child in schema.get("properties", {}).items():
+        found += _integer_fields(child, f"{path}.{key}")
+    if isinstance(schema.get("items"), dict):
+        found += _integer_fields(schema["items"], f"{path}[]")
+    return found
+
+
+@pytest.mark.parametrize("stream_name", [name for name, _ in _TRANSACTION_ENTITY_STREAMS])
+def test_transaction_entity_schema_amounts_are_not_integers(requests_mock, mock_firebase_client, stream_name):
+    output = discover(SourceQuickbooksDrivepoint(), _second_dimension_config())
+    schema = {s.name: s for s in output.catalog.catalog.streams}[stream_name].json_schema
+
+    assert all(path.endswith(".LineNum") for path in _integer_fields(schema)), _integer_fields(schema)
+
+
 @pytest.mark.parametrize("stream_name, entity_name", _TRANSACTION_ENTITY_STREAMS)
 def test_transaction_entity_stream_reads_records(requests_mock, mock_firebase_client, stream_name, entity_name):
     requests_mock.post(

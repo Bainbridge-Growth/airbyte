@@ -55,7 +55,7 @@
     "Balance": {
       "type": [
         "null",
-        "integer"
+        "number"
       ]
     },
     "CustomerMemo": {
@@ -150,7 +150,7 @@
               "UnitPrice": {
                 "type": [
                   "null",
-                  "integer"
+                  "number"
                 ]
               },
               "TaxCodeRef": {
@@ -170,7 +170,7 @@
               "Qty": {
                 "type": [
                   "null",
-                  "integer"
+                  "number"
                 ]
               },
               "ClassRef": {
@@ -316,7 +316,7 @@
         "TotalTax": {
           "type": [
             "null",
-            "integer"
+            "number"
           ]
         }
       },
@@ -443,7 +443,7 @@
     "RemainingCredit": {
       "type": [
         "null",
-        "integer"
+        "number"
       ]
     },
     "ExchangeRate": {
@@ -531,6 +531,118 @@
         "null",
         "string"
       ]
+    },
+    "ARAccountRef": {
+      "type": [
+        "null",
+        "object"
+      ],
+      "properties": {
+        "value": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "name": {
+          "type": [
+            "null",
+            "string"
+          ]
+        }
+      }
+    },
+    "DepositToAccountRef": {
+      "type": [
+        "null",
+        "object"
+      ],
+      "properties": {
+        "value": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "name": {
+          "type": [
+            "null",
+            "string"
+          ]
+        }
+      }
+    },
+    "PaymentMethodRef": {
+      "type": [
+        "null",
+        "object"
+      ],
+      "properties": {
+        "value": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "name": {
+          "type": [
+            "null",
+            "string"
+          ]
+        }
+      }
+    },
+    "InvoiceRef": {
+      "type": [
+        "null",
+        "object"
+      ],
+      "properties": {
+        "value": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "name": {
+          "type": [
+            "null",
+            "string"
+          ]
+        }
+      }
+    },
+    "LinkedTxn": {
+      "type": [
+        "null",
+        "array"
+      ],
+      "items": {
+        "type": [
+          "null",
+          "object"
+        ],
+        "properties": {
+          "TxnId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "TxnType": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "TxnLineId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      }
     },
     "sparse": {
       "type": [

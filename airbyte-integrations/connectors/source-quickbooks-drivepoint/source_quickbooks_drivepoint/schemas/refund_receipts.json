@@ -144,7 +144,7 @@
               "UnitPrice": {
                 "type": [
                   "null",
-                  "integer"
+                  "number"
                 ]
               },
               "ClassRef": {
@@ -208,7 +208,7 @@
     "Balance": {
       "type": [
         "null",
-        "integer"
+        "number"
       ]
     },
     "TxnTaxDetail": {
@@ -216,7 +216,7 @@
         "TotalTax": {
           "type": [
             "null",
-            "integer"
+            "number"
           ]
         }
       },
@@ -496,6 +496,38 @@
         "null",
         "string"
       ]
+    },
+    "LinkedTxn": {
+      "type": [
+        "null",
+        "array"
+      ],
+      "items": {
+        "type": [
+          "null",
+          "object"
+        ],
+        "properties": {
+          "TxnId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "TxnType": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "TxnLineId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      }
     },
     "sparse": {
       "type": [
