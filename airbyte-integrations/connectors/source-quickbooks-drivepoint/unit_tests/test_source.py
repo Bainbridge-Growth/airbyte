@@ -146,8 +146,7 @@ def _run_transaction_list_test(requests_mock, fixture_name):
 
 @freezegun.freeze_time(_NOW.isoformat())
 def test_transaction_list_simple(requests_mock, mock_firebase_client):
-    """TransactionList emits one record per Data row (ignores dimensions; yearly slicing
-    means one API call for the configured 2024 date range)."""
+    """TransactionList emits one record per Data row and ignores dimensions."""
     _run_transaction_list_test(requests_mock, "transaction_list_simple.json")
 
 @freezegun.freeze_time(_NOW.isoformat())
@@ -155,6 +154,64 @@ def test_transaction_list_subt_nat_amount(requests_mock, mock_firebase_client):
     """Production responses use ColType 'subt_nat_amount' (transaction currency) instead of
     'subt_nat_home_amount' (home currency, which the QBO docs sample uses). Both must map to Amount."""
     _run_transaction_list_test(requests_mock, "transaction_list_subt_nat_amount.json")
+
+@freezegun.freeze_time(_NOW.isoformat())
+def test_transaction_list_requests_one_month_per_call(requests_mock, mock_firebase_client):
+    """TransactionList is one API call per month.
+
+    A year-long TransactionList response is truncated by QuickBooks (HTTP 200,
+    rows stop partway through the year). Monthly slices stay complete, and the
+    last slice is clipped to end_date when the range ends mid-month.
+    """
+    from urllib.parse import parse_qs, urlparse
+
+    requests_mock.post(
+        "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer",
+        json={"access_token": "fake-token", "expires_in": 3600, "token_type": "Bearer"}
+    )
+    transaction_mock = requests_mock.get(
+        "https://quickbooks.api.intuit.com/v3/company/123456789/reports/TransactionList",
+        json=load_test_data("api_responses/transaction_list_simple.json")
+    )
+
+    source = SourceQuickbooksDrivepoint()
+    report_stream = next(s for s in source.streams(_CONFIG) if "TransactionList" in s.__class__.__name__)
+
+    slices = list(report_stream.stream_slices(sync_mode="full_refresh"))
+    assert [(s["start_date"], s["end_date"]) for s in slices] == [
+        ("2024-01-01", "2024-01-31"),
+        ("2024-02-01", "2024-02-29"),
+        ("2024-03-01", "2024-03-31"),
+        ("2024-04-01", "2024-04-30"),
+        ("2024-05-01", "2024-05-31"),
+        ("2024-06-01", "2024-06-30"),
+        ("2024-07-01", "2024-07-31"),
+        ("2024-08-01", "2024-08-31"),
+        ("2024-09-01", "2024-09-30"),
+        ("2024-10-01", "2024-10-31"),
+        ("2024-11-01", "2024-11-30"),
+        ("2024-12-01", "2024-12-31"),
+    ]
+
+    report_stream.end_date = "2024-04-10"
+    partial_slices = list(report_stream.stream_slices(sync_mode="full_refresh"))
+    assert [(s["start_date"], s["end_date"]) for s in partial_slices] == [
+        ("2024-01-01", "2024-01-31"),
+        ("2024-02-01", "2024-02-29"),
+        ("2024-03-01", "2024-03-31"),
+        ("2024-04-01", "2024-04-10"),
+    ]
+    report_stream.end_date = _CONFIG["end_date"]
+
+    for stream_slice in slices:
+        list(report_stream.read_records(sync_mode="full_refresh", stream_slice=stream_slice))
+
+    assert transaction_mock.call_count == 12
+    requested = []
+    for request in transaction_mock.request_history:
+        query = parse_qs(urlparse(request.url).query)
+        requested.append((query["start_date"][0], query["end_date"][0]))
+    assert requested == [(s["start_date"], s["end_date"]) for s in slices]
 
 @freezegun.freeze_time(_NOW.isoformat())
 def test_balance_sheet_with_departments_second_dimension(requests_mock, mock_firebase_client):
@@ -881,7 +938,13 @@ def test_incremental_lookback_months_limits(mock_firebase_client, lookback, vali
 @freezegun.freeze_time(_NOW.isoformat())
 def test_transaction_list_reads_through_cdk_entrypoint(requests_mock, mock_firebase_client):
     """The CDK assigns stream.state before reading every stream; TransactionList has no
-    cursor and must accept that (regression: TypeError unhashable type 'list')."""
+    cursor and must accept that (regression: TypeError unhashable type 'list').
+
+    The CDK reads one slice at a time. Jan–Mar is three monthly calls, and this
+    mock returns the same body for each of them.
+    """
+    from urllib.parse import parse_qs, urlparse
+
     _mock_second_dimension_api(requests_mock)
     requests_mock.get(
         "https://quickbooks.api.intuit.com/v3/company/123456789/reports/TransactionList",
@@ -892,7 +955,21 @@ def test_transaction_list_reads_through_cdk_entrypoint(requests_mock, mock_fireb
     output = read(SourceQuickbooksDrivepoint(), _second_dimension_config(), catalog)
 
     assert not output.errors, [e.trace.error.message for e in output.errors]
-    assert len(output.records) == len(load_test_data("expected_results/transaction_list_simple.json"))
+    transaction_requests = [
+        request for request in requests_mock.request_history
+        if "reports/TransactionList" in request.url
+    ]
+    requested = []
+    for request in transaction_requests:
+        query = parse_qs(urlparse(request.url).query)
+        requested.append((query["start_date"][0], query["end_date"][0]))
+    assert requested == [
+        ("2024-01-01", "2024-01-31"),
+        ("2024-02-01", "2024-02-29"),
+        ("2024-03-01", "2024-03-31"),
+    ]
+    rows_per_response = len(load_test_data("expected_results/transaction_list_simple.json"))
+    assert len(output.records) == len(requested) * rows_per_response
 
 
 # ---------------------------------------------------------------------------
