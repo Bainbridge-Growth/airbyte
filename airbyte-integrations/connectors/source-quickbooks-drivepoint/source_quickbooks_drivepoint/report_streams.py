@@ -1215,6 +1215,13 @@ class TransactionListReportMonthly(QuickbooksReportMonthlyBase):
     source_defined_cursor = False
 
     @property
+    def _uses_monthly_columns(self) -> bool:
+        # TransactionList ignores summarize_column_by, so a yearly slice is one
+        # response of every transaction in the year. QuickBooks truncates that
+        # response (HTTP 200, rows simply stop). Monthly slices stay complete.
+        return False
+
+    @property
     def state(self) -> MutableMapping[str, Any]:
         return {}
 

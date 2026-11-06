@@ -11,6 +11,7 @@ This is a custom Airbyte connector that extracts financial reports from QuickBoo
    - `QuickbooksReportMonthlyBase` - Base class for report streams
    - `BalanceSheetReportMonthly` - Balance Sheet implementation
    - `ProfitLossReportMonthly` - Profit & Loss implementation
+   - `TransactionListReportMonthly` - Transaction List, full refresh, one slice per month
 
 2. **query_streams.py** - Query API streams for dimension data
    - `QueryStreamBase` - Base class for query streams
@@ -233,7 +234,9 @@ poetry run source-quickbooks-drivepoint read --config secrets/config.json --cata
    first day of the latest fully synced month and is checkpointed after each slice. Each incremental sync
    re-fetches from `state - incremental_lookback_months` (default 3, allowed 1-24, never before `start_date`), so
    back-dated edits older than the window need a full refresh / stream reset. Full refresh ignores state.
-   TransactionList is full refresh only.
+   TransactionList is full refresh only, and it slices by month. A year-long TransactionList
+   call is truncated by QuickBooks (HTTP 200, rows stop), so it must not use the yearly
+   slices that no-dimension Balance Sheet and P&L use.
 
 ## Code Style & Patterns
 
